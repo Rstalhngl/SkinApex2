@@ -72,7 +72,7 @@ export function WishlistSheet() {
                       src={item.img || "/placeholder.svg"}
                       alt={`${item.type} ${item.title}`}
                       className="max-h-12 max-w-[85%] object-contain"
-                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   <div className="min-w-0 flex-1">

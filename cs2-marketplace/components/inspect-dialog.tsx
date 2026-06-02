@@ -46,7 +46,8 @@ export function InspectDialog({
                 src={skin.img || "/placeholder.svg"}
                 alt={`${skin.type} | ${skin.title}`}
                 className="max-h-full max-w-[80%] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
-                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
               />
             </div>
 

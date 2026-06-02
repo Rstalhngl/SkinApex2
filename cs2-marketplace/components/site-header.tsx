@@ -145,7 +145,7 @@ export function SiteHeader({
                   src={displayAvatar || "/placeholder.svg"}
                   alt={displayName}
                   className="h-full w-full object-cover"
-                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
                 />
               </span>
               <span className="hidden flex-col items-start leading-tight sm:flex">
