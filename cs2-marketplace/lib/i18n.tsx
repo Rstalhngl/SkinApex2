@@ -142,6 +142,7 @@ const en: Dict = {
   "inspect.yourPrice": "Your Price",
   "inspect.delivery": "Secure P2P Delivery",
   "inspect.tradeable": "Instant Tradeable",
+  "inspect.stickers": "Applied Stickers",
   "inspect.lockAdd": "Lock & Add to Cart",
 
   // Toasts
@@ -327,6 +328,7 @@ const tr: Dict = {
   "inspect.yourPrice": "Fiyatınız",
   "inspect.delivery": "Güvenli P2P Teslimat",
   "inspect.tradeable": "Anında Takas Edilebilir",
+  "inspect.stickers": "Uygulanan Çıkartmalar",
   "inspect.lockAdd": "Kilitle ve Sepete Ekle",
 
   "toast.alreadyInCart": "Zaten sepette",

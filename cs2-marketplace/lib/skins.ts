@@ -35,7 +35,7 @@ export interface Skin {
   isSV: boolean
   popularity: number
   img: string
-  stickers: string[]
+  stickers: { name: string; img: string }[]
   hasFloat?: boolean
 }
 
@@ -157,7 +157,7 @@ export const skins: Skin[] = [
     isSV: false,
     popularity: 95,
     img: "/skins/ak47-bloodsport.png",
-    stickers: ["Crown", "Flame"],
+    stickers: [{ name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Flame", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlz4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
   {
     id: 2,
@@ -174,7 +174,7 @@ export const skins: Skin[] = [
     isSV: false,
     popularity: 88,
     img: "/skins/m4a4-neonoir.png",
-    stickers: ["Skull"],
+    stickers: [{ name: "Skull", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlm4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
   {
     id: 3,
@@ -191,7 +191,7 @@ export const skins: Skin[] = [
     isSV: true,
     popularity: 99,
     img: "/skins/awp-deserthydra.png",
-    stickers: ["Crown", "Crown", "Crown"],
+    stickers: [{ name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
   {
     id: 4,
@@ -225,7 +225,7 @@ export const skins: Skin[] = [
     isSV: false,
     popularity: 92,
     img: "/skins/awp-asiimov.png",
-    stickers: ["Flame", "Flame"],
+    stickers: [{ name: "Flame", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlz4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Flame", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlz4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
   {
     id: 6,
@@ -242,7 +242,7 @@ export const skins: Skin[] = [
     isSV: false,
     popularity: 91,
     img: "/skins/glock-fade.png",
-    stickers: ["Clover"],
+    stickers: [{ name: "Clover", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlo4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
   {
     id: 7,
@@ -293,7 +293,7 @@ export const skins: Skin[] = [
     isSV: false,
     popularity: 85,
     img: "/skins/ak47-empress.png",
-    stickers: ["Star", "Star", "Star", "Star"],
+    stickers: [{ name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
 ]
 

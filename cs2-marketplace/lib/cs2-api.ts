@@ -2,7 +2,7 @@ import type { Skin, Rarity, Exterior } from "./skins"
 
 const BASE = "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en"
 
-const CACHE_KEY = "skx_cs2_v6"         // bump to bust old caches
+const CACHE_KEY = "skx_cs2_v7"         // bump to bust old caches
 const CACHE_TTL = 24 * 60 * 60 * 1000  // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -46,6 +46,10 @@ interface CS2StickerRaw {
   image: string
 }
 
+// ─── Sticker pool (populated when stickers are loaded) ──────────────────────
+// Stores { name, img } objects for weapon sticker decoration
+let stickerPool: { name: string; img: string }[] = []
+
 // ─── Deterministic RNG ──────────────────────────────────────────────────────
 
 function fnv1a(s: string): number {
@@ -65,6 +69,22 @@ function xr(seed: number): number {
 
 function rnd(base: number, off: number, lo: number, hi: number): number {
   return lo + xr(base + off * 1_000_003) * (hi - lo)
+}
+
+// ─── Sticker assignment ─────────────────────────────────────────────────────
+
+function buildStickers(seed: number): { name: string; img: string }[] {
+  if (stickerPool.length === 0) return []
+  // ~35% of weapons have stickers, max 4 slots
+  const chance = xr(seed + 77_777)
+  if (chance > 0.35) return []
+  const count = Math.floor(xr(seed + 88_888) * 4) + 1  // 1-4
+  const result: { name: string; img: string }[] = []
+  for (let i = 0; i < count; i++) {
+    const idx = Math.floor(xr(seed + 99_999 + i * 1_111) * stickerPool.length)
+    result.push(stickerPool[idx])
+  }
+  return result
 }
 
 // ─── Rarity mapping ──────────────────────────────────────────────────────────
@@ -228,7 +248,7 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
     isSV: raw.souvenir ? xr(seed + 6) > 0.75 : false,
     popularity: Math.round(rnd(seed, 4, 20, 100)),
     img: raw.image,
-    stickers: [],
+    stickers: buildStickers(seed),
     hasFloat: true,
   }
 }
@@ -350,6 +370,14 @@ export async function loadCS2Items(): Promise<Skin[]> {
   ])
 
   const items: Skin[] = []
+
+  // Build sticker pool from loaded stickers (non-Default only)
+  stickerPool = stickersRaw
+    .filter(r => r.rarity?.name !== "Default" && r.image)
+    .map(r => ({
+      name: r.name.replace(/^Sticker \| /, "").trim(),
+      img: r.image,
+    }))
 
   skins.forEach((raw, i) => {
     const s = transformSkin(raw, i)

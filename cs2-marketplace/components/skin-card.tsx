@@ -1,19 +1,11 @@
 "use client"
 
-import { Clover, Crown, ExternalLink, Eye, Flame, Heart, Skull, Star, Tag, type LucideIcon } from "lucide-react"
+import { ExternalLink, Eye, Heart, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
-
-const STICKER_ICONS: Record<string, LucideIcon> = {
-  Crown,
-  Flame,
-  Skull,
-  Clover,
-  Star,
-}
 
 export function SkinCard({
   skin,
@@ -147,18 +139,22 @@ export function SkinCard({
       )}
 
       <div className="mb-3 flex min-h-5 gap-1">
-        {skin.stickers.map((name, i) => {
-          const Icon = STICKER_ICONS[name] ?? Star
-          return (
-            <span
-              key={i}
-              className="flex h-[22px] w-[22px] items-center justify-center rounded border border-primary/20 bg-primary/[0.08]"
-              title={name}
-            >
-              <Icon className="h-3 w-3 text-primary" />
-            </span>
-          )
-        })}
+        {skin.stickers.map((sticker, i) => (
+          <span
+            key={i}
+            className="flex h-[22px] w-[22px] items-center justify-center rounded border border-primary/20 bg-primary/[0.08]"
+            title={sticker.name}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={sticker.img}
+              alt={sticker.name}
+              className="h-[18px] w-[18px] object-contain"
+              referrerPolicy="no-referrer"
+              loading="lazy"
+            />
+          </span>
+        ))}
       </div>
 
       <div className="mt-auto">

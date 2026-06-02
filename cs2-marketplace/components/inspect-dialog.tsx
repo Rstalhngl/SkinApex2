@@ -73,6 +73,33 @@ export function InspectDialog({
               </Row>
             </div>
 
+            {/* Stickers */}
+            {skin.stickers.length > 0 && (
+              <div className="space-y-1.5 rounded-lg border border-border bg-input px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  {t("inspect.stickers")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {skin.stickers.map((sticker, i) => (
+                    <span
+                      key={i}
+                      title={sticker.name}
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/20 bg-card"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={sticker.img}
+                        alt={sticker.name}
+                        className="h-7 w-7 object-contain"
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                      />
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Steam links */}
             <div className="flex gap-2">
               <Button
