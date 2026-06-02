@@ -5,13 +5,6 @@ import { LifeBuoy, PackageOpen, Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { SiteHeader } from "@/components/site-header"
 import { LiveTicker } from "@/components/live-ticker"
 import { FilterSidebar, type Filters } from "@/components/filter-sidebar"
@@ -31,6 +24,8 @@ const DEFAULT_FILTERS: Filters = {
   rarity: null,
 }
 
+const SUPPORT_EMAIL = "support@skinapex.gg"
+
 export function Marketplace() {
   const { t } = useI18n()
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
@@ -38,7 +33,6 @@ export function Marketplace() {
   const [myListings, setMyListings] = useState(false)
   const [inspecting, setInspecting] = useState<Skin | null>(null)
   const [selling, setSelling] = useState<Skin | null>(null)
-  const [supportOpen, setSupportOpen] = useState(false)
 
   const visible = useMemo(() => {
     let list = [...skins]
@@ -183,46 +177,13 @@ export function Marketplace() {
       <InspectDialog skin={inspecting} onClose={() => setInspecting(null)} />
       <SellDialog skin={selling} onClose={() => setSelling(null)} />
 
-      {/* Support Dialog */}
-      <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
-        <DialogContent className="border-border bg-card sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <LifeBuoy className="h-5 w-5 text-primary" />
-              {t("support.title")}
-            </DialogTitle>
-            <DialogDescription>{t("support.desc")}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 text-sm text-muted-foreground py-2">
-            <p>{t("support.hours")}</p>
-            <a
-              href="mailto:support@skinapex.gg"
-              className="block font-semibold text-primary hover:underline"
-            >
-              support@skinapex.gg
-            </a>
-            <a
-              href="https://steamcommunity.com/groups/skinapex"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 font-semibold text-[#66c0f4] hover:underline"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
-              </svg>
-              {t("support.steamGroup")}
-            </a>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <button
-        onClick={() => setSupportOpen(true)}
+      <a
+        href={`mailto:${SUPPORT_EMAIL}`}
         className="fixed bottom-3 left-3 z-30 flex items-center gap-1.5 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
       >
         <LifeBuoy className="h-3.5 w-3.5" />
         {t("support.text")}
-      </button>
+      </a>
     </div>
   )
 }

@@ -7,6 +7,7 @@ const nextConfig = {
     unoptimized: true,
   },
   allowedDevOrigins: ["*.agent.cvm.dev", "*.cvm.dev"],
+  devIndicators: false,
 }
 
 export default nextConfig
