@@ -14,6 +14,14 @@ import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
+const WEAR_FILTER: Record<string, string> = {
+  FN: "",
+  MW: "brightness(0.96) saturate(0.92)",
+  FT: "brightness(0.88) saturate(0.78) contrast(1.04)",
+  WW: "brightness(0.78) saturate(0.62) contrast(1.08) sepia(0.12)",
+  BS: "brightness(0.65) saturate(0.45) contrast(1.12) sepia(0.22) grayscale(0.15)",
+}
+
 export function InspectDialog({
   skin,
   onClose,
@@ -46,6 +54,7 @@ export function InspectDialog({
                 src={skin.img || "/placeholder.svg"}
                 alt={`${skin.type} | ${skin.title}`}
                 className="max-h-full max-w-[80%] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
+                style={{ filter: skin.hasFloat !== false ? (WEAR_FILTER[skin.exterior] || "") : "" }}
                 referrerPolicy="no-referrer"
                 onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
               />
