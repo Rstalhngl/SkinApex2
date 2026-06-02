@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server"
 
-const CALLBACK_URL =
-  "https://b356ffc2ae2bd8eb1422-pod-52sv36mvrvgg3ldobesslmrggi-3000.us5.cursorvm.com/api/auth/steam/callback"
-
-const REALM =
-  "https://b356ffc2ae2bd8eb1422-pod-52sv36mvrvgg3ldobesslmrggi-3000.us5.cursorvm.com"
+const CALLBACK_URL = "https://skinapex.com/api/auth/steam/callback"
+const REALM = "https://skinapex.com"
 
 export function GET(request: Request) {
   const reqUrl = new URL(request.url)
