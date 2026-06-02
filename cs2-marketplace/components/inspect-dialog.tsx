@@ -14,20 +14,6 @@ import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
-const WEAR_FILTER: Record<string, string> = {
-  FN: "",
-  MW: "saturate(0.88)",
-  FT: "saturate(0.70) contrast(1.06)",
-  WW: "saturate(0.50) contrast(1.10) hue-rotate(-4deg)",
-  BS: "saturate(0.32) contrast(1.14) hue-rotate(-6deg)",
-}
-
-const WEAR_SCRATCH_OPACITY: Record<string, number> = {
-  FN: 0, MW: 0.07, FT: 0.20, WW: 0.35, BS: 0.55,
-}
-
-const SCRATCH_SVG = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E\")"
-
 export function InspectDialog({
   skin,
   onClose,
@@ -54,27 +40,15 @@ export function InspectDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="relative my-2 flex h-44 items-center justify-center rounded-lg bg-[radial-gradient(circle,rgba(56,189,248,0.08)_0%,transparent_70%)] overflow-hidden">
+            <div className="my-2 flex h-44 items-center justify-center rounded-lg bg-[radial-gradient(circle,rgba(56,189,248,0.08)_0%,transparent_70%)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={skin.img || "/placeholder.svg"}
                 alt={`${skin.type} | ${skin.title}`}
-                className="relative max-h-full max-w-[80%] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
-                style={{ filter: skin.hasFloat !== false ? (WEAR_FILTER[skin.exterior] || "") : "" }}
+                className="max-h-full max-w-[80%] object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
                 referrerPolicy="no-referrer"
                 onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
               />
-              {skin.hasFloat !== false && WEAR_SCRATCH_OPACITY[skin.exterior] > 0 && (
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 mix-blend-multiply"
-                  style={{
-                    backgroundImage: SCRATCH_SVG,
-                    backgroundSize: "200px 200px",
-                    opacity: WEAR_SCRATCH_OPACITY[skin.exterior],
-                  }}
-                />
-              )}
             </div>
 
             <div className="space-y-2.5 rounded-lg border border-border bg-input p-4 text-sm">

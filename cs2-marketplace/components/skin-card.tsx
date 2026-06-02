@@ -3,22 +3,9 @@
 import { ExternalLink, Eye, Heart, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, type Exterior, formatPrice, steamMarketUrl } from "@/lib/skins"
+import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
-
-// Wear simulation: desaturation only (no darkening), scratch overlay opacity
-// Mimics Steam's worn appearance — color fades, scratches appear
-const WEAR_CFG: Record<Exterior, { filter: string; scratchOpacity: number }> = {
-  FN: { filter: "",                                                    scratchOpacity: 0     },
-  MW: { filter: "saturate(0.88)",                                      scratchOpacity: 0.07  },
-  FT: { filter: "saturate(0.70) contrast(1.06)",                       scratchOpacity: 0.18  },
-  WW: { filter: "saturate(0.50) contrast(1.10) hue-rotate(-4deg)",     scratchOpacity: 0.32  },
-  BS: { filter: "saturate(0.32) contrast(1.14) hue-rotate(-6deg)",     scratchOpacity: 0.52  },
-}
-
-// SVG scratch/grunge texture as data URI — semi-random diagonal lines
-const SCRATCH_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
 
 export function SkinCard({
   skin,
@@ -35,8 +22,6 @@ export function SkinCard({
   const inCart = isInCart(skin.id)
   const isOwned = skin.owner === "me"
   const isListed = listedSkins.includes(skin.id)
-
-  const wearCfg = skin.hasFloat !== false ? WEAR_CFG[skin.exterior] : null
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-[#243146]">
@@ -64,23 +49,9 @@ export function SkinCard({
           src={skin.img || "/placeholder.svg"}
           alt={`${skin.type} | ${skin.title}`}
           className="max-h-full max-w-[85%] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
-          style={wearCfg?.filter ? { filter: wearCfg.filter } : undefined}
           referrerPolicy="no-referrer"
           loading="lazy"
         />
-        {/* Scratch/grunge overlay — opacity increases with wear */}
-        {wearCfg && wearCfg.scratchOpacity > 0 && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 mix-blend-multiply"
-            style={{
-              backgroundImage: SCRATCH_SVG,
-              backgroundSize: "160px 160px",
-              opacity: wearCfg.scratchOpacity,
-            }}
-          />
-        )}
-
         {/* Hover action buttons */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           {isOwned ? (
