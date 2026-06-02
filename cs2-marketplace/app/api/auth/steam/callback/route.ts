@@ -21,9 +21,14 @@ function getBaseUrl(request: NextRequest): string {
 
 export async function GET(request: NextRequest) {
   const baseUrl = getBaseUrl(request)
-  const params = Object.fromEntries(request.nextUrl.searchParams.entries())
+  const searchParams = request.nextUrl.searchParams
 
-  // Verify with Steam OpenID
+  // Preserve routing token so the final redirect is routable
+  const ingressToken = searchParams.get("_ingress_token")
+
+  const params = Object.fromEntries(searchParams.entries())
+
+  // Verify OpenID assertion with Steam
   const verifyParams = new URLSearchParams({ ...params, "openid.mode": "check_authentication" })
   let isValid = false
   try {
@@ -35,15 +40,16 @@ export async function GET(request: NextRequest) {
     isValid = (await res.text()).includes("is_valid:true")
   } catch { /* network error */ }
 
-  if (!isValid) {
-    return NextResponse.redirect(`${baseUrl}/?authError=1`)
-  }
+  const errorUrl = new URL(baseUrl)
+  errorUrl.pathname = "/"
+  errorUrl.searchParams.set("authError", "1")
+  if (ingressToken) errorUrl.searchParams.set("_ingress_token", ingressToken)
+
+  if (!isValid) return NextResponse.redirect(errorUrl.toString())
 
   const claimedId = params["openid.claimed_id"] ?? ""
   const match = claimedId.match(STEAM_ID_REGEX)
-  if (!match) {
-    return NextResponse.redirect(`${baseUrl}/?authError=1`)
-  }
+  if (!match) return NextResponse.redirect(errorUrl.toString())
 
   const steamId = match[1]
   let steamName: string | null = null
@@ -64,10 +70,13 @@ export async function GET(request: NextRequest) {
     } catch { /* profile info optional */ }
   }
 
-  const redirectTo = new URL(baseUrl)
-  redirectTo.searchParams.set("steamId", steamId)
-  if (steamName) redirectTo.searchParams.set("steamName", steamName)
-  if (steamAvatar) redirectTo.searchParams.set("steamAvatar", steamAvatar)
+  // Redirect back to home with Steam data + routing token
+  const homeUrl = new URL(baseUrl)
+  homeUrl.pathname = "/"
+  homeUrl.searchParams.set("steamId", steamId)
+  if (steamName) homeUrl.searchParams.set("steamName", steamName)
+  if (steamAvatar) homeUrl.searchParams.set("steamAvatar", steamAvatar)
+  if (ingressToken) homeUrl.searchParams.set("_ingress_token", ingressToken)
 
-  return NextResponse.redirect(redirectTo.toString())
+  return NextResponse.redirect(homeUrl.toString())
 }

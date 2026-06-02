@@ -96,15 +96,22 @@ export function SiteHeader({
 
         <div className="flex items-center gap-2 md:gap-4">
           {!isLoggedIn && (
-            <a
-              href="/api/auth/steam"
+            <button
+              type="button"
+              onClick={() => {
+                // Preserve any routing token in the current URL (e.g. Cursor cloud _ingress_token)
+                const params = new URLSearchParams(window.location.search)
+                const token = params.get("_ingress_token")
+                const url = token ? `/api/auth/steam?_ingress_token=${encodeURIComponent(token)}` : "/api/auth/steam"
+                window.location.href = url
+              }}
               className="flex items-center gap-2 rounded-md bg-[#171a21] px-3 py-2 text-xs font-semibold text-white ring-1 ring-inset ring-white/10 transition-all hover:bg-[#1b2838] hover:ring-[#66c0f4]/60"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#66c0f4]" fill="currentColor" aria-hidden="true">
                 <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0zM7.55 18.21l-1.47-.61a2.56 2.56 0 0 0 1.33 1.26 2.56 2.56 0 0 0 3.34-1.38 2.55 2.55 0 0 0 0-1.95 2.55 2.55 0 0 0-1.39-1.39 2.56 2.56 0 0 0-1.96-.02l1.52.63a1.88 1.88 0 1 1-1.45 3.47zm10.74-9.16a3.03 3.03 0 1 0-6.06 0 3.03 3.03 0 0 0 6.06 0zm-5.3 0a2.27 2.27 0 1 1 4.54 0 2.27 2.27 0 0 1-4.54 0z" />
               </svg>
               <span className="hidden lg:inline">{t("header.loginSteam")}</span>
-            </a>
+            </button>
           )}
 
           <DropdownMenu>
