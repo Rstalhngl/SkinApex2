@@ -2,7 +2,7 @@ import type { Skin, Rarity, Exterior } from "./skins"
 
 const BASE = "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en"
 
-const CACHE_KEY = "skx_cs2_v5"         // bump to bust old caches
+const CACHE_KEY = "skx_cs2_v6"         // bump to bust old caches
 const CACHE_TTL = 24 * 60 * 60 * 1000  // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -35,6 +35,14 @@ interface CS2MusicKitRaw {
   name: string
   rarity: { id: string; name: string; color: string }
   exclusive?: boolean
+  image: string
+}
+
+interface CS2StickerRaw {
+  id: string
+  name: string
+  rarity: { id: string; name: string; color: string }
+  type?: string
   image: string
 }
 
@@ -121,6 +129,32 @@ function floatForExterior(ext: Exterior, minF: number, maxF: number, seed: numbe
 }
 
 // ─── Price tables ─────────────────────────────────────────────────────────────
+
+// ─── Sticker rarity mapping ──────────────────────────────────────────────────
+// Default       → industrial
+// High Grade    → milspec
+// Remarkable    → restricted
+// Exotic        → classified
+// Extraordinary → covert
+// Contraband    → contraband  (iBUYPOWER Kato 2014 etc.)
+function mapStickerRarity(name: string): Rarity {
+  const n = name.toLowerCase()
+  if (n === "contraband") return "contraband"
+  if (n.includes("extraordinary")) return "covert"
+  if (n.includes("exotic")) return "classified"
+  if (n.includes("remarkable")) return "restricted"
+  if (n.includes("high grade")) return "milspec"
+  return "industrial"
+}
+
+const STICKER_PRICE: Record<Rarity, [number, number]> = {
+  industrial: [0.03, 0.5],
+  milspec:    [0.05, 3],
+  restricted: [0.5, 15],
+  classified: [2, 80],
+  covert:     [10, 500],
+  contraband: [1000, 15000],
+}
 
 const WEAPON_PRICE: Record<Rarity, [number, number]> = {
   industrial: [0.05, 3],
@@ -257,6 +291,41 @@ export function transformMusicKit(raw: CS2MusicKitRaw, index: number): Skin | nu
   }
 }
 
+export function transformSticker(raw: CS2StickerRaw, index: number): Skin | null {
+  if (!raw.image || !raw.name) return null
+
+  // Name format: "Sticker | Name" — extract title
+  const parts = raw.name.split(" | ")
+  const title = parts.length >= 2 ? parts.slice(1).join(" | ").trim() : raw.name.trim()
+  if (!title) return null
+
+  const seed = fnv1a(raw.id)
+  const rarity = mapStickerRarity(raw.rarity.name)
+  const [prMin, prMax] = STICKER_PRICE[rarity]
+  const price = Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const discount = Math.round(rnd(seed, 2, 3, 30))
+  const oldPrice = Math.round(price * (1 + discount / 100) * 100) / 100
+
+  return {
+    id: 6000 + index,
+    owner: xr(seed + 9_999) < 0.04 ? "me" : "other",
+    type: "Sticker",
+    title,
+    exterior: "FN",
+    rarity,
+    float: 0,
+    oldPrice,
+    price,
+    discount,
+    isST: false,
+    isSV: false,
+    popularity: Math.round(rnd(seed, 4, 10, 90)),
+    img: raw.image,
+    stickers: [],
+    hasFloat: false,
+  }
+}
+
 // ─── Public loader ────────────────────────────────────────────────────────────
 
 interface CachedPayload { ts: number; items: Skin[] }
@@ -273,10 +342,11 @@ export async function loadCS2Items(): Promise<Skin[]> {
   } catch {}
 
   // Fetch all sources in parallel
-  const [skins, agents, musicKits] = await Promise.all([
+  const [skins, agents, musicKits, stickersRaw] = await Promise.all([
     fetch(`${BASE}/skins.json`).then(r => r.json()) as Promise<CS2SkinRaw[]>,
     fetch(`${BASE}/agents.json`).then(r => r.json()) as Promise<CS2AgentRaw[]>,
     fetch(`${BASE}/music_kits.json`).then(r => r.json()) as Promise<CS2MusicKitRaw[]>,
+    fetch(`${BASE}/stickers.json`).then(r => r.json()) as Promise<CS2StickerRaw[]>,
   ])
 
   const items: Skin[] = []
@@ -294,6 +364,13 @@ export async function loadCS2Items(): Promise<Skin[]> {
   musicKits.forEach((raw, i) => {
     const m = transformMusicKit(raw, i)
     if (m) items.push(m)
+  })
+
+  stickersRaw.forEach((raw, i) => {
+    // Skip Default rarity stickers (placeholder items)
+    if (raw.rarity?.name === "Default") return
+    const s = transformSticker(raw, i)
+    if (s) items.push(s)
   })
 
   // Cache

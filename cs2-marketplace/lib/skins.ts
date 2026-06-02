@@ -51,6 +51,7 @@ export type CategoryKey =
   | "heavy"
   | "knife"
   | "glove"
+  | "sticker"
   | "music"
   | "agent"
 
@@ -61,6 +62,7 @@ export const CATEGORIES: { key: CategoryKey; icon: string }[] = [
   { key: "heavy", icon: "/categories/heavy.png" },
   { key: "knife", icon: "/categories/knife.png" },
   { key: "glove", icon: "/categories/glove.png" },
+  { key: "sticker", icon: "/categories/sticker.png" },
   { key: "music", icon: "/categories/music.png" },
   { key: "agent", icon: "/categories/agent.png" },
 ]
@@ -92,6 +94,8 @@ const CATEGORY_BY_WEAPON: Record<string, CategoryKey> = {
   "Bloodhound Gloves": "glove", "Broken Fang Gloves": "glove", "Driver Gloves": "glove",
   "Hand Wraps": "glove", "Hydra Gloves": "glove", "Moto Gloves": "glove",
   "Specialist Gloves": "glove", "Sport Gloves": "glove",
+  // Stickers
+  "Sticker": "sticker",
   // Agents & Music Kits
   "Agent": "agent",
   "Music Kit": "music",
@@ -112,6 +116,7 @@ export const WEAPONS_BY_CATEGORY: Record<CategoryKey, string[]> = {
     "Bloodhound Gloves", "Broken Fang Gloves", "Driver Gloves", "Hand Wraps",
     "Hydra Gloves", "Moto Gloves", "Specialist Gloves", "Sport Gloves",
   ],
+  sticker: [],
   music: ["Music Kit"],
   agent: ["Agent"],
 }
