@@ -65,53 +65,49 @@ export const CATEGORIES: { key: CategoryKey; icon: string }[] = [
 ]
 
 const CATEGORY_BY_WEAPON: Record<string, CategoryKey> = {
-  // Rifles & snipers
-  "AK-47": "rifle",
-  M4A4: "rifle",
-  "M4A1-S": "rifle",
-  AWP: "rifle",
-  "Galil AR": "rifle",
-  FAMAS: "rifle",
-  "SG 553": "rifle",
-  AUG: "rifle",
-  "SSG 08": "rifle",
-  G3SG1: "rifle",
-  "SCAR-20": "rifle",
+  // Rifles
+  "AK-47": "rifle", "M4A4": "rifle", "M4A1-S": "rifle", "AWP": "rifle",
+  "Galil AR": "rifle", "FAMAS": "rifle", "SG 553": "rifle", "AUG": "rifle",
+  "SSG 08": "rifle", "G3SG1": "rifle", "SCAR-20": "rifle",
   // SMGs
-  MP7: "smg",
-  MP9: "smg",
-  "MP5-SD": "smg",
-  "MAC-10": "smg",
-  "UMP-45": "smg",
-  P90: "smg",
-  "PP-Bizon": "smg",
+  "MP7": "smg", "MP9": "smg", "MP5-SD": "smg", "MAC-10": "smg",
+  "UMP-45": "smg", "P90": "smg", "PP-Bizon": "smg",
   // Pistols
-  "USP-S": "pistol",
-  "Glock-18": "pistol",
-  "Desert Eagle": "pistol",
-  P2000: "pistol",
-  P250: "pistol",
-  "Five-SeveN": "pistol",
-  "Tec-9": "pistol",
-  "CZ75-Auto": "pistol",
-  "Dual Berettas": "pistol",
-  "R8 Revolver": "pistol",
+  "USP-S": "pistol", "Glock-18": "pistol", "Desert Eagle": "pistol",
+  "P2000": "pistol", "P250": "pistol", "Five-SeveN": "pistol",
+  "Tec-9": "pistol", "CZ75-Auto": "pistol", "Dual Berettas": "pistol", "R8 Revolver": "pistol",
   // Heavy
-  Negev: "heavy",
-  M249: "heavy",
-  Nova: "heavy",
-  XM1014: "heavy",
-  "Sawed-Off": "heavy",
-  "MAG-7": "heavy",
+  "Negev": "heavy", "M249": "heavy", "Nova": "heavy", "XM1014": "heavy",
+  "Sawed-Off": "heavy", "MAG-7": "heavy",
+  // Knives — all types
+  "Bayonet": "knife", "Bowie Knife": "knife", "Butterfly Knife": "knife",
+  "Classic Knife": "knife", "Falchion Knife": "knife", "Flip Knife": "knife",
+  "Gut Knife": "knife", "Huntsman Knife": "knife", "Karambit": "knife",
+  "Kukri Knife": "knife", "M9 Bayonet": "knife", "Navaja Knife": "knife",
+  "Nomad Knife": "knife", "Paracord Knife": "knife", "Shadow Daggers": "knife",
+  "Skeleton Knife": "knife", "Stiletto Knife": "knife", "Survival Knife": "knife",
+  "Talon Knife": "knife", "Ursus Knife": "knife",
+  // Gloves — all types
+  "Bloodhound Gloves": "glove", "Broken Fang Gloves": "glove", "Driver Gloves": "glove",
+  "Hand Wraps": "glove", "Hydra Gloves": "glove", "Moto Gloves": "glove",
+  "Specialist Gloves": "glove", "Sport Gloves": "glove",
 }
 
 export const WEAPONS_BY_CATEGORY: Record<CategoryKey, string[]> = {
-  rifle: ["AK-47", "M4A4", "M4A1-S", "AWP", "Galil AR", "FAMAS", "SG 553", "AUG", "SSG 08"],
+  rifle: ["AK-47", "M4A4", "M4A1-S", "AWP", "Galil AR", "FAMAS", "SG 553", "AUG", "SSG 08", "G3SG1", "SCAR-20"],
   smg: ["MP7", "MP9", "MP5-SD", "MAC-10", "UMP-45", "P90", "PP-Bizon"],
   pistol: ["USP-S", "Glock-18", "Desert Eagle", "P2000", "P250", "Five-SeveN", "Tec-9", "CZ75-Auto", "Dual Berettas", "R8 Revolver"],
   heavy: ["Negev", "M249", "Nova", "XM1014", "Sawed-Off", "MAG-7"],
-  knife: ["Karambit", "Bayonet", "Butterfly Knife", "M9 Bayonet", "Flip Knife", "Huntsman Knife"],
-  glove: ["Sport Gloves", "Driver Gloves", "Specialist Gloves", "Hand Wraps", "Moto Gloves"],
+  knife: [
+    "Bayonet", "Bowie Knife", "Butterfly Knife", "Classic Knife", "Falchion Knife",
+    "Flip Knife", "Gut Knife", "Huntsman Knife", "Karambit", "Kukri Knife",
+    "M9 Bayonet", "Navaja Knife", "Nomad Knife", "Paracord Knife", "Shadow Daggers",
+    "Skeleton Knife", "Stiletto Knife", "Survival Knife", "Talon Knife", "Ursus Knife",
+  ],
+  glove: [
+    "Bloodhound Gloves", "Broken Fang Gloves", "Driver Gloves", "Hand Wraps",
+    "Hydra Gloves", "Moto Gloves", "Specialist Gloves", "Sport Gloves",
+  ],
   music: ["Music Kit"],
   agent: ["Agent"],
 }

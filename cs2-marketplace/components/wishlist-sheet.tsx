@@ -12,14 +12,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
-import { skins, formatPrice } from "@/lib/skins"
+import { formatPrice } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
 export function WishlistSheet() {
-  const { wishlist, toggleWishlist, addToCart } = useMarket()
+  const { wishlist, toggleWishlist, addToCart, items } = useMarket()
   const { t } = useI18n()
-  const items = skins.filter((s) => wishlist.includes(s.id))
+  const wishedItems = items.filter((s) => wishlist.includes(s.id))
 
   return (
     <Sheet>
@@ -51,12 +51,12 @@ export function WishlistSheet() {
           <SheetTitle className="flex items-center gap-2 text-foreground">
             <Heart className="h-5 w-5 fill-favorite text-favorite" />
             {t("wishlist.title")}
-            <span className="text-sm font-normal text-muted-foreground">({items.length})</span>
+            <span className="text-sm font-normal text-muted-foreground">({wishedItems.length})</span>
           </SheetTitle>
           <SheetDescription className="sr-only">{t("wishlist.savedDesc")}</SheetDescription>
         </SheetHeader>
 
-        {items.length === 0 ? (
+        {wishedItems.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <Heart className="h-10 w-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("wishlist.empty")}</p>
@@ -64,7 +64,7 @@ export function WishlistSheet() {
         ) : (
           <ScrollArea className="flex-1">
             <ul className="divide-y divide-border">
-              {items.map((item) => (
+              {wishedItems.map((item) => (
                 <li key={item.id} className="flex items-center gap-3 px-5 py-3">
                   <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-md bg-input">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

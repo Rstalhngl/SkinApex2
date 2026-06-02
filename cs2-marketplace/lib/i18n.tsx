@@ -204,6 +204,12 @@ const en: Dict = {
   "support.desc": "We are here to help 24/7.",
   "support.hours": "Average response time: under 10 minutes.",
   "support.steamGroup": "Join our Steam Group",
+
+  // Marketplace items
+  "items.loading": "Loading all CS2 items...",
+  "items.total": "items in marketplace",
+  "items.showing": "Showing {shown} of {total}",
+  "items.loadMore": "Load More Items",
 }
 
 const tr: Dict = {
@@ -381,6 +387,12 @@ const tr: Dict = {
   "support.desc": "7/24 yardıma hazırız.",
   "support.hours": "Ortalama yanıt süresi: 10 dakikanın altında.",
   "support.steamGroup": "Steam Grubunuza Katılın",
+
+  // Marketplace items
+  "items.loading": "Tüm CS2 itemları yükleniyor...",
+  "items.total": "item marketplace'de mevcut",
+  "items.showing": "{shown} / {total} gösteriliyor",
+  "items.loadMore": "Daha Fazla Yükle",
 }
 
 const de: Dict = {
