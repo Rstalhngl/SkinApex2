@@ -1,0 +1,184 @@
+"use client"
+
+import { Clover, Crown, ExternalLink, Eye, Flame, Heart, Skull, Star, Tag, type LucideIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useMarket } from "@/components/market-provider"
+import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
+import { cn } from "@/lib/utils"
+import { useI18n } from "@/lib/i18n"
+
+const STICKER_ICONS: Record<string, LucideIcon> = {
+  Crown,
+  Flame,
+  Skull,
+  Clover,
+  Star,
+}
+
+export function SkinCard({
+  skin,
+  onInspect,
+  onSell,
+}: {
+  skin: Skin
+  onInspect: (skin: Skin) => void
+  onSell?: (skin: Skin) => void
+}) {
+  const { addToCart, toggleWishlist, isWished, isInCart, listedSkins } = useMarket()
+  const { t } = useI18n()
+  const wished = isWished(skin.id)
+  const inCart = isInCart(skin.id)
+  const isOwned = skin.owner === "me"
+  const isListed = listedSkins.includes(skin.id)
+
+  return (
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-[#243146]">
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <span className="font-semibold">{skin.exterior}</span>
+        <div className="flex items-center gap-1.5">
+          {isOwned && (
+            <span className={cn(
+              "rounded px-1.5 py-0.5 font-bold text-[10px]",
+              isListed
+                ? "bg-success/15 text-success"
+                : "bg-primary/15 text-primary",
+            )}>
+              {isListed ? t("sell.listedBadge") : t("sell.ownedBadge")}
+            </span>
+          )}
+          <span className="rounded bg-success/15 px-1.5 py-0.5 font-bold text-success">-{skin.discount}%</span>
+        </div>
+      </div>
+
+      <div className="relative my-2.5 flex h-[120px] items-center justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={skin.img || "/placeholder.svg"}
+          alt={`${skin.type} | ${skin.title}`}
+          className="max-h-full max-w-[85%] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+          referrerPolicy="no-referrer"
+          loading="lazy"
+        />
+
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          {isOwned ? (
+            /* Owned skin: Sell / Delist + Inspect + Wishlist */
+            <div className="flex w-full gap-1.5">
+              <Button
+                onClick={() => onSell?.(skin)}
+                className={cn(
+                  "h-9 flex-1 text-xs font-bold uppercase tracking-wide",
+                  isListed
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                )}
+              >
+                <Tag className="mr-1 h-3.5 w-3.5" />
+                {isListed ? t("sell.delist") : t("sell.list")}
+              </Button>
+              <button
+                onClick={() => onInspect(skin)}
+                aria-label={t("card.inspect")}
+                className="flex h-9 w-10 items-center justify-center rounded-md border border-border bg-input text-foreground transition-colors hover:border-primary hover:text-primary"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            /* Market skin: Add to Cart + Inspect + Wishlist */
+            <div className="flex w-full gap-1.5">
+              <Button
+                onClick={() => addToCart(skin)}
+                className="h-9 flex-1 bg-primary text-xs font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
+              >
+                {inCart ? t("card.inCart") : t("card.addToCart")}
+              </Button>
+              <button
+                onClick={() => onInspect(skin)}
+                aria-label={t("card.inspect")}
+                className="flex h-9 w-10 items-center justify-center rounded-md border border-border bg-input text-foreground transition-colors hover:border-primary hover:text-primary"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => toggleWishlist(skin)}
+                aria-label={t("card.toggleWishlist")}
+                className={cn(
+                  "flex h-9 w-10 items-center justify-center rounded-md border bg-input transition-colors",
+                  wished ? "border-favorite" : "border-border hover:border-favorite",
+                )}
+              >
+                <Heart
+                  className={cn("h-4 w-4", wished ? "fill-favorite text-favorite" : "text-muted-foreground")}
+                />
+              </button>
+            </div>
+          )}
+          {/* Steam Market link */}
+          <a
+            href={steamMarketUrl(skin.type, skin.title, skin.exterior)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-[#66c0f4] hover:text-[#66c0f4]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+              <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
+            </svg>
+            {t("card.viewOnMarket")}
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
+          <span>{t("card.float")}</span>
+          <strong className="text-foreground">{skin.float.toFixed(4)}</strong>
+        </div>
+        <div className="relative h-1 rounded-full bg-[linear-gradient(90deg,#3b82f6_0%,#10b981_20%,#eab308_40%,#f97316_70%,#ef4444_100%)]">
+          <span
+            className="absolute -top-0.5 h-2 w-1 rounded-sm bg-white shadow-[0_0_4px_#000]"
+            style={{ left: `${Math.min(skin.float * 100, 98)}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mb-3 flex min-h-5 gap-1">
+        {skin.stickers.map((name, i) => {
+          const Icon = STICKER_ICONS[name] ?? Star
+          return (
+            <span
+              key={i}
+              className="flex h-[22px] w-[22px] items-center justify-center rounded border border-primary/20 bg-primary/[0.08]"
+              title={name}
+            >
+              <Icon className="h-3 w-3 text-primary" />
+            </span>
+          )
+        })}
+      </div>
+
+      <div className="mt-auto">
+        <div className="mb-1 flex min-h-[15px] gap-1">
+          {skin.isST && (
+            <span className="rounded border border-stattrak/30 bg-stattrak/15 px-1 py-px text-[9px] font-extrabold text-stattrak">
+              StatTrak™
+            </span>
+          )}
+          {skin.isSV && (
+            <span className="rounded border border-souvenir/30 bg-souvenir/15 px-1 py-px text-[9px] font-extrabold text-souvenir">
+              Souvenir
+            </span>
+          )}
+        </div>
+        <div className="text-[10px] font-bold uppercase text-muted-foreground">{skin.type}</div>
+        <div className="truncate text-sm font-semibold text-foreground">{skin.title}</div>
+        <div className="mt-2.5 flex items-baseline justify-between border-t border-border pt-2">
+          <span className="text-[11px] text-muted-foreground line-through">{formatPrice(skin.oldPrice)}</span>
+          <span className="text-sm font-bold text-success">{formatPrice(skin.price)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
