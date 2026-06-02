@@ -3,30 +3,37 @@ import { NextRequest, NextResponse } from "next/server"
 const STEAM_OPENID = "https://steamcommunity.com/openid/login"
 const STEAM_ID_REGEX = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/
 
-export async function GET(request: NextRequest) {
-  const url = new URL(request.url)
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || url.origin
+function getBaseUrl(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "")
+  }
+  const fwdHost = request.headers.get("x-forwarded-host")
+  const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
+  if (fwdHost && !fwdHost.startsWith("localhost")) {
+    return `${fwdProto}://${fwdHost}`
+  }
+  const host = request.headers.get("host") ?? ""
+  if (host && !host.startsWith("localhost") && !host.startsWith("127.")) {
+    return `https://${host}`
+  }
+  return new URL(request.url).origin
+}
 
-  const params = Object.fromEntries(url.searchParams.entries())
+export async function GET(request: NextRequest) {
+  const baseUrl = getBaseUrl(request)
+  const params = Object.fromEntries(request.nextUrl.searchParams.entries())
 
   // Verify with Steam OpenID
-  const verifyParams = new URLSearchParams({
-    ...params,
-    "openid.mode": "check_authentication",
-  })
-
+  const verifyParams = new URLSearchParams({ ...params, "openid.mode": "check_authentication" })
   let isValid = false
   try {
-    const verifyRes = await fetch(STEAM_OPENID, {
+    const res = await fetch(STEAM_OPENID, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: verifyParams.toString(),
     })
-    const verifyText = await verifyRes.text()
-    isValid = verifyText.includes("is_valid:true")
-  } catch {
-    // network error – reject
-  }
+    isValid = (await res.text()).includes("is_valid:true")
+  } catch { /* network error */ }
 
   if (!isValid) {
     return NextResponse.redirect(`${baseUrl}/?authError=1`)
@@ -54,12 +61,9 @@ export async function GET(request: NextRequest) {
         steamName = player.personaname ?? null
         steamAvatar = player.avatarmedium ?? null
       }
-    } catch {
-      // ignore – profile info optional
-    }
+    } catch { /* profile info optional */ }
   }
 
-  // Build redirect back to home with Steam data in query params
   const redirectTo = new URL(baseUrl)
   redirectTo.searchParams.set("steamId", steamId)
   if (steamName) redirectTo.searchParams.set("steamName", steamName)
