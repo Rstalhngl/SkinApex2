@@ -20,9 +20,15 @@ export function GET(request: Request) {
   const baseUrl = getBaseUrl(request)
   const reqUrl = new URL(request.url)
 
+  // Use short /auth/steam/callback path when base URL is explicitly set,
+  // otherwise fall back to /api/auth/steam/callback
+  const callbackPath = process.env.NEXT_PUBLIC_BASE_URL
+    ? "/auth/steam/callback"
+    : "/api/auth/steam/callback"
+
   // Preserve routing tokens (e.g. Cursor cloud _ingress_token) in callback URL
   const ingressToken = reqUrl.searchParams.get("_ingress_token")
-  const callbackBase = `${baseUrl}/api/auth/steam/callback`
+  const callbackBase = `${baseUrl}${callbackPath}`
   const returnTo = ingressToken
     ? `${callbackBase}?_ingress_token=${encodeURIComponent(ingressToken)}`
     : callbackBase
