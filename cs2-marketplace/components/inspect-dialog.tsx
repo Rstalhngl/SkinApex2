@@ -51,9 +51,11 @@ export function InspectDialog({
             </div>
 
             <div className="space-y-2.5 rounded-lg border border-border bg-input p-4 text-sm">
-              <Row label={t("inspect.floatValue")}>
-                <span className="font-bold text-primary">{skin.float.toFixed(4)}</span>
-              </Row>
+              {skin.hasFloat !== false && (
+                <Row label={t("inspect.floatValue")}>
+                  <span className="font-bold text-primary">{skin.float.toFixed(4)}</span>
+                </Row>
+              )}
               <Row label={t("inspect.discountRate")}>
                 <span className="font-bold text-success">{t("inspect.off", { n: skin.discount })}</span>
               </Row>
@@ -79,7 +81,7 @@ export function InspectDialog({
                 className="flex-1 border-border bg-input text-xs text-foreground hover:border-[#66c0f4] hover:text-[#66c0f4]"
               >
                 <a
-                  href={steamMarketUrl(skin.type, skin.title, skin.exterior)}
+                  href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

@@ -55,7 +55,7 @@ export function SellDialog({
             {isListed ? t("sell.delist") : t("sell.title")}
           </DialogTitle>
           <DialogDescription>
-            {skin.type} | {skin.title} — {skin.exterior}
+            {skin.type} | {skin.title}{skin.hasFloat !== false ? " — " + skin.exterior : ""}
           </DialogDescription>
         </DialogHeader>
 

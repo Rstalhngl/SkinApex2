@@ -1,32 +1,45 @@
 import type { Skin, Rarity, Exterior } from "./skins"
 
-const API_URL =
-  "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/skins.json"
+const BASE = "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en"
 
-// Cache key — bump version when data shape changes
-const CACHE_KEY = "skx_cs2_v3"
-const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
+const CACHE_KEY = "skx_cs2_v5"         // bump to bust old caches
+const CACHE_TTL = 24 * 60 * 60 * 1000  // 24 h
 
-// ─── API shape ──────────────────────────────────────────────────────────────
+// ─── API shapes ──────────────────────────────────────────────────────────────
 
-interface CS2APISkin {
+interface CS2Wear { id: string; name: string }
+
+interface CS2SkinRaw {
   id: string
   name: string
   weapon: { id: string; weapon_id: number; name: string } | null
   category: { id: string; name: string } | null
-  pattern: { id: string; name: string } | null
   min_float: number | null
   max_float: number | null
   rarity: { id: string; name: string; color: string }
   stattrak: boolean
   souvenir: boolean
-  wears: { id: string; name: string }[]
+  wears: CS2Wear[]
+  image: string
+}
+
+interface CS2AgentRaw {
+  id: string
+  name: string
+  rarity: { id: string; name: string; color: string }
+  image: string
+}
+
+interface CS2MusicKitRaw {
+  id: string
+  name: string
+  rarity: { id: string; name: string; color: string }
+  exclusive?: boolean
   image: string
 }
 
 // ─── Deterministic RNG ──────────────────────────────────────────────────────
 
-/** FNV-1a 32-bit hash → stable seed from string id */
 function fnv1a(s: string): number {
   let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) {
@@ -36,43 +49,57 @@ function fnv1a(s: string): number {
   return h >>> 0
 }
 
-/** xorshift32 — yields [0,1) from a 32-bit seed */
 function xr(seed: number): number {
   let s = (seed >>> 0) || 1
-  s ^= s << 13
-  s ^= s >> 17
-  s ^= s << 5
+  s ^= s << 13; s ^= s >> 17; s ^= s << 5
   return (s >>> 0) / 0xffffffff
 }
 
-/** random float in [min, max) using derived seed */
-function rnd(baseSeed: number, offset: number, min: number, max: number): number {
-  return min + xr(baseSeed + offset * 1_000_003) * (max - min)
+function rnd(base: number, off: number, lo: number, hi: number): number {
+  return lo + xr(base + off * 1_000_003) * (hi - lo)
 }
 
-// ─── Rarity mapping ─────────────────────────────────────────────────────────
+// ─── Rarity mapping ──────────────────────────────────────────────────────────
+//
+// Skin rarities (name from API):
+//   Consumer Grade  → industrial
+//   Industrial Grade → industrial
+//   Mil-Spec Grade  → milspec
+//   Restricted      → restricted
+//   Classified      → classified
+//   Covert          → covert
+//   Extraordinary   → covert   ← knives & gloves (★)
+//   Contraband      → contraband  ← ONLY M4A4 Howl
+//
+// Agent rarities:
+//   Distinguished   → milspec
+//   Exceptional     → restricted
+//   Superior        → classified
+//   Master          → covert
+//
+// Music kit rarities:
+//   High Grade      → milspec  (all music kits are this)
 
-function mapRarity(rarityName: string): Rarity {
-  const n = rarityName.toLowerCase()
+function mapWeaponRarity(name: string): Rarity {
+  const n = name.toLowerCase()
+  if (n === "contraband") return "contraband"          // only M4A4 Howl
   if (n.includes("covert")) return "covert"
+  if (n.includes("extraordinary")) return "covert"     // knives & gloves
   if (n.includes("classified")) return "classified"
   if (n.includes("restricted")) return "restricted"
   if (n.includes("mil-spec")) return "milspec"
-  if (n.includes("industrial")) return "industrial"
-  if (n.includes("contraband") || n.includes("extraordinary")) return "contraband"
-  return "industrial" // Consumer Grade → treat as industrial
+  return "industrial" // consumer grade + industrial grade
 }
 
-const PRICE_RANGES: Record<Rarity, [number, number]> = {
-  industrial: [0.05, 3],
-  milspec: [0.5, 30],
-  restricted: [2, 80],
-  classified: [15, 300],
-  covert: [60, 1500],
-  contraband: [100, 4000],
+function mapAgentRarity(name: string): Rarity {
+  const n = name.toLowerCase()
+  if (n.includes("master")) return "covert"
+  if (n.includes("superior")) return "classified"
+  if (n.includes("exceptional")) return "restricted"
+  return "milspec" // distinguished
 }
 
-// ─── Exterior / float helpers ────────────────────────────────────────────────
+// ─── Float / exterior helpers ────────────────────────────────────────────────
 
 const WEAR_ID_MAP: Record<string, Exterior> = {
   SFUI_InvTooltip_Wear_Amount_0: "FN",
@@ -83,72 +110,78 @@ const WEAR_ID_MAP: Record<string, Exterior> = {
 }
 
 const EXT_FLOAT: Record<Exterior, [number, number]> = {
-  FN: [0, 0.07],
-  MW: [0.07, 0.15],
-  FT: [0.15, 0.38],
-  WW: [0.38, 0.45],
-  BS: [0.45, 1],
+  FN: [0, 0.07], MW: [0.07, 0.15], FT: [0.15, 0.38], WW: [0.38, 0.45], BS: [0.45, 1],
 }
 
 function floatForExterior(ext: Exterior, minF: number, maxF: number, seed: number): number {
   const [eMin, eMax] = EXT_FLOAT[ext]
-  const lo = Math.max(minF, eMin)
-  const hi = Math.min(maxF, eMax)
+  const lo = Math.max(minF, eMin), hi = Math.min(maxF, eMax)
   if (lo >= hi) return Math.round(((lo + hi) / 2) * 10_000) / 10_000
   return Math.round(rnd(seed, 3, lo, hi) * 10_000) / 10_000
 }
 
-// ─── Transform ───────────────────────────────────────────────────────────────
+// ─── Price tables ─────────────────────────────────────────────────────────────
 
-export function transformCS2Skin(raw: CS2APISkin, index: number): Skin | null {
+const WEAPON_PRICE: Record<Rarity, [number, number]> = {
+  industrial: [0.05, 3],
+  milspec:    [0.5, 30],
+  restricted: [2, 80],
+  classified: [15, 300],
+  covert:     [60, 1500],
+  contraband: [2000, 4500],
+}
+
+const KNIFE_GLOVE_PRICE: [number, number] = [50, 2500]
+
+const AGENT_PRICE: Record<Rarity, [number, number]> = {
+  industrial: [5, 20],
+  milspec:    [10, 50],
+  restricted: [20, 120],
+  classified: [40, 250],
+  covert:     [70, 500],
+  contraband: [100, 600],
+}
+
+const MUSIC_PRICE: [number, number] = [2, 25]
+
+// ─── Transforms ──────────────────────────────────────────────────────────────
+
+export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
   if (!raw.image || !raw.name || !raw.weapon) return null
-
-  const nameParts = raw.name.split(" | ")
-  if (nameParts.length < 2) return null
-
-  // Knife/glove names have "★ " prefix — strip for our type field
-  const typeName = raw.weapon.name.replace(/^★\s*/, "").trim()
-  const title = nameParts.slice(1).join(" | ").trim()
-  if (!title) return null
-
-  // Skip items with no valid wear conditions
   if (!raw.wears || raw.wears.length === 0) return null
 
+  const parts = raw.name.split(" | ")
+  if (parts.length < 2) return null
+
+  const typeName = raw.weapon.name.replace(/^★\s*/, "").trim()
+  const title = parts.slice(1).join(" | ").trim()
+  if (!title) return null
+
   const seed = fnv1a(raw.id)
-
-  // Pick one wear condition deterministically
-  const wearIdx = Math.floor(xr(seed) * raw.wears.length)
-  const wear = raw.wears[wearIdx]
-  const exterior: Exterior = WEAR_ID_MAP[wear.id] ?? "FT"
-
-  const minF = raw.min_float ?? 0
-  const maxF = raw.max_float ?? 1
-  const float = floatForExterior(exterior, minF, maxF, seed)
-
-  const rarity = mapRarity(raw.rarity.name)
+  const rarity = mapWeaponRarity(raw.rarity.name)
 
   const isSpecial =
     raw.category?.name === "Knives" ||
     raw.category?.name === "Gloves" ||
-    typeName.includes("Knife") ||
-    typeName.includes("Karambit") ||
-    typeName.includes("Bayonet") ||
+    typeName.endsWith("Knife") || typeName.endsWith("Knives") ||
+    typeName === "Karambit" || typeName === "Bayonet" ||
     typeName.includes("Dagger") ||
-    typeName.includes("Gloves") ||
-    typeName.includes("Hand Wraps")
+    typeName.endsWith("Gloves") || typeName === "Hand Wraps"
 
-  const [prMin, prMax] = isSpecial ? ([50, 2500] as [number, number]) : PRICE_RANGES[rarity]
+  const wearIdx = Math.floor(xr(seed) * raw.wears.length)
+  const exterior: Exterior = WEAR_ID_MAP[raw.wears[wearIdx].id] ?? "FT"
+
+  const minF = raw.min_float ?? 0, maxF = raw.max_float ?? 1
+  const float = floatForExterior(exterior, minF, maxF, seed)
+
+  const [prMin, prMax] = isSpecial ? KNIFE_GLOVE_PRICE : WEAPON_PRICE[rarity]
   const price = Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
   const discount = Math.round(rnd(seed, 2, 3, 40))
   const oldPrice = Math.round(price * (1 + discount / 100) * 100) / 100
-  const popularity = Math.round(rnd(seed, 4, 20, 100))
-
-  // ~8% of items are "owned" by the current user (to demo sell feature)
-  const isOwned = xr(seed + 9_999) < 0.08
 
   return {
     id: 1000 + index,
-    owner: isOwned ? "me" : "other",
+    owner: xr(seed + 9_999) < 0.08 ? "me" : "other",
     type: typeName,
     title,
     exterior,
@@ -159,51 +192,114 @@ export function transformCS2Skin(raw: CS2APISkin, index: number): Skin | null {
     discount,
     isST: raw.stattrak ? xr(seed + 5) > 0.65 : false,
     isSV: raw.souvenir ? xr(seed + 6) > 0.75 : false,
-    popularity,
+    popularity: Math.round(rnd(seed, 4, 20, 100)),
     img: raw.image,
     stickers: [],
+    hasFloat: true,
   }
 }
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+export function transformAgent(raw: CS2AgentRaw, index: number): Skin | null {
+  if (!raw.image || !raw.name) return null
 
-interface CachedPayload {
-  ts: number
-  items: Skin[]
+  const seed = fnv1a(raw.id)
+  const rarity = mapAgentRarity(raw.rarity.name)
+  const [prMin, prMax] = AGENT_PRICE[rarity]
+  const price = Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const discount = Math.round(rnd(seed, 2, 5, 30))
+  const oldPrice = Math.round(price * (1 + discount / 100) * 100) / 100
+
+  return {
+    id: 4000 + index,
+    owner: xr(seed + 9_999) < 0.06 ? "me" : "other",
+    type: "Agent",
+    title: raw.name,
+    exterior: "FN",
+    rarity,
+    float: 0,
+    oldPrice,
+    price,
+    discount,
+    isST: false,
+    isSV: false,
+    popularity: Math.round(rnd(seed, 4, 20, 90)),
+    img: raw.image,
+    stickers: [],
+    hasFloat: false,
+  }
 }
 
+export function transformMusicKit(raw: CS2MusicKitRaw, index: number): Skin | null {
+  if (!raw.image || !raw.name) return null
+
+  const seed = fnv1a(raw.id)
+  const price = Math.round(rnd(seed, 1, MUSIC_PRICE[0], MUSIC_PRICE[1]) * 100) / 100
+  const discount = Math.round(rnd(seed, 2, 3, 25))
+  const oldPrice = Math.round(price * (1 + discount / 100) * 100) / 100
+
+  return {
+    id: 5000 + index,
+    owner: xr(seed + 9_999) < 0.05 ? "me" : "other",
+    type: "Music Kit",
+    title: raw.name,
+    exterior: "FN",
+    rarity: "milspec",
+    float: 0,
+    oldPrice,
+    price,
+    discount,
+    isST: false,
+    isSV: false,
+    popularity: Math.round(rnd(seed, 4, 20, 80)),
+    img: raw.image,
+    stickers: [],
+    hasFloat: false,
+  }
+}
+
+// ─── Public loader ────────────────────────────────────────────────────────────
+
+interface CachedPayload { ts: number; items: Skin[] }
+
 export async function loadCS2Items(): Promise<Skin[]> {
-  // 1. Try localStorage cache
+  // Try cache
   try {
     const raw = localStorage.getItem(CACHE_KEY)
     if (raw) {
       const cached: CachedPayload = JSON.parse(raw)
-      if (Date.now() - cached.ts < CACHE_TTL && cached.items.length > 0) {
+      if (Date.now() - cached.ts < CACHE_TTL && cached.items.length > 0)
         return cached.items
-      }
     }
-  } catch {
-    // ignore parse/storage errors
-  }
+  } catch {}
 
-  // 2. Fetch from GitHub
-  const res = await fetch(API_URL)
-  if (!res.ok) throw new Error(`CS2 API ${res.status}`)
-
-  const data: CS2APISkin[] = await res.json()
+  // Fetch all sources in parallel
+  const [skins, agents, musicKits] = await Promise.all([
+    fetch(`${BASE}/skins.json`).then(r => r.json()) as Promise<CS2SkinRaw[]>,
+    fetch(`${BASE}/agents.json`).then(r => r.json()) as Promise<CS2AgentRaw[]>,
+    fetch(`${BASE}/music_kits.json`).then(r => r.json()) as Promise<CS2MusicKitRaw[]>,
+  ])
 
   const items: Skin[] = []
-  data.forEach((raw, i) => {
-    const skin = transformCS2Skin(raw, i)
-    if (skin) items.push(skin)
+
+  skins.forEach((raw, i) => {
+    const s = transformSkin(raw, i)
+    if (s) items.push(s)
   })
 
-  // 3. Persist
+  agents.forEach((raw, i) => {
+    const a = transformAgent(raw, i)
+    if (a) items.push(a)
+  })
+
+  musicKits.forEach((raw, i) => {
+    const m = transformMusicKit(raw, i)
+    if (m) items.push(m)
+  })
+
+  // Cache
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), items }))
-  } catch {
-    // storage full — continue without cache
-  }
+  } catch {}
 
   return items
 }

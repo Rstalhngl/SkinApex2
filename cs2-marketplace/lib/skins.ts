@@ -36,6 +36,7 @@ export interface Skin {
   popularity: number
   img: string
   stickers: string[]
+  hasFloat?: boolean
 }
 
 export const CURRENT_USER = {
@@ -91,6 +92,9 @@ const CATEGORY_BY_WEAPON: Record<string, CategoryKey> = {
   "Bloodhound Gloves": "glove", "Broken Fang Gloves": "glove", "Driver Gloves": "glove",
   "Hand Wraps": "glove", "Hydra Gloves": "glove", "Moto Gloves": "glove",
   "Specialist Gloves": "glove", "Sport Gloves": "glove",
+  // Agents & Music Kits
+  "Agent": "agent",
+  "Music Kit": "music",
 }
 
 export const WEAPONS_BY_CATEGORY: Record<CategoryKey, string[]> = {
@@ -308,7 +312,12 @@ export function formatPrice(value: number) {
   }).format(value)
 }
 
-export function steamMarketUrl(type: string, title: string, exterior: Exterior): string {
+export function steamMarketUrl(type: string, title: string, exterior: Exterior, hasFloat?: boolean): string {
+  if (hasFloat === false) {
+    // Agents and music kits: no exterior suffix
+    const itemName = type === "Agent" || type === "Music Kit" ? title : `${type} | ${title}`
+    return `https://steamcommunity.com/market/listings/730/${encodeURIComponent(itemName)}`
+  }
   const exteriorFull = EXTERIOR_LABELS[exterior]
   const itemName = `${type} | ${title} (${exteriorFull})`
   return `https://steamcommunity.com/market/listings/730/${encodeURIComponent(itemName)}`

@@ -116,7 +116,7 @@ export function SkinCard({
           )}
           {/* Steam Market link */}
           <a
-            href={steamMarketUrl(skin.type, skin.title, skin.exterior)}
+            href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-[#66c0f4] hover:text-[#66c0f4]"
@@ -131,18 +131,20 @@ export function SkinCard({
         </div>
       </div>
 
-      <div className="mb-3">
-        <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
-          <span>{t("card.float")}</span>
-          <strong className="text-foreground">{skin.float.toFixed(4)}</strong>
+      {skin.hasFloat !== false && (
+        <div className="mb-3">
+          <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
+            <span>{t("card.float")}</span>
+            <strong className="text-foreground">{skin.float.toFixed(4)}</strong>
+          </div>
+          <div className="relative h-1 rounded-full bg-[linear-gradient(90deg,#3b82f6_0%,#10b981_20%,#eab308_40%,#f97316_70%,#ef4444_100%)]">
+            <span
+              className="absolute -top-0.5 h-2 w-1 rounded-sm bg-white shadow-[0_0_4px_#000]"
+              style={{ left: `${Math.min(skin.float * 100, 98)}%` }}
+            />
+          </div>
         </div>
-        <div className="relative h-1 rounded-full bg-[linear-gradient(90deg,#3b82f6_0%,#10b981_20%,#eab308_40%,#f97316_70%,#ef4444_100%)]">
-          <span
-            className="absolute -top-0.5 h-2 w-1 rounded-sm bg-white shadow-[0_0_4px_#000]"
-            style={{ left: `${Math.min(skin.float * 100, 98)}%` }}
-          />
-        </div>
-      </div>
+      )}
 
       <div className="mb-3 flex min-h-5 gap-1">
         {skin.stickers.map((name, i) => {
