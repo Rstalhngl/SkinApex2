@@ -3,29 +3,12 @@ import { NextRequest, NextResponse } from "next/server"
 const STEAM_OPENID = "https://steamcommunity.com/openid/login"
 const STEAM_ID_REGEX = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/
 
-function getBaseUrl(request: NextRequest): string {
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "")
-  }
-  const fwdHost = request.headers.get("x-forwarded-host")
-  const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
-  if (fwdHost && !fwdHost.startsWith("localhost")) {
-    return `${fwdProto}://${fwdHost}`
-  }
-  const host = request.headers.get("host") ?? ""
-  if (host && !host.startsWith("localhost") && !host.startsWith("127.")) {
-    return `https://${host}`
-  }
-  return new URL(request.url).origin
-}
+const HOME_URL =
+  "https://b356ffc2ae2bd8eb1422-pod-52sv36mvrvgg3ldobesslmrggi-3000.us5.cursorvm.com"
 
 export async function GET(request: NextRequest) {
-  const baseUrl = getBaseUrl(request)
   const searchParams = request.nextUrl.searchParams
-
-  // Preserve routing token so the final redirect is routable
   const ingressToken = searchParams.get("_ingress_token")
-
   const params = Object.fromEntries(searchParams.entries())
 
   // Verify OpenID assertion with Steam
@@ -40,16 +23,18 @@ export async function GET(request: NextRequest) {
     isValid = (await res.text()).includes("is_valid:true")
   } catch { /* network error */ }
 
-  const errorUrl = new URL(baseUrl)
-  errorUrl.pathname = "/"
-  errorUrl.searchParams.set("authError", "1")
-  if (ingressToken) errorUrl.searchParams.set("_ingress_token", ingressToken)
+  const buildHomeUrl = (extra?: Record<string, string>) => {
+    const u = new URL(HOME_URL)
+    if (ingressToken) u.searchParams.set("_ingress_token", ingressToken)
+    if (extra) Object.entries(extra).forEach(([k, v]) => u.searchParams.set(k, v))
+    return u.toString()
+  }
 
-  if (!isValid) return NextResponse.redirect(errorUrl.toString())
+  if (!isValid) return NextResponse.redirect(buildHomeUrl({ authError: "1" }))
 
   const claimedId = params["openid.claimed_id"] ?? ""
   const match = claimedId.match(STEAM_ID_REGEX)
-  if (!match) return NextResponse.redirect(errorUrl.toString())
+  if (!match) return NextResponse.redirect(buildHomeUrl({ authError: "1" }))
 
   const steamId = match[1]
   let steamName: string | null = null
@@ -70,13 +55,9 @@ export async function GET(request: NextRequest) {
     } catch { /* profile info optional */ }
   }
 
-  // Redirect back to home with Steam data + routing token
-  const homeUrl = new URL(baseUrl)
-  homeUrl.pathname = "/"
-  homeUrl.searchParams.set("steamId", steamId)
-  if (steamName) homeUrl.searchParams.set("steamName", steamName)
-  if (steamAvatar) homeUrl.searchParams.set("steamAvatar", steamAvatar)
-  if (ingressToken) homeUrl.searchParams.set("_ingress_token", ingressToken)
+  const extra: Record<string, string> = { steamId }
+  if (steamName) extra.steamName = steamName
+  if (steamAvatar) extra.steamAvatar = steamAvatar
 
-  return NextResponse.redirect(homeUrl.toString())
+  return NextResponse.redirect(buildHomeUrl(extra))
 }
