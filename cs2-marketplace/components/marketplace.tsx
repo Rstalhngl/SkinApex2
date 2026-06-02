@@ -73,7 +73,12 @@ export function Marketplace() {
   const visible = useMemo(() => {
     let list = [...items]
 
-    if (myListings) list = list.filter((s) => s.owner === "me")
+    if (myListings) {
+      list = list.filter((s) => s.owner === "me")
+    } else {
+      // Marketplace shows only items available for purchase (not owned by current user)
+      list = list.filter((s) => s.owner !== "me")
+    }
 
     const q = search.trim().toLowerCase()
     if (q) {

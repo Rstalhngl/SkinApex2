@@ -3,17 +3,22 @@
 import { ExternalLink, Eye, Heart, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
+import { type Skin, type Exterior, formatPrice, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
-const WEAR_FILTER: Record<string, string> = {
-  FN: "",
-  MW: "brightness(0.96) saturate(0.92)",
-  FT: "brightness(0.88) saturate(0.78) contrast(1.04)",
-  WW: "brightness(0.78) saturate(0.62) contrast(1.08) sepia(0.12)",
-  BS: "brightness(0.65) saturate(0.45) contrast(1.12) sepia(0.22) grayscale(0.15)",
+// Wear simulation: desaturation only (no darkening), scratch overlay opacity
+// Mimics Steam's worn appearance — color fades, scratches appear
+const WEAR_CFG: Record<Exterior, { filter: string; scratchOpacity: number }> = {
+  FN: { filter: "",                                                    scratchOpacity: 0     },
+  MW: { filter: "saturate(0.88)",                                      scratchOpacity: 0.07  },
+  FT: { filter: "saturate(0.70) contrast(1.06)",                       scratchOpacity: 0.18  },
+  WW: { filter: "saturate(0.50) contrast(1.10) hue-rotate(-4deg)",     scratchOpacity: 0.32  },
+  BS: { filter: "saturate(0.32) contrast(1.14) hue-rotate(-6deg)",     scratchOpacity: 0.52  },
 }
+
+// SVG scratch/grunge texture as data URI — semi-random diagonal lines
+const SCRATCH_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
 
 export function SkinCard({
   skin,
@@ -30,6 +35,8 @@ export function SkinCard({
   const inCart = isInCart(skin.id)
   const isOwned = skin.owner === "me"
   const isListed = listedSkins.includes(skin.id)
+
+  const wearCfg = skin.hasFloat !== false ? WEAR_CFG[skin.exterior] : null
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-[#243146]">
@@ -50,20 +57,33 @@ export function SkinCard({
         </div>
       </div>
 
+      {/* Weapon image with wear overlay */}
       <div className="relative my-2.5 flex h-[120px] items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={skin.img || "/placeholder.svg"}
           alt={`${skin.type} | ${skin.title}`}
-          className="max-h-full max-w-[85%] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-[filter] duration-200"
-          style={{ filter: WEAR_FILTER[skin.exterior] || "" }}
+          className="max-h-full max-w-[85%] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+          style={wearCfg?.filter ? { filter: wearCfg.filter } : undefined}
           referrerPolicy="no-referrer"
           loading="lazy"
         />
+        {/* Scratch/grunge overlay — opacity increases with wear */}
+        {wearCfg && wearCfg.scratchOpacity > 0 && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 mix-blend-multiply"
+            style={{
+              backgroundImage: SCRATCH_SVG,
+              backgroundSize: "160px 160px",
+              opacity: wearCfg.scratchOpacity,
+            }}
+          />
+        )}
 
+        {/* Hover action buttons */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           {isOwned ? (
-            /* Owned skin: Sell / Delist + Inspect + Wishlist */
             <div className="flex w-full gap-1.5">
               <Button
                 onClick={() => onSell?.(skin)}
@@ -86,7 +106,6 @@ export function SkinCard({
               </button>
             </div>
           ) : (
-            /* Market skin: Add to Cart + Inspect + Wishlist */
             <div className="flex w-full gap-1.5">
               <Button
                 onClick={() => addToCart(skin)}
@@ -109,13 +128,10 @@ export function SkinCard({
                   wished ? "border-favorite" : "border-border hover:border-favorite",
                 )}
               >
-                <Heart
-                  className={cn("h-4 w-4", wished ? "fill-favorite text-favorite" : "text-muted-foreground")}
-                />
+                <Heart className={cn("h-4 w-4", wished ? "fill-favorite text-favorite" : "text-muted-foreground")} />
               </button>
             </div>
           )}
-          {/* Steam Market link */}
           <a
             href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat)}
             target="_blank"
@@ -132,6 +148,7 @@ export function SkinCard({
         </div>
       </div>
 
+      {/* Float bar */}
       {skin.hasFloat !== false && (
         <div className="mb-3">
           <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
@@ -147,6 +164,7 @@ export function SkinCard({
         </div>
       )}
 
+      {/* Stickers */}
       <div className="mb-3 flex min-h-5 gap-1">
         {skin.stickers.map((sticker, i) => (
           <span
@@ -166,6 +184,7 @@ export function SkinCard({
         ))}
       </div>
 
+      {/* Info footer */}
       <div className="mt-auto">
         <div className="mb-1 flex min-h-[15px] gap-1">
           {skin.isST && (
