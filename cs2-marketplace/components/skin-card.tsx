@@ -3,7 +3,7 @@
 import { ExternalLink, Eye, Heart, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
+import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -173,7 +173,12 @@ export function SkinCard({
         <div className="truncate text-sm font-semibold text-foreground">{skin.title}</div>
         <div className="mt-2.5 flex items-baseline justify-between border-t border-border pt-2">
           <span className="text-[11px] text-muted-foreground line-through">{formatPrice(skin.oldPrice)}</span>
-          <span className="text-sm font-bold text-success">{formatPrice(skin.price)}</span>
+          <div className="flex flex-col items-end">
+            <span className="text-sm font-bold text-success">{formatPrice(skin.price)}</span>
+            {skin.hasFloat !== false && (
+              <span className="text-[10px] text-muted-foreground/60">{formatUSD(skin.price)}</span>
+            )}
+          </div>
         </div>
       </div>
     </div>

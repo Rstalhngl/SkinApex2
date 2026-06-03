@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice, steamMarketUrl } from "@/lib/skins"
+import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -64,7 +64,10 @@ export function InspectDialog({
                 <span className="text-muted-foreground line-through">{formatPrice(skin.oldPrice)}</span>
               </Row>
               <Row label={t("inspect.yourPrice")}>
-                <span className="font-bold text-success">{formatPrice(skin.price)}</span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="font-bold text-success">{formatPrice(skin.price)}</span>
+                  <span className="text-[10px] text-muted-foreground/70">{t("inspect.steamRef")} {formatUSD(skin.price)}</span>
+                </div>
               </Row>
               <Row label={t("inspect.delivery")}>
                 <span className="flex items-center gap-1 font-bold text-success">

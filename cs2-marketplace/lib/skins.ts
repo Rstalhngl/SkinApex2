@@ -331,6 +331,15 @@ export function formatPrice(value: number) {
   }).format(Math.round(value * _usdToTry))
 }
 
+/** Raw USD price for Steam reference display */
+export function formatUSD(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
 export function steamMarketUrl(type: string, title: string, exterior: Exterior, hasFloat?: boolean, marketHashName?: string): string {
   if (marketHashName) {
     return `https://steamcommunity.com/market/listings/730/${encodeURIComponent(marketHashName)}`

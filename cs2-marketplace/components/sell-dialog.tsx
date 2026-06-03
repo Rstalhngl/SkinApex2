@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice } from "@/lib/skins"
+import { type Skin, formatPrice, formatUSD } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 
 export function SellDialog({
@@ -85,6 +85,7 @@ export function SellDialog({
               />
               <p className="text-xs text-muted-foreground">
                 {t("sell.marketRef")} {formatPrice(skin.price)}
+                <span className="ml-1 text-muted-foreground/60">({formatUSD(skin.price)})</span>
               </p>
             </div>
           </div>
