@@ -3,9 +3,25 @@ import { NextRequest, NextResponse } from "next/server"
 const STEAM_OPENID = "https://steamcommunity.com/openid/login"
 const STEAM_ID_REGEX = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/
 
-const HOME_URL = "https://skinapex.net"
+function getBaseUrl(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "")
+  }
+  const fwdHost = request.headers.get("x-forwarded-host")
+  const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
+  if (fwdHost) {
+    const host = fwdHost.split(",")[0].trim()
+    return `${fwdProto}://${host}`
+  }
+  const host = request.headers.get("host") ?? ""
+  if (host && !host.startsWith("localhost") && !host.startsWith("127.")) {
+    return `https://${host}`
+  }
+  return new URL(request.url).origin
+}
 
 export async function GET(request: NextRequest) {
+  const baseUrl = getBaseUrl(request)
   const searchParams = request.nextUrl.searchParams
   const ingressToken = searchParams.get("_ingress_token")
   const params = Object.fromEntries(searchParams.entries())
@@ -23,7 +39,7 @@ export async function GET(request: NextRequest) {
   } catch { /* network error */ }
 
   const buildHomeUrl = (extra?: Record<string, string>) => {
-    const u = new URL(HOME_URL)
+    const u = new URL(baseUrl)
     if (ingressToken) u.searchParams.set("_ingress_token", ingressToken)
     if (extra) Object.entries(extra).forEach(([k, v]) => u.searchParams.set(k, v))
     return u.toString()
