@@ -62,6 +62,7 @@ export function OfferDialog({
     if (!isLoggedIn) { toast.error(t("offer.loginRequired")); return }
     const finalTry = Math.max(0, parseInt(inputStr) || 0)
     if (finalTry < minTry) { toast.error(t("offer.tooLow", { min: fmt(minTry) })); return }
+    if (finalTry > listingTry) { toast.error(t("offer.tooHigh", { max: fmt(listingTry) })); return }
     const usdFinal = finalTry / rate
     const userName = steamProfile?.steamName ?? "Anonim"
     sendOffer(
@@ -124,11 +125,15 @@ export function OfferDialog({
                   value={inputStr}
                   onChange={e => setInputStr(e.target.value)}
                   onBlur={e => {
-                    // Clamp only on blur (when user finishes typing)
                     const v = parseInt(e.target.value) || minTry
                     setInputStr(String(Math.min(listingTry, Math.max(minTry, v))))
                   }}
-                  className="border-border bg-input pl-7 text-foreground"
+                  onKeyDown={e => {
+                    // Prevent typing value above listingTry
+                    const cur = parseInt(inputStr) || 0
+                    if (["ArrowUp"].includes(e.key) && cur >= listingTry) e.preventDefault()
+                  }}
+                  className={`border-input bg-input pl-7 text-foreground ${tryValue > listingTry ? "border-destructive focus-visible:ring-destructive" : "border-border"}`}
                 />
               </div>
               <span className="text-[11px] text-muted-foreground min-w-[64px] text-right">
@@ -145,13 +150,18 @@ export function OfferDialog({
               <span>{t("offer.min")} {fmt(minTry)} (%60)</span>
               <span>{t("offer.max")} {fmt(listingTry)} (%100)</span>
             </div>
+            {tryValue > listingTry && (
+              <p className="text-[11px] font-semibold text-destructive">
+                {t("offer.tooHigh", { max: fmt(listingTry) })}
+              </p>
+            )}
           </div>
         </div>
 
         <DialogFooter>
           <Button
             onClick={handleSend}
-            disabled={tryValue < minTry}
+            disabled={tryValue < minTry || tryValue > listingTry}
             className="w-full bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             <Handshake className="mr-2 h-4 w-4" />

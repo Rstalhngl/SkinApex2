@@ -228,6 +228,7 @@ const en: Dict = {
   "offer.sent": "Offer sent",
   "offer.loginRequired": "Please log in to make an offer",
   "offer.tooLow": "Minimum offer is {min} (60%)",
+  "offer.tooHigh": "Maximum offer is the listing price: {max}",
 
   // Offers sheet
   "offers.title": "My Offers",
@@ -444,6 +445,7 @@ const tr: Dict = {
   "offer.sent": "Teklif gönderildi",
   "offer.loginRequired": "Teklif vermek için giriş yapın",
   "offer.tooLow": "Minimum teklif {min} (%60)",
+  "offer.tooHigh": "Maksimum teklif ilan fiyatıdır: {max}",
 
   // Offers sheet
   "offers.title": "Tekliflerim",
