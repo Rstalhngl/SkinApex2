@@ -8,7 +8,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v12"
+const CACHE_KEY = "skx_cs2_v13"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ interface CS2SkinRaw {
 interface CS2AgentRaw {
   id: string
   name: string
+  market_hash_name?: string
   rarity: { id: string; name: string; color: string }
   image: string
 }
@@ -39,6 +40,7 @@ interface CS2AgentRaw {
 interface CS2MusicKitRaw {
   id: string
   name: string
+  market_hash_name?: string
   rarity: { id: string; name: string; color: string }
   image: string
 }
@@ -46,6 +48,7 @@ interface CS2MusicKitRaw {
 interface CS2StickerRaw {
   id: string
   name: string
+  market_hash_name?: string
   rarity: { id: string; name: string; color: string }
   image: string
 }
@@ -271,8 +274,10 @@ export function transformAgent(raw: CS2AgentRaw, index: number): Skin | null {
   if (!raw.image || !raw.name) return null
   const seed = fnv1a(raw.id)
   const rarity = mapAgentRarity(raw.rarity.name)
+  const mhn = raw.market_hash_name || raw.name
+  const realPrice = priceMap[mhn]
   const [prMin, prMax] = AGENT_PRICE[rarity]
-  const price = Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
   const discount = Math.round(rnd(seed, 2, 5, 30))
   return {
     id: 4000 + index,
@@ -286,18 +291,21 @@ export function transformAgent(raw: CS2AgentRaw, index: number): Skin | null {
     price,
     discount,
     isST: false, isSV: false,
-    popularity: Math.round(rnd(seed, 4, 20, 90)),
+    popularity: computePopularity(mhn, seed),
     listedAt: computeListedAt(seed),
     img: raw.image,
     stickers: [],
     hasFloat: false,
+    marketHashName: mhn,
   }
 }
 
 export function transformMusicKit(raw: CS2MusicKitRaw, index: number): Skin | null {
   if (!raw.image || !raw.name) return null
   const seed = fnv1a(raw.id)
-  const price = Math.round(rnd(seed, 1, MUSIC_PRICE[0], MUSIC_PRICE[1]) * 100) / 100
+  const mhn = raw.market_hash_name || `Music Kit | ${raw.name}`
+  const realPrice = priceMap[mhn] || priceMap[`StatTrak™ Music Kit | ${raw.name}`]
+  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, MUSIC_PRICE[0], MUSIC_PRICE[1]) * 100) / 100
   const discount = Math.round(rnd(seed, 2, 3, 25))
   return {
     id: 5000 + index,
@@ -311,11 +319,12 @@ export function transformMusicKit(raw: CS2MusicKitRaw, index: number): Skin | nu
     price,
     discount,
     isST: false, isSV: false,
-    popularity: Math.round(rnd(seed, 4, 20, 80)),
+    popularity: computePopularity(mhn, seed),
     listedAt: computeListedAt(seed),
     img: raw.image,
     stickers: [],
     hasFloat: false,
+    marketHashName: mhn,
   }
 }
 
@@ -326,8 +335,10 @@ export function transformSticker(raw: CS2StickerRaw, index: number): Skin | null
   if (!title) return null
   const seed = fnv1a(raw.id)
   const rarity = mapStickerRarity(raw.rarity.name)
+  const mhn = raw.market_hash_name || raw.name
+  const realPrice = priceMap[mhn]
   const [prMin, prMax] = STICKER_PRICE[rarity]
-  const price = Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
   const discount = Math.round(rnd(seed, 2, 3, 30))
   return {
     id: 6000 + index,
@@ -341,11 +352,12 @@ export function transformSticker(raw: CS2StickerRaw, index: number): Skin | null
     price,
     discount,
     isST: false, isSV: false,
-    popularity: Math.round(rnd(seed, 4, 10, 90)),
+    popularity: computePopularity(mhn, seed),
     listedAt: computeListedAt(seed),
     img: raw.image,
     stickers: [],
     hasFloat: false,
+    marketHashName: mhn,
   }
 }
 
