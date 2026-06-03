@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import type { Skin } from "@/lib/skins"
 import { formatPrice, skins as demoSkins } from "@/lib/skins"
 import { loadCS2Items } from "@/lib/cs2-api"
+import { pushActivity } from "@/lib/activity-feed"
 import { useI18n } from "@/lib/i18n"
 
 export interface SteamProfile {
@@ -162,6 +163,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       toast.success(t("toast.addedToCart"), {
         description: `${skin.type} | ${skin.title} — ${formatPrice(skin.price)}`,
       })
+      pushActivity(`${skin.type} | ${skin.title}`, "carted", formatPrice(skin.price))
       return [...prev, skin]
     })
   }, [t])
@@ -176,6 +178,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     setWishlist((prev) => {
       if (prev.includes(skin.id)) return prev.filter((x) => x !== skin.id)
       toast.success(t("toast.addedToWishlist"), { description: `${skin.type} | ${skin.title}` })
+      pushActivity(`${skin.type} | ${skin.title}`, "wishlisted", formatPrice(skin.price))
       return [...prev, skin.id]
     })
   }, [t])
@@ -201,6 +204,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     toast.success(t("toast.purchaseTitle"), {
       description: t("toast.purchaseDesc", { n: cart.length }),
     })
+    cart.forEach((skin) => pushActivity(`${skin.type} | ${skin.title}`, "bought", formatPrice(skin.price)))
     setCart([])
   }, [cart, cartTotal, wallet, t])
 
@@ -211,6 +215,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       try { localStorage.setItem(LS_LISTED, JSON.stringify(next)) } catch {}
       return next
     })
+    pushActivity(`${skin.type} | ${skin.title}`, "listed", formatPrice(price))
     toast.success(t("sell.listed"), {
       description: t("sell.listedDesc", { item: `${skin.type} | ${skin.title}`, price: formatPrice(price) }),
     })

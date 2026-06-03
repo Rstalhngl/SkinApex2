@@ -25,6 +25,8 @@ const en: Dict = {
   "live.listed": "listed for",
   "live.traded": "traded for",
   "live.escrowed": "escrowed for",
+  "live.carted": "added to cart for",
+  "live.wishlisted": "wishlisted for",
 
   // Header
   "header.home": "SkinApex home",
@@ -220,6 +222,8 @@ const tr: Dict = {
   "live.listed": "listelendi:",
   "live.traded": "takas edildi:",
   "live.escrowed": "emanete alındı:",
+  "live.carted": "sepete eklendi:",
+  "live.wishlisted": "favorilere eklendi:",
 
   "header.home": "SkinApex ana sayfa",
   "header.language": "Dil",
