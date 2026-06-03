@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import type { Skin } from "@/lib/skins"
 import { formatPrice, skins as demoSkins } from "@/lib/skins"
-import { loadCS2Items } from "@/lib/cs2-api"
+import { loadCS2Items, setVolumeMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import { useI18n } from "@/lib/i18n"
 
@@ -84,20 +84,24 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval)
   }, [])
 
-  // ── Load CS2 items on mount ──────────────────────────────────────────────
+  // ── Fetch market volume then load items ───────────────────────────────────
   useEffect(() => {
     let cancelled = false
     setIsLoadingItems(true)
-    loadCS2Items()
-      .then((loaded) => {
-        if (!cancelled) setItems(loaded)
-      })
-      .catch(() => {
-        // silently fall back to demo skins
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingItems(false)
-      })
+
+    // Fetch real market volume first (sets popularity scores), then load items
+    const loadItems = () => {
+      loadCS2Items()
+        .then((loaded) => { if (!cancelled) setItems(loaded) })
+        .catch(() => {})
+        .finally(() => { if (!cancelled) setIsLoadingItems(false) })
+    }
+
+    fetch("/api/market-volume")
+      .then(r => r.json())
+      .then(d => { if (d?.data) setVolumeMap(d.data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) loadItems() })
     return () => { cancelled = true }
   }, [])
 

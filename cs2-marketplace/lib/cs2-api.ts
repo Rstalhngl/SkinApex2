@@ -8,7 +8,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v9"
+const CACHE_KEY = "skx_cs2_v10"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -50,6 +50,14 @@ interface CS2StickerRaw {
   image: string
 }
 
+// ─── Market volume map (market_hash_name → quantity from Skinport) ───────────────
+// Populated after fetching /api/market-volume; used for realistic popularity scores
+let volumeMap: Record<string, number> = {}
+
+export function setVolumeMap(map: Record<string, number>) {
+  volumeMap = map
+}
+
 // ─── Sticker pool ─────────────────────────────────────────────────────────────
 let stickerPool: { name: string; img: string }[] = []
 
@@ -72,6 +80,31 @@ function xr(seed: number): number {
 
 function rnd(base: number, off: number, lo: number, hi: number): number {
   return lo + xr(base + off * 1_000_003) * (hi - lo)
+}
+
+// ─── Popularity from market volume ───────────────────────────────────────────
+
+/** Max quantity seen in the volume map (used for normalization) */
+let _maxVolume = 0
+
+function computePopularity(marketHashName: string, seed: number): number {
+  const qty = volumeMap[marketHashName] ?? 0
+  if (qty > 0) {
+    if (qty > _maxVolume) _maxVolume = qty
+    // Normalize to 1-100 on a log scale so huge outliers don't dominate
+    const score = Math.round(1 + 99 * (Math.log(qty + 1) / Math.log((_maxVolume || qty) + 1)))
+    return Math.max(1, Math.min(100, score))
+  }
+  // Fall back to seeded value (20-80) so unknown items spread out
+  return Math.round(rnd(seed, 4, 20, 80))
+}
+
+const NOW = Date.now()
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
+/** Pseudo random listing time within last 30 days (stable per item via seed) */
+function computeListedAt(seed: number): number {
+  return Math.round(NOW - xr(seed + 55_555) * THIRTY_DAYS_MS)
 }
 
 // ─── Sticker assignment ───────────────────────────────────────────────────────
@@ -216,7 +249,8 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
     discount,
     isST: raw.stattrak ? xr(seed + 5) > 0.65 : false,
     isSV: raw.souvenir ? xr(seed + 6) > 0.75 : false,
-    popularity: Math.round(rnd(seed, 4, 20, 100)),
+    popularity: computePopularity(raw.market_hash_name, seed),
+    listedAt: computeListedAt(seed),
     img: raw.image,       // ← per-wear image from skins_not_grouped
     stickers: buildStickers(seed),
     hasFloat: true,
@@ -244,6 +278,7 @@ export function transformAgent(raw: CS2AgentRaw, index: number): Skin | null {
     discount,
     isST: false, isSV: false,
     popularity: Math.round(rnd(seed, 4, 20, 90)),
+    listedAt: computeListedAt(seed),
     img: raw.image,
     stickers: [],
     hasFloat: false,
@@ -268,6 +303,7 @@ export function transformMusicKit(raw: CS2MusicKitRaw, index: number): Skin | nu
     discount,
     isST: false, isSV: false,
     popularity: Math.round(rnd(seed, 4, 20, 80)),
+    listedAt: computeListedAt(seed),
     img: raw.image,
     stickers: [],
     hasFloat: false,
@@ -297,6 +333,7 @@ export function transformSticker(raw: CS2StickerRaw, index: number): Skin | null
     discount,
     isST: false, isSV: false,
     popularity: Math.round(rnd(seed, 4, 10, 90)),
+    listedAt: computeListedAt(seed),
     img: raw.image,
     stickers: [],
     hasFloat: false,

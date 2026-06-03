@@ -16,6 +16,7 @@ import { CATEGORIES, RARITIES, WEAPONS_BY_CATEGORY, type CategoryKey, type Rarit
 
 export type SortKey =
   | "popular"
+  | "newest"
   | "discount-desc"
   | "price-asc"
   | "price-desc"
@@ -130,6 +131,7 @@ export function FilterSidebar({
           </SelectTrigger>
           <SelectContent className="border-border bg-card">
             <SelectItem value="popular">{t("filter.sort.popular")}</SelectItem>
+            <SelectItem value="newest">{t("filter.sort.newest")}</SelectItem>
             <SelectItem value="discount-desc">{t("filter.sort.discount")}</SelectItem>
             <SelectItem value="price-asc">{t("filter.sort.priceAsc")}</SelectItem>
             <SelectItem value="price-desc">{t("filter.sort.priceDesc")}</SelectItem>

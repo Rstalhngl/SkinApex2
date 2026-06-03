@@ -98,6 +98,7 @@ export function Marketplace() {
 
     switch (filters.sort) {
       case "popular":      list.sort((a, b) => b.popularity - a.popularity); break
+      case "newest":       list.sort((a, b) => b.listedAt - a.listedAt); break
       case "discount-desc":list.sort((a, b) => b.discount - a.discount); break
       case "price-asc":    list.sort((a, b) => a.price - b.price); break
       case "price-desc":   list.sort((a, b) => b.price - a.price); break

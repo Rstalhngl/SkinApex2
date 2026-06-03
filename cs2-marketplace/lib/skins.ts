@@ -34,6 +34,7 @@ export interface Skin {
   isST: boolean
   isSV: boolean
   popularity: number
+  listedAt: number  // unix ms — for "newest" sort
   img: string
   stickers: { name: string; img: string }[]
   hasFloat?: boolean
@@ -157,6 +158,7 @@ export const skins: Skin[] = [
     isST: false,
     isSV: false,
     popularity: 95,
+    listedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
     img: "/skins/ak47-bloodsport.png",
     stickers: [{ name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Flame", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlz4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
@@ -174,6 +176,7 @@ export const skins: Skin[] = [
     isST: true,
     isSV: false,
     popularity: 88,
+    listedAt: Date.now() - 12 * 24 * 60 * 60 * 1000,
     img: "/skins/m4a4-neonoir.png",
     stickers: [{ name: "Skull", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlm4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
@@ -191,6 +194,7 @@ export const skins: Skin[] = [
     isST: false,
     isSV: true,
     popularity: 99,
+    listedAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
     img: "/skins/awp-deserthydra.png",
     stickers: [{ name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Crown", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRln4bLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
@@ -208,6 +212,7 @@ export const skins: Skin[] = [
     isST: false,
     isSV: false,
     popularity: 97,
+    listedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
     img: "/skins/m4a1s-printstream.png",
     stickers: [],
   },
@@ -225,6 +230,7 @@ export const skins: Skin[] = [
     isST: true,
     isSV: false,
     popularity: 92,
+    listedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
     img: "/skins/awp-asiimov.png",
     stickers: [{ name: "Flame", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlz4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Flame", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlz4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
@@ -242,6 +248,7 @@ export const skins: Skin[] = [
     isST: false,
     isSV: false,
     popularity: 91,
+    listedAt: Date.now() - 9 * 24 * 60 * 60 * 1000,
     img: "/skins/glock-fade.png",
     stickers: [{ name: "Clover", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlo4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
@@ -259,6 +266,7 @@ export const skins: Skin[] = [
     isST: false,
     isSV: false,
     popularity: 86,
+    listedAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
     img: "/skins/deagle-printstream.png",
     stickers: [],
   },
@@ -276,6 +284,7 @@ export const skins: Skin[] = [
     isST: false,
     isSV: false,
     popularity: 80,
+    listedAt: Date.now() - 20 * 24 * 60 * 60 * 1000,
     img: "/skins/usps-traitor.png",
     stickers: [],
   },
@@ -293,6 +302,7 @@ export const skins: Skin[] = [
     isST: true,
     isSV: false,
     popularity: 85,
+    listedAt: Date.now() - 15 * 24 * 60 * 60 * 1000,
     img: "/skins/ak47-empress.png",
     stickers: [{ name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }, { name: "Star", img: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmyMnTGtRlp4LLpUbVZqinTKEALBFLHaLYcLrGEkOK_jg2nthLO-OAWR-ZCNM-uR9mRXIpg" }],
   },
