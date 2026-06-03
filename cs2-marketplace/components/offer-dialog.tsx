@@ -35,21 +35,24 @@ export function OfferDialog({
   const listingTry  = skin ? Math.round(skin.price * rate) : 0
   const minTry      = skin ? Math.round(skin.price * MIN_RATIO * rate) : 0
 
-  const [tryValue, setTryValue] = useState<number>(listingTry)
+  // Use string for the input so user can freely type without clamping mid-keystroke
+  const [inputStr, setInputStr] = useState<string>(String(listingTry))
+
+  const tryValue = Math.max(0, parseInt(inputStr) || 0)
 
   const handleOpen = (open: boolean) => {
     if (!open) onClose()
-    else if (skin) setTryValue(Math.round(skin.price * getUsdToTry()))
+    else if (skin) setInputStr(String(Math.round(skin.price * getUsdToTry())))
   }
 
   const handleSlider = (val: number[]) => {
     if (!skin) return
     const newTry = Math.round(minTry + (val[0] / 100) * (listingTry - minTry))
-    setTryValue(newTry)
+    setInputStr(String(newTry))
   }
 
   const sliderPct = listingTry > minTry
-    ? Math.round(((tryValue - minTry) / (listingTry - minTry)) * 100)
+    ? Math.max(0, Math.min(100, Math.round(((tryValue - minTry) / (listingTry - minTry)) * 100)))
     : 100
 
   const usdEquiv = tryValue / rate
@@ -57,16 +60,18 @@ export function OfferDialog({
   const handleSend = () => {
     if (!skin) return
     if (!isLoggedIn) { toast.error(t("offer.loginRequired")); return }
-    if (tryValue < minTry) { toast.error(t("offer.tooLow", { min: fmt(minTry) })); return }
+    const finalTry = Math.max(0, parseInt(inputStr) || 0)
+    if (finalTry < minTry) { toast.error(t("offer.tooLow", { min: fmt(minTry) })); return }
+    const usdFinal = finalTry / rate
     const userName = steamProfile?.steamName ?? "Anonim"
     sendOffer(
       { id: skin.id, type: skin.type, title: skin.title, img: skin.img, price: skin.price },
-      usdEquiv,
+      usdFinal,
       userName,
       steamProfile?.steamAvatar,
     )
     toast.success(t("offer.sent"), {
-      description: `${skin.type} | ${skin.title} — ${fmt(tryValue)}`,
+      description: `${skin.type} | ${skin.title} — ${fmt(finalTry)}`,
     })
     onClose()
   }
@@ -116,10 +121,12 @@ export function OfferDialog({
                   min={minTry}
                   max={listingTry}
                   step={1}
-                  value={tryValue}
-                  onChange={e => {
-                    const v = parseInt(e.target.value)
-                    if (!isNaN(v)) setTryValue(Math.min(listingTry, Math.max(minTry, v)))
+                  value={inputStr}
+                  onChange={e => setInputStr(e.target.value)}
+                  onBlur={e => {
+                    // Clamp only on blur (when user finishes typing)
+                    const v = parseInt(e.target.value) || minTry
+                    setInputStr(String(Math.min(listingTry, Math.max(minTry, v))))
                   }}
                   className="border-border bg-input pl-7 text-foreground"
                 />

@@ -26,7 +26,10 @@ export function SkinCard({
   const isListed = listedSkins.includes(skin.id)
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-[#243146]">
+    <div
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-[#243146] cursor-pointer"
+      onClick={() => onInspect(skin)}
+    >
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="font-semibold">{skin.exterior}</span>
         <div className="flex items-center gap-1.5">
@@ -55,7 +58,7 @@ export function SkinCard({
           loading="lazy"
         />
         {/* Hover action buttons */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
           {isOwned ? (
             <div className="flex w-full gap-1.5">
               <Button
