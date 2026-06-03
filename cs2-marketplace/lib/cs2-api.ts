@@ -8,7 +8,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v10"
+const CACHE_KEY = "skx_cs2_v11"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -252,7 +252,8 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
     popularity: computePopularity(raw.market_hash_name, seed),
     listedAt: computeListedAt(seed),
     img: raw.image,       // ← per-wear image from skins_not_grouped
-    stickers: buildStickers(seed),
+    // Stickers only apply to weapons — not knives or gloves
+    stickers: isSpecial ? [] : buildStickers(seed),
     hasFloat: true,
     marketHashName: raw.market_hash_name || undefined,
   }
