@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink, Eye, Handshake, Heart, Tag } from "lucide-react"
+import { ExternalLink, Handshake, Heart, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
@@ -73,13 +73,6 @@ export function SkinCard({
                 <Tag className="mr-1 h-3.5 w-3.5" />
                 {isListed ? t("sell.delist") : t("sell.list")}
               </Button>
-              <button
-                onClick={() => onInspect(skin)}
-                aria-label={t("card.inspect")}
-                className="flex h-9 w-10 items-center justify-center rounded-md border border-border bg-input text-foreground transition-colors hover:border-primary hover:text-primary"
-              >
-                <Eye className="h-4 w-4" />
-              </button>
             </div>
           ) : (
             <div className="flex w-full gap-1.5">
@@ -90,21 +83,14 @@ export function SkinCard({
                 {inCart ? t("card.inCart") : t("card.addToCart")}
               </Button>
               <button
-                onClick={() => onInspect(skin)}
-                aria-label={t("card.inspect")}
-                className="flex h-9 w-10 items-center justify-center rounded-md border border-border bg-input text-foreground transition-colors hover:border-primary hover:text-primary"
-              >
-                <Eye className="h-4 w-4" />
-              </button>
-              <button
                 onClick={() => toggleWishlist(skin)}
                 aria-label={t("card.toggleWishlist")}
                 className={cn(
-                  "flex h-9 w-10 items-center justify-center rounded-md border bg-input transition-colors",
+                  "flex h-9 w-12 items-center justify-center rounded-md border bg-input transition-colors",
                   wished ? "border-favorite" : "border-border hover:border-favorite",
                 )}
               >
-                <Heart className={cn("h-4 w-4", wished ? "fill-favorite text-favorite" : "text-muted-foreground")} />
+                <Heart className={cn("h-5 w-5", wished ? "fill-favorite text-favorite" : "text-muted-foreground")} />
               </button>
             </div>
           )}
