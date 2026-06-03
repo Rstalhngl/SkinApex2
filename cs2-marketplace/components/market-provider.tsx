@@ -173,16 +173,27 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const isWished = useCallback((id: number) => wishlist.includes(id), [wishlist])
 
   const addToCart = useCallback((skin: Skin) => {
+    // Check current state first, then update — no side effects inside setter
     setCart((prev) => {
-      if (prev.some((s) => s.id === skin.id)) {
-        toast.info(t("toast.alreadyInCart"), { description: `${skin.type} | ${skin.title}` })
-        return prev
-      }
-      toast.success(t("toast.addedToCart"), {
-        description: `${skin.type} | ${skin.title} — ${formatPrice(skin.price)}`,
-      })
-      pushActivity(`${skin.type} | ${skin.title}`, "carted", formatPrice(skin.price))
+      if (prev.some((s) => s.id === skin.id)) return prev
       return [...prev, skin]
+    })
+    // Fire toasts/activity OUTSIDE the setter (avoid setState-during-render)
+    setCart((latest) => {
+      const added = latest.some((s) => s.id === skin.id)
+      if (added) {
+        queueMicrotask(() => {
+          toast.success(t("toast.addedToCart"), {
+            description: `${skin.type} | ${skin.title} — ${formatPrice(skin.price)}`,
+          })
+          pushActivity(`${skin.type} | ${skin.title}`, "carted", formatPrice(skin.price))
+        })
+      } else {
+        queueMicrotask(() => {
+          toast.info(t("toast.alreadyInCart"), { description: `${skin.type} | ${skin.title}` })
+        })
+      }
+      return latest
     })
   }, [t])
 
@@ -194,10 +205,14 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const toggleWishlist = useCallback((skin: Skin) => {
     setWishlist((prev) => {
-      if (prev.includes(skin.id)) return prev.filter((x) => x !== skin.id)
-      toast.success(t("toast.addedToWishlist"), { description: `${skin.type} | ${skin.title}` })
-      pushActivity(`${skin.type} | ${skin.title}`, "wishlisted", formatPrice(skin.price))
-      return [...prev, skin.id]
+      const removing = prev.includes(skin.id)
+      if (!removing) {
+        queueMicrotask(() => {
+          toast.success(t("toast.addedToWishlist"), { description: `${skin.type} | ${skin.title}` })
+          pushActivity(`${skin.type} | ${skin.title}`, "wishlisted", formatPrice(skin.price))
+        })
+      }
+      return removing ? prev.filter((x) => x !== skin.id) : [...prev, skin.id]
     })
   }, [t])
 
