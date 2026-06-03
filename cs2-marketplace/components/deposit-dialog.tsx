@@ -77,38 +77,41 @@ export function DepositDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col gap-3">
-          <Button
-            onClick={handleDeposit}
-            className="w-full bg-success font-bold uppercase tracking-wide text-white hover:bg-success/90"
-          >
-            {t("deposit.button")} {amount && Number.parseFloat(amount) > 0 ? formatPrice(Number.parseFloat(amount)) : ""}
-          </Button>
-          <div className="flex items-center justify-center gap-2">
-            {/* Visa */}
-            <div className="flex h-6 w-10 items-center justify-center rounded border border-border/60 bg-white px-1">
-              <svg viewBox="0 0 780 500" xmlns="http://www.w3.org/2000/svg" className="h-3 w-auto">
-                <path d="M293.2 348.7l33.4-195.4h53.4l-33.4 195.4H293.2zM543.8 157.4c-10.6-3.9-27.1-8.1-47.8-8.1-52.7 0-89.8 26.5-90.1 64.5-.3 28.1 26.6 43.8 46.9 53.1 20.8 9.6 27.8 15.7 27.7 24.2-.1 13.1-16.6 19.1-32 19.1-21.4 0-32.8-3-50.3-10.3l-6.9-3.1-7.5 43.7c12.5 5.5 35.5 10.3 59.5 10.5 56.1 0 92.5-26.3 92.9-67 .2-22.3-14.1-39.3-44.9-53.3-18.7-9.1-30.2-15.1-30.1-24.3 0-8.1 9.7-16.8 30.7-16.8 17.5-.3 30.2 3.5 40.1 7.5l4.8 2.3 7.3-43.1zM660.6 153.3h-41.2c-12.8 0-22.3 3.5-27.9 16.2l-79.2 179.6h56.1s9.2-24.2 11.2-29.5c6.1 0 60.5.1 68.3.1 1.6 6.9 6.5 29.5 6.5 29.5h49.6L660.6 153.3zm-65.9 124.5c4.4-11.3 21.3-54.7 21.3-54.7s4.4-11.4 7.1-18.8l3.6 17s10.2 46.7 12.3 56.5h-44.3zM232.5 153.3l-52.2 133.4-5.6-27.2c-9.7-31.3-39.8-65.2-73.5-82.1l47.8 171.3h56.5l84.1-195.4h-57.1z" fill="#1A1F71"/>
-                <path d="M131.7 153.3H45.3l-.7 3.9c67.1 16.3 111.5 55.7 129.9 103l-18.8-90.2c-3.2-12.4-12.6-16.3-24-16.7z" fill="#F9A533"/>
-              </svg>
-            </div>
-            {/* Mastercard */}
-            <div className="flex h-6 w-10 items-center justify-center rounded border border-border/60 bg-white px-1">
-              <svg viewBox="0 0 152 108" xmlns="http://www.w3.org/2000/svg" className="h-4 w-auto">
-                <circle cx="52" cy="54" r="44" fill="#EB001B"/>
-                <circle cx="100" cy="54" r="44" fill="#F79E1B"/>
-                <path d="M76 20.3C84.7 27.5 90 38.2 90 50 90 62.5 84.1 73.7 76 80.9 67.9 73.7 62 62.5 62 50 62 38.2 67.3 27.5 76 20.3Z" fill="#FF5F00"/>
-              </svg>
-            </div>
-            {/* PayPal */}
-            <div className="flex h-6 w-14 items-center justify-center rounded border border-border/60 bg-white px-1.5">
-              <svg viewBox="0 0 124 33" xmlns="http://www.w3.org/2000/svg" className="h-3 w-auto">
-                <path d="M15.5 3H24C30.5 3 33 6.5 32.2 12 31.3 18.5 27 21.5 20.5 21.5H17.5L15.5 30H8.5L15.5 3Z" fill="#003087"/>
-                <path d="M18 19H20.5C24 19 26 17.5 26.5 14.5 26.8 12.5 25.5 11.5 23 11.5H20.5L18 19Z" fill="#003087"/>
-                <path d="M35 3H43.5C50 3 52.5 6.5 51.7 12 50.8 18.5 46.5 21.5 40 21.5H37L35 30H28L35 3Z" fill="#009CDE"/>
-                <path d="M37.5 19H40C43.5 19 45.5 17.5 46 14.5 46.3 12.5 45 11.5 42.5 11.5H40L37.5 19Z" fill="#009CDE"/>
-                <path d="M55 22L59 3H66L64.5 16 70 3H77L70 22H55Z" fill="#003087"/>
-              </svg>
+        <DialogFooter className="flex-col gap-3 sm:flex-col">
+          <div className="flex w-full gap-2">
+            <Button
+              onClick={handleDeposit}
+              className="flex-1 bg-success font-bold uppercase tracking-wide text-white hover:bg-success/90"
+            >
+              {t("deposit.button")} {amount && Number.parseFloat(amount) > 0 ? formatPrice(Number.parseFloat(amount)) : ""}
+            </Button>
+            {/* Payment logos */}
+            <div className="flex items-center gap-1.5">
+              {/* Visa */}
+              <div className="flex h-9 w-12 items-center justify-center rounded-md border border-border/60 bg-white">
+                <svg viewBox="0 0 780 500" xmlns="http://www.w3.org/2000/svg" className="h-4 w-auto">
+                  <path d="M293.2 348.7l33.4-195.4h53.4l-33.4 195.4H293.2zM543.8 157.4c-10.6-3.9-27.1-8.1-47.8-8.1-52.7 0-89.8 26.5-90.1 64.5-.3 28.1 26.6 43.8 46.9 53.1 20.8 9.6 27.8 15.7 27.7 24.2-.1 13.1-16.6 19.1-32 19.1-21.4 0-32.8-3-50.3-10.3l-6.9-3.1-7.5 43.7c12.5 5.5 35.5 10.3 59.5 10.5 56.1 0 92.5-26.3 92.9-67 .2-22.3-14.1-39.3-44.9-53.3-18.7-9.1-30.2-15.1-30.1-24.3 0-8.1 9.7-16.8 30.7-16.8 17.5-.3 30.2 3.5 40.1 7.5l4.8 2.3 7.3-43.1zM660.6 153.3h-41.2c-12.8 0-22.3 3.5-27.9 16.2l-79.2 179.6h56.1s9.2-24.2 11.2-29.5c6.1 0 60.5.1 68.3.1 1.6 6.9 6.5 29.5 6.5 29.5h49.6L660.6 153.3zm-65.9 124.5c4.4-11.3 21.3-54.7 21.3-54.7s4.4-11.4 7.1-18.8l3.6 17s10.2 46.7 12.3 56.5h-44.3zM232.5 153.3l-52.2 133.4-5.6-27.2c-9.7-31.3-39.8-65.2-73.5-82.1l47.8 171.3h56.5l84.1-195.4h-57.1z" fill="#1A1F71"/>
+                  <path d="M131.7 153.3H45.3l-.7 3.9c67.1 16.3 111.5 55.7 129.9 103l-18.8-90.2c-3.2-12.4-12.6-16.3-24-16.7z" fill="#F9A533"/>
+                </svg>
+              </div>
+              {/* Mastercard */}
+              <div className="flex h-9 w-12 items-center justify-center rounded-md border border-border/60 bg-white">
+                <svg viewBox="0 0 152 108" xmlns="http://www.w3.org/2000/svg" className="h-5 w-auto">
+                  <circle cx="52" cy="54" r="44" fill="#EB001B"/>
+                  <circle cx="100" cy="54" r="44" fill="#F79E1B"/>
+                  <path d="M76 20.3C84.7 27.5 90 38.2 90 54C90 69.8 84.1 81.5 76 88.7C67.9 81.5 62 69.8 62 54C62 38.2 67.3 27.5 76 20.3Z" fill="#FF5F00"/>
+                </svg>
+              </div>
+              {/* PayPal */}
+              <div className="flex h-9 w-14 items-center justify-center rounded-md border border-border/60 bg-white px-1">
+                <svg viewBox="0 0 100 28" xmlns="http://www.w3.org/2000/svg" className="h-4 w-auto">
+                  <path d="M12 2h8c5 0 7.5 2.5 7 7.5C26.5 15 23 17 18 17h-3L13 26H7L12 2Z" fill="#003087"/>
+                  <path d="M14.5 14.5h2c3 0 4.5-1.5 5-4 .3-1.7-.5-2.5-2.5-2.5H17L14.5 14.5Z" fill="#003087"/>
+                  <path d="M28 2h8c5 0 7.5 2.5 7 7.5C42.5 15 39 17 34 17h-3L29 26H23L28 2Z" fill="#009CDE"/>
+                  <path d="M30.5 14.5h2c3 0 4.5-1.5 5-4 .3-1.7-.5-2.5-2.5-2.5H33L30.5 14.5Z" fill="#009CDE"/>
+                  <path d="M52 19l3.5-17h5.5L60 12l4.5-10h5.5L64 19H52Z" fill="#003087"/>
+                </svg>
+              </div>
             </div>
           </div>
         </DialogFooter>
