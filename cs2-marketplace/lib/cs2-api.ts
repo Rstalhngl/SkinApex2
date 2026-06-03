@@ -8,7 +8,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v13"
+const CACHE_KEY = "skx_cs2_v14"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -114,6 +114,64 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 /** Pseudo random listing time within last 30 days (stable per item via seed) */
 function computeListedAt(seed: number): number {
   return Math.round(NOW - xr(seed + 55_555) * THIRTY_DAYS_MS)
+}
+
+// ─── Smart price resolver ────────────────────────────────────────────────────
+
+const WEAR_SUFFIXES = [
+  " (Factory New)", " (Minimal Wear)", " (Field-Tested)", " (Well-Worn)", " (Battle-Scarred)"
+]
+
+/**
+ * Tries to resolve a real market price:
+ * 1. Exact market_hash_name match
+ * 2. For knives/gloves: any wear of the same skin
+ * 3. Returns undefined → caller falls back to seeded RNG
+ */
+function resolvePrice(
+  mhn: string | undefined,
+  isSpecial: boolean,
+  rarity: Rarity,
+  seed: number,
+): number | undefined {
+  if (!mhn) return undefined
+
+  // 1. Exact match
+  const exact = priceMap[mhn]
+  if (exact) return exact
+
+  // 2. For knives/gloves: try all wear variants of the same base skin
+  if (isSpecial) {
+    // Strip wear suffix to get base name
+    let baseName = mhn
+    for (const suffix of WEAR_SUFFIXES) {
+      if (mhn.endsWith(suffix)) { baseName = mhn.slice(0, -suffix.length); break }
+    }
+    const found: number[] = []
+    for (const suffix of WEAR_SUFFIXES) {
+      const p = priceMap[baseName + suffix]
+      if (p) found.push(p)
+    }
+    if (found.length > 0) {
+      // Use median of found prices as reference, adjusted by wear position
+      found.sort((a, b) => a - b)
+      return found[Math.floor(found.length / 2)]
+    }
+    // 3. Fallback: realistic knife/glove ranges based on rarity
+    // Most non-Doppler knives: $80-$400; rare patterns higher
+    const knifeBase: Record<Rarity, [number, number]> = {
+      industrial: [50, 120],
+      milspec:    [60, 180],
+      restricted: [70, 300],
+      classified: [100, 600],
+      covert:     [150, 1200],
+      contraband: [200, 2500],
+    }
+    const [lo, hi] = knifeBase[rarity]
+    return Math.round(rnd(seed, 1, lo, hi) * 100) / 100
+  }
+
+  return undefined
 }
 
 // ─── Sticker assignment ───────────────────────────────────────────────────────
@@ -238,8 +296,8 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
     typeName === "Bayonet" || typeName.includes("Dagger") ||
     typeName.endsWith("Gloves") || typeName === "Hand Wraps"
 
-  // Use real market price when available, fall back to seeded RNG per rarity
-  const realPrice = raw.market_hash_name ? priceMap[raw.market_hash_name] : undefined
+  // Use real market price when available
+  const realPrice = resolvePrice(raw.market_hash_name, isSpecial, rarity, seed)
   const [prMin, prMax] = isSpecial ? KNIFE_GLOVE_PRICE : WEAPON_PRICE[rarity]
   const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
   const discount = Math.round(rnd(seed, 2, 3, 40))
