@@ -11,6 +11,7 @@ import { FilterSidebar, type Filters } from "@/components/filter-sidebar"
 import { SkinCard } from "@/components/skin-card"
 import { InspectDialog } from "@/components/inspect-dialog"
 import { SellDialog } from "@/components/sell-dialog"
+import { OfferDialog } from "@/components/offer-dialog"
 import { useMarket } from "@/components/market-provider"
 import { categoryOf, CURRENT_USER, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
@@ -68,6 +69,7 @@ export function Marketplace() {
   const [myListings, setMyListings] = useState(false)
   const [inspecting, setInspecting] = useState<Skin | null>(null)
   const [selling, setSelling] = useState<Skin | null>(null)
+  const [offering, setOffering] = useState<Skin | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const visible = useMemo(() => {
@@ -253,6 +255,7 @@ export function Marketplace() {
 
       <InspectDialog skin={inspecting} onClose={() => setInspecting(null)} />
       <SellDialog skin={selling} onClose={() => setSelling(null)} />
+      <OfferDialog skin={offering} onClose={() => setOffering(null)} />
 
       <a
         href={`mailto:${SUPPORT_EMAIL}`}

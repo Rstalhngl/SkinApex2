@@ -216,6 +216,33 @@ const en: Dict = {
   "items.total": "items in marketplace",
   "items.showing": "Showing {shown} of {total}",
   "items.loadMore": "Load More Items",
+
+  // Offers
+  "offer.title": "Make an Offer",
+  "offer.listingPrice": "Listing Price",
+  "offer.yourOffer": "Your Offer (USD)",
+  "offer.min": "Min",
+  "offer.max": "Max",
+  "offer.makeOffer": "Make Offer",
+  "offer.send": "Send Offer",
+  "offer.sent": "Offer sent",
+  "offer.loginRequired": "Please log in to make an offer",
+  "offer.tooLow": "Minimum offer is {min} (60%)",
+
+  // Offers sheet
+  "offers.title": "My Offers",
+  "offers.incoming": "Incoming",
+  "offers.outgoing": "Outgoing",
+  "offers.noIncoming": "No incoming offers yet.",
+  "offers.noOutgoing": "No outgoing offers yet.",
+
+  // Notifications
+  "notif.title": "Notifications",
+  "notif.empty": "No notifications yet.",
+  "notif.markAll": "Mark all read",
+
+  // Header
+  "header.myOffers": "My Offers",
 }
 
 const tr: Dict = {
@@ -278,12 +305,12 @@ const tr: Dict = {
   "filter.sort.floatAsc": "Float: Düşükten Yükseğe",
   "filter.sort.floatDesc": "Float: Yüksekten Düşüğe",
   "filter.rarity": "Nadirlik",
-  "rarity.industrial": "Endüstriyel Sınıf",
-  "rarity.milspec": "Askeri Sınıf",
-  "rarity.restricted": "Kısıtlı",
-  "rarity.classified": "Gizli",
-  "rarity.covert": "Örtülü",
-  "rarity.contraband": "Kaçak",
+  "rarity.industrial": "Industrial Grade",
+  "rarity.milspec": "Mil-Spec Grade",
+  "rarity.restricted": "Restricted",
+  "rarity.classified": "Classified",
+  "rarity.covert": "Covert",
+  "rarity.contraband": "Contraband",
   "filter.attributes": "Kategori Özellikleri",
   "filter.stattrak": "StatTrak™ Eşyalar",
   "filter.souvenir": "Hatıra (Souvenir) Eşyalar",
@@ -405,6 +432,33 @@ const tr: Dict = {
   "items.total": "item marketplace'de mevcut",
   "items.showing": "{shown} / {total} gösteriliyor",
   "items.loadMore": "Daha Fazla Yükle",
+
+  // Offers
+  "offer.title": "Teklif Ver",
+  "offer.listingPrice": "İlan Fiyatı",
+  "offer.yourOffer": "Teklifiniz (USD)",
+  "offer.min": "Min",
+  "offer.max": "Maks",
+  "offer.makeOffer": "Teklif Ver",
+  "offer.send": "Teklif Gönder",
+  "offer.sent": "Teklif gönderildi",
+  "offer.loginRequired": "Teklif vermek için giriş yapın",
+  "offer.tooLow": "Minimum teklif {min} (%60)",
+
+  // Offers sheet
+  "offers.title": "Tekliflerim",
+  "offers.incoming": "Gelen Teklifler",
+  "offers.outgoing": "Giden Teklifler",
+  "offers.noIncoming": "Henüz gelen teklif yok.",
+  "offers.noOutgoing": "Henüz giden teklif yok.",
+
+  // Notifications
+  "notif.title": "Bildirimler",
+  "notif.empty": "Henüz bildirim yok.",
+  "notif.markAll": "Tümünü okundu işaretle",
+
+  // Header
+  "header.myOffers": "Tekliflerim",
 }
 
 const de: Dict = {
@@ -1113,7 +1167,7 @@ const I18nContext = createContext<I18nContextValue | null>(null)
 const STORAGE_KEY = "skinapex-lang"
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("en")
+  const [lang, setLangState] = useState<Lang>("tr")
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as Lang | null

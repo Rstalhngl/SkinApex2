@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import { ChevronDown, ExternalLink, Globe, LogOut, Moon, Package, Settings, Sun, User, Wallet } from "lucide-react"
+import { ChevronDown, ExternalLink, Globe, Handshake, LogOut, Moon, Package, Settings, Sun, User, Wallet } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,8 @@ import { CartSheet } from "@/components/cart-sheet"
 import { WishlistSheet } from "@/components/wishlist-sheet"
 import { DepositDialog } from "@/components/deposit-dialog"
 import { TradeUrlDialog } from "@/components/trade-url-dialog"
+import { NotificationsBell } from "@/components/notifications-bell"
+import { OffersSheet } from "@/components/offers-sheet"
 import { useMarket } from "@/components/market-provider"
 import { CURRENT_USER, formatPrice, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
 import { LANGS, useI18n } from "@/lib/i18n"
@@ -141,6 +143,7 @@ export function SiteHeader({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <NotificationsBell />
           <WishlistSheet />
           <CartSheet />
 
@@ -174,6 +177,15 @@ export function SiteHeader({
                 <User className="h-4 w-4" />
                 {t("header.profile")}
               </DropdownMenuItem>
+              <OffersSheet trigger={
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
+                >
+                  <Handshake className="h-4 w-4" />
+                  {t("header.myOffers")}
+                </DropdownMenuItem>
+              } />
               {steamProfile?.steamId && (
                 <>
                   <DropdownMenuItem asChild className="cursor-pointer text-foreground focus:bg-input focus:text-primary">

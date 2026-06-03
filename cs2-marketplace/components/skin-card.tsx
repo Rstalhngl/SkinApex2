@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink, Eye, Heart, Tag } from "lucide-react"
+import { ExternalLink, Eye, Handshake, Heart, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
@@ -11,10 +11,12 @@ export function SkinCard({
   skin,
   onInspect,
   onSell,
+  onOffer,
 }: {
   skin: Skin
   onInspect: (skin: Skin) => void
   onSell?: (skin: Skin) => void
+  onOffer?: (skin: Skin) => void
 }) {
   const { addToCart, toggleWishlist, isWished, isInCart, listedSkins } = useMarket()
   const { t } = useI18n()
@@ -102,6 +104,16 @@ export function SkinCard({
                 <Heart className={cn("h-4 w-4", wished ? "fill-favorite text-favorite" : "text-muted-foreground")} />
               </button>
             </div>
+          )}
+          {/* Offer button — only for non-owned items */}
+          {!isOwned && onOffer && (
+            <button
+              onClick={() => onOffer(skin)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              <Handshake className="h-3 w-3" />
+              {t("offer.makeOffer")}
+            </button>
           )}
           <a
             href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat, skin.marketHashName)}
