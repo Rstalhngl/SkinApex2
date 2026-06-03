@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle2, ExternalLink, Heart, Search } from "lucide-react"
+import { CheckCircle2, ExternalLink, Handshake, Heart } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
+import { OfferDialog } from "@/components/offer-dialog"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -24,8 +26,10 @@ export function InspectDialog({
   const { addToCart, toggleWishlist, isWished } = useMarket()
   const { t } = useI18n()
   const wished = skin ? isWished(skin.id) : false
+  const [offerSkin, setOfferSkin] = useState<Skin | null>(null)
 
   return (
+    <>
     <Dialog open={!!skin} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="border-border bg-card sm:max-w-lg">
         {skin && (
@@ -123,22 +127,17 @@ export function InspectDialog({
                   <ExternalLink className="ml-1 h-3 w-3" />
                 </a>
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="flex-1 border-border bg-input text-xs text-foreground hover:border-primary hover:text-primary"
-              >
-                <a
-                  href={`https://steamcommunity.com/market/search?q=${encodeURIComponent(`${skin.type} | ${skin.title}`)}&appid=730`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              {skin.owner !== "me" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOfferSkin(skin)}
+                  className="flex-1 border-primary/40 bg-primary/10 text-xs font-semibold text-primary hover:bg-primary/20"
                 >
-                  <Search className="mr-1.5 h-3.5 w-3.5" />
-                  {t("inspect.searchMarket")}
-                  <ExternalLink className="ml-1 h-3 w-3" />
-                </a>
-              </Button>
+                  <Handshake className="mr-1.5 h-3.5 w-3.5" />
+                  {t("offer.makeOffer")}
+                </Button>
+              )}
             </div>
 
             <div className="mt-2 flex gap-2">
@@ -167,6 +166,8 @@ export function InspectDialog({
         )}
       </DialogContent>
     </Dialog>
+    <OfferDialog skin={offerSkin} onClose={() => setOfferSkin(null)} />
+    </>
   )
 }
 

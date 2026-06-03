@@ -62,6 +62,22 @@ export function sendOffer(
   offers = [offer, ...offers]
   notifyOfferListeners()
 
+  // Create a mirrored incoming offer (visible to listing owner / demo)
+  const incomingMirror: Offer = {
+    ...offer,
+    id: `offer-${nextOfferId++}`,
+    direction: "incoming",
+  }
+  offers = [incomingMirror, ...offers]
+  notifyOfferListeners()
+
+  // Notify listing owner of incoming offer
+  addNotification({
+    type: "offer_received",
+    message: `${userName} teklif verdi: ${offer.skinName} — ${fmtUsd(offerPrice)}`,
+    offerId: incomingMirror.id,
+  })
+
   // Simulate seller response after 3-8 seconds (demo)
   const delay = 3000 + Math.random() * 5000
   setTimeout(() => simulateResponse(offer.id), delay)
@@ -77,8 +93,19 @@ function simulateResponse(offerId: string) {
   const ratio = offer.offerPrice / offer.listingPrice
   const acceptChance = ratio >= 0.75 ? 0.6 : 0.3
   const accepted = Math.random() < acceptChance
+  const newStatus = accepted ? "accepted" : "rejected"
 
-  updateOfferStatus(offerId, accepted ? "accepted" : "rejected")
+  offers = offers.map(o => o.id === offerId ? { ...o, status: newStatus } : o)
+  notifyOfferListeners()
+
+  // Notify the offerer
+  addNotification({
+    type: accepted ? "offer_accepted" : "offer_rejected",
+    message: accepted
+      ? `Teklifiniz kabul edildi: ${offer.skinName} — ${fmtUsd(offer.offerPrice)}`
+      : `Teklifiniz reddedildi: ${offer.skinName}`,
+    offerId,
+  })
 }
 
 export function updateOfferStatus(offerId: string, status: OfferStatus) {
@@ -88,23 +115,27 @@ export function updateOfferStatus(offerId: string, status: OfferStatus) {
   const offer = offers.find(o => o.id === offerId)
   if (!offer) return
 
-  let type: Notification["type"]
-  let message: string
-
+  // For incoming offers accepted/rejected by the listing owner:
+  // notify the person who made the offer
   if (status === "accepted") {
-    type = "offer_accepted"
-    message = `Teklifiniz kabul edildi: ${offer.skinName} — ${fmtUsd(offer.offerPrice)}`
+    addNotification({
+      type: "offer_accepted",
+      message: `Teklifiniz kabul edildi: ${offer.skinName} — ${fmtUsd(offer.offerPrice)}`,
+      offerId,
+    })
   } else if (status === "rejected") {
-    type = "offer_rejected"
-    message = `Teklifiniz reddedildi: ${offer.skinName}`
+    addNotification({
+      type: "offer_rejected",
+      message: `Teklifiniz reddedildi: ${offer.skinName}`,
+      offerId,
+    })
   } else if (status === "withdrawn") {
-    type = "offer_withdrawn"
-    message = `Teklifiniz geri çekildi: ${offer.skinName}`
-  } else {
-    return
+    addNotification({
+      type: "offer_withdrawn",
+      message: `Teklifiniz geri çekildi: ${offer.skinName}`,
+      offerId,
+    })
   }
-
-  addNotification({ type, message, offerId })
 }
 
 // Incoming offer simulation — can be triggered externally
