@@ -199,8 +199,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const deposit = useCallback((amount: number) => {
     setWallet((prev) => prev + amount)
+    const tryStr = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(amount)
     toast.success(t("toast.depositSuccess"), {
-      description: t("toast.depositDesc", { amount: formatPrice(amount) }),
+      description: t("toast.depositDesc", { amount: tryStr }),
     })
   }, [t])
 

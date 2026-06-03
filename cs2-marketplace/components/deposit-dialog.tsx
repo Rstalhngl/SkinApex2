@@ -14,10 +14,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMarket } from "@/components/market-provider"
-import { formatPrice } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 
-const PRESETS = [500, 1000, 2500, 5000]
+const PRESETS = [1000, 5000, 10000]
 
 export function DepositDialog({
   open,
@@ -58,7 +57,7 @@ export function DepositDialog({
                 onClick={() => setAmount(String(preset))}
                 className="rounded-md border border-border bg-input py-2 text-sm font-semibold text-foreground transition-colors hover:border-success hover:text-success"
               >
-                {formatPrice(preset)}
+                {new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(preset)}
               </button>
             ))}
           </div>
@@ -83,7 +82,7 @@ export function DepositDialog({
               onClick={handleDeposit}
               className="flex-1 bg-success font-bold uppercase tracking-wide text-white hover:bg-success/90"
             >
-              {t("deposit.button")} {amount && Number.parseFloat(amount) > 0 ? formatPrice(Number.parseFloat(amount)) : ""}
+              {t("deposit.button")} {amount && Number.parseFloat(amount) > 0 ? new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(Number.parseFloat(amount)) : ""}
             </Button>
             {/* Payment logos */}
             <div className="flex items-center gap-1.5">
