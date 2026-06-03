@@ -131,8 +131,8 @@ const en: Dict = {
 
   // Deposit
   "deposit.title": "Deposit Funds",
-  "deposit.desc": "Add balance instantly via secure payment gateway.",
-  "deposit.custom": "Custom amount (USD)",
+  "deposit.desc": "Güvenli ödeme altyapısı üzerinden anında bakiye yükleyin.",
+  "deposit.custom": "Özel tutar (TL)",
   "deposit.button": "Deposit",
 
   // Inspect
@@ -190,7 +190,7 @@ const en: Dict = {
   "sell.title": "List for Sale",
   "sell.delist": "Remove Listing",
   "sell.list": "List Item",
-  "sell.price": "Listing Price (USD)",
+  "sell.price": "Satış Fiyatı (TL)",
   "sell.marketRef": "Market reference price:",
   "sell.alreadyListed": "This item is currently listed on the marketplace.",
   "sell.listed": "Item listed",

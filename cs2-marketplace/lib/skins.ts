@@ -301,21 +301,25 @@ export const skins: Skin[] = [
 export type SaleAction = "bought" | "listed" | "traded" | "escrowed"
 
 export const liveSalesPool: { item: string; action: SaleAction; price: string }[] = [
-  { item: "★ Butterfly Knife | Fade", action: "bought", price: "$2,847.32" },
-  { item: "M4A1-S | Imminent Danger", action: "listed", price: "$619.50" },
-  { item: "StatTrak™ AK-47 | Vulcan", action: "traded", price: "$842.18" },
-  { item: "Sticker | iBUYPOWER | Katowice 2014", action: "bought", price: "$12,400.00" },
-  { item: "Souvenir AWP | Desert Hydra", action: "escrowed", price: "$1,189.99" },
-  { item: "Glock-18 | Fade", action: "bought", price: "$1,472.45" },
-  { item: "★ Karambit | Doppler", action: "listed", price: "$1,118.73" },
-  { item: "USP-S | Kill Confirmed", action: "traded", price: "$93.67" },
+  { item: "★ Butterfly Knife | Fade", action: "bought", price: "₺109.622" },
+  { item: "M4A1-S | Imminent Danger", action: "listed", price: "₺23.851" },
+  { item: "StatTrak™ AK-47 | Vulcan", action: "traded", price: "₺32.424" },
+  { item: "Sticker | iBUYPOWER | Katowice 2014", action: "bought", price: "₺477.400" },
+  { item: "Souvenir AWP | Desert Hydra", action: "escrowed", price: "₺45.815" },
+  { item: "Glock-18 | Fade", action: "bought", price: "₺56.689" },
+  { item: "★ Karambit | Doppler", action: "listed", price: "₺43.071" },
+  { item: "USP-S | Kill Confirmed", action: "traded", price: "₺3.606" },
 ]
 
+// Static USD → TRY conversion rate (update as needed)
+export const USD_TO_TRY = 38.5
+
 export function formatPrice(value: number) {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("tr-TR", {
     style: "currency",
-    currency: "USD",
-  }).format(value)
+    currency: "TRY",
+    maximumFractionDigits: 0,
+  }).format(Math.round(value * USD_TO_TRY))
 }
 
 export function steamMarketUrl(type: string, title: string, exterior: Exterior, hasFloat?: boolean, marketHashName?: string): string {

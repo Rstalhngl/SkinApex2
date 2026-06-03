@@ -17,7 +17,7 @@ import { useMarket } from "@/components/market-provider"
 import { formatPrice } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 
-const PRESETS = [25, 50, 100, 250]
+const PRESETS = [500, 1000, 2500, 5000]
 
 export function DepositDialog({
   open,
@@ -28,14 +28,14 @@ export function DepositDialog({
 }) {
   const { deposit } = useMarket()
   const { t } = useI18n()
-  const [amount, setAmount] = useState("50")
+  const [amount, setAmount] = useState("1000")
 
   const handleDeposit = () => {
     const value = Number.parseFloat(amount)
     if (!Number.isNaN(value) && value > 0) {
       deposit(value)
       onOpenChange(false)
-      setAmount("50")
+      setAmount("1000")
     }
   }
 
@@ -69,7 +69,7 @@ export function DepositDialog({
             <Input
               id="deposit-amount"
               type="number"
-              min={1}
+              min={100}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="border-border bg-input text-foreground"

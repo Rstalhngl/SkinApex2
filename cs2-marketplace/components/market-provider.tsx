@@ -64,7 +64,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   // ── Market state ─────────────────────────────────────────────────────────
   const [cart, setCart] = useState<Skin[]>([])
   const [wishlist, setWishlist] = useState<number[]>([])
-  const [wallet, setWallet] = useState(412.8)
+  const [wallet, setWallet] = useState(15893)  // ~412 USD in TRY
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [steamProfile, setSteamProfile] = useState<SteamProfile | null>(null)
   const [tradeUrl, setTradeUrlState] = useState("")
