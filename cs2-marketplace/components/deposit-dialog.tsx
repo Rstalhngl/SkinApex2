@@ -102,15 +102,12 @@ export function DepositDialog({
                   <path d="M76 20.3C84.7 27.5 90 38.2 90 54C90 69.8 84.1 81.5 76 88.7C67.9 81.5 62 69.8 62 54C62 38.2 67.3 27.5 76 20.3Z" fill="#FF5F00"/>
                 </svg>
               </div>
-              {/* PayPal */}
-              <div className="flex h-9 w-14 items-center justify-center rounded-md border border-border/60 bg-white px-1">
-                <svg viewBox="0 0 100 28" xmlns="http://www.w3.org/2000/svg" className="h-4 w-auto">
-                  <path d="M12 2h8c5 0 7.5 2.5 7 7.5C26.5 15 23 17 18 17h-3L13 26H7L12 2Z" fill="#003087"/>
-                  <path d="M14.5 14.5h2c3 0 4.5-1.5 5-4 .3-1.7-.5-2.5-2.5-2.5H17L14.5 14.5Z" fill="#003087"/>
-                  <path d="M28 2h8c5 0 7.5 2.5 7 7.5C42.5 15 39 17 34 17h-3L29 26H23L28 2Z" fill="#009CDE"/>
-                  <path d="M30.5 14.5h2c3 0 4.5-1.5 5-4 .3-1.7-.5-2.5-2.5-2.5H33L30.5 14.5Z" fill="#009CDE"/>
-                  <path d="M52 19l3.5-17h5.5L60 12l4.5-10h5.5L64 19H52Z" fill="#003087"/>
+              {/* Bank Transfer / Havale */}
+              <div className="flex h-9 w-14 items-center justify-center gap-1 rounded-md border border-border/60 bg-white px-1.5">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0">
+                  <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11" stroke="#1a56db" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
+                <span className="text-[9px] font-bold leading-tight text-[#1a56db]">HAVALE</span>
               </div>
             </div>
           </div>
