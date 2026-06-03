@@ -37,6 +37,7 @@ export interface Skin {
   img: string
   stickers: { name: string; img: string }[]
   hasFloat?: boolean
+  marketHashName?: string
 }
 
 export const CURRENT_USER = {
@@ -317,9 +318,11 @@ export function formatPrice(value: number) {
   }).format(value)
 }
 
-export function steamMarketUrl(type: string, title: string, exterior: Exterior, hasFloat?: boolean): string {
+export function steamMarketUrl(type: string, title: string, exterior: Exterior, hasFloat?: boolean, marketHashName?: string): string {
+  if (marketHashName) {
+    return `https://steamcommunity.com/market/listings/730/${encodeURIComponent(marketHashName)}`
+  }
   if (hasFloat === false) {
-    // Agents and music kits: no exterior suffix
     const itemName = type === "Agent" || type === "Music Kit" ? title : `${type} | ${title}`
     return `https://steamcommunity.com/market/listings/730/${encodeURIComponent(itemName)}`
   }

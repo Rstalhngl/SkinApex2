@@ -104,7 +104,7 @@ export function SkinCard({
             </div>
           )}
           <a
-            href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat)}
+            href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat, skin.marketHashName)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-[#66c0f4] hover:text-[#66c0f4]"

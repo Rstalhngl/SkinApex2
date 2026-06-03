@@ -109,7 +109,7 @@ export function InspectDialog({
                 className="flex-1 border-border bg-input text-xs text-foreground hover:border-[#66c0f4] hover:text-[#66c0f4]"
               >
                 <a
-                  href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat)}
+                  href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat, skin.marketHashName)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
