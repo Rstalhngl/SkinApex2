@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server"
 
-// Server-side cache: refresh every 6 hours
-let cached: { data: Record<string, number>; ts: number } | null = null
-const CACHE_MS = 6 * 60 * 60 * 1000
+let cached: {
+  volume: Record<string, number>
+  prices: Record<string, number>
+  ts: number
+} | null = null
 
-/**
- * Returns a map of { market_hash_name → quantity } from Skinport.
- * Quantity = number of active listings on the market = a good proxy for demand/popularity.
- */
+const CACHE_MS = 6 * 60 * 60 * 1000 // 6 hours
+
 export async function GET() {
   if (cached && Date.now() - cached.ts < CACHE_MS) {
-    return NextResponse.json({ data: cached.data, source: "cache", count: Object.keys(cached.data).length })
+    return NextResponse.json({
+      volume: cached.volume,
+      prices: cached.prices,
+      source: "cache",
+      count: Object.keys(cached.volume).length,
+    })
   }
 
   try {
@@ -20,19 +25,34 @@ export async function GET() {
     })
     if (!res.ok) throw new Error(`Skinport ${res.status}`)
 
-    const items: { market_hash_name: string; quantity: number }[] = await res.json()
+    const items: {
+      market_hash_name: string
+      quantity: number
+      suggested_price: number | null
+      median_price: number | null
+      min_price: number | null
+    }[] = await res.json()
 
-    const data: Record<string, number> = {}
+    const volume: Record<string, number> = {}
+    const prices: Record<string, number> = {}
+
     for (const item of items) {
-      if (item.market_hash_name && item.quantity > 0) {
-        data[item.market_hash_name] = item.quantity
-      }
+      const name = item.market_hash_name
+      if (!name) continue
+      if (item.quantity > 0) volume[name] = item.quantity
+      // Use suggested_price as the primary real-world price reference
+      const price = item.suggested_price ?? item.median_price ?? item.min_price
+      if (price && price > 0) prices[name] = price
     }
 
-    cached = { data, ts: Date.now() }
-    return NextResponse.json({ data, source: "live", count: Object.keys(data).length })
+    cached = { volume, prices, ts: Date.now() }
+    return NextResponse.json({
+      volume,
+      prices,
+      source: "live",
+      count: Object.keys(volume).length,
+    })
   } catch (err) {
-    // Return empty on failure — cs2-api will fall back to seeded popularity
-    return NextResponse.json({ data: {}, source: "fallback", error: String(err) })
+    return NextResponse.json({ volume: {}, prices: {}, source: "fallback", error: String(err) })
   }
 }

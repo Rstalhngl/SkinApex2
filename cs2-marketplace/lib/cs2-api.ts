@@ -8,7 +8,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v11"
+const CACHE_KEY = "skx_cs2_v12"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -56,6 +56,12 @@ let volumeMap: Record<string, number> = {}
 
 export function setVolumeMap(map: Record<string, number>) {
   volumeMap = map
+}
+
+let priceMap: Record<string, number> = {}
+
+export function setPriceMap(map: Record<string, number>) {
+  priceMap = map
 }
 
 // ─── Sticker pool ─────────────────────────────────────────────────────────────
@@ -229,8 +235,10 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
     typeName === "Bayonet" || typeName.includes("Dagger") ||
     typeName.endsWith("Gloves") || typeName === "Hand Wraps"
 
+  // Use real market price when available, fall back to seeded RNG per rarity
+  const realPrice = raw.market_hash_name ? priceMap[raw.market_hash_name] : undefined
   const [prMin, prMax] = isSpecial ? KNIFE_GLOVE_PRICE : WEAPON_PRICE[rarity]
-  const price = Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
   const discount = Math.round(rnd(seed, 2, 3, 40))
   const oldPrice = Math.round(price * (1 + discount / 100) * 100) / 100
 

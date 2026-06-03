@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import type { Skin } from "@/lib/skins"
 import { formatPrice, skins as demoSkins } from "@/lib/skins"
-import { loadCS2Items, setVolumeMap } from "@/lib/cs2-api"
+import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import { useI18n } from "@/lib/i18n"
 
@@ -99,7 +99,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
     fetch("/api/market-volume")
       .then(r => r.json())
-      .then(d => { if (d?.data) setVolumeMap(d.data) })
+      .then(d => { if (d?.volume) setVolumeMap(d.volume); if (d?.prices) setPriceMap(d.prices) })
       .catch(() => {})
       .finally(() => { if (!cancelled) loadItems() })
     return () => { cancelled = true }
