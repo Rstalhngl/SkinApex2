@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 
-const PRESETS = [1000, 5000, 10000]
+const PRESETS = [1000, 5000, 10000, 20000]
 
 export function DepositDialog({
   open,
