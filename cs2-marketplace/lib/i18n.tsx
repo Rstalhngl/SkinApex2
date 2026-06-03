@@ -220,7 +220,7 @@ const en: Dict = {
   // Offers
   "offer.title": "Make an Offer",
   "offer.listingPrice": "Listing Price",
-  "offer.yourOffer": "Your Offer (USD)",
+  "offer.yourOffer": "Teklifiniz (TL)",
   "offer.min": "Min",
   "offer.max": "Max",
   "offer.makeOffer": "Make Offer",
@@ -436,7 +436,7 @@ const tr: Dict = {
   // Offers
   "offer.title": "Teklif Ver",
   "offer.listingPrice": "İlan Fiyatı",
-  "offer.yourOffer": "Teklifiniz (USD)",
+  "offer.yourOffer": "Teklifiniz (TL)",
   "offer.min": "Min",
   "offer.max": "Maks",
   "offer.makeOffer": "Teklif Ver",
