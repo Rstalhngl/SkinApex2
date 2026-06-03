@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 const STEAM_OPENID = "https://steamcommunity.com/openid/login"
 const STEAM_ID_REGEX = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/
 
-const HOME_URL = "https://skinapex.com"
+const HOME_URL = "https://skinapex.net"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
