@@ -70,6 +70,20 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [tradeUrl, setTradeUrlState] = useState("")
   const [listedSkins, setListedSkins] = useState<number[]>([])
 
+  // ── Fetch live USD→TRY rate on mount, refresh every hour ─────────────────────
+  useEffect(() => {
+    const fetchRate = async () => {
+      try {
+        const res = await fetch("/api/exchange-rate")
+        const data = await res.json()
+        if (data?.rate) setUsdToTry(data.rate)
+      } catch {}
+    }
+    fetchRate()
+    const interval = setInterval(fetchRate, 60 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   // ── Load CS2 items on mount ──────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false

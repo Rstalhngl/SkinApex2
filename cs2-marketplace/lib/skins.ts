@@ -311,15 +311,24 @@ export const liveSalesPool: { item: string; action: SaleAction; price: string }[
   { item: "USP-S | Kill Confirmed", action: "traded", price: "₺3.606" },
 ]
 
-// Static USD → TRY conversion rate (update as needed)
-export const USD_TO_TRY = 38.5
+// Live USD → TRY rate — updated at runtime via /api/exchange-rate
+// Falls back to a recent rate if fetch fails
+let _usdToTry = 45.96
+
+export function setUsdToTry(rate: number) {
+  if (rate > 1) _usdToTry = rate
+}
+
+export function getUsdToTry(): number {
+  return _usdToTry
+}
 
 export function formatPrice(value: number) {
   return new Intl.NumberFormat("tr-TR", {
     style: "currency",
     currency: "TRY",
     maximumFractionDigits: 0,
-  }).format(Math.round(value * USD_TO_TRY))
+  }).format(Math.round(value * _usdToTry))
 }
 
 export function steamMarketUrl(type: string, title: string, exterior: Exterior, hasFloat?: boolean, marketHashName?: string): string {
