@@ -278,7 +278,7 @@ const tr: Dict = {
   "filter.sort.floatAsc": "Float: Düşükten Yükseğe",
   "filter.sort.floatDesc": "Float: Yüksekten Düşüğe",
   "filter.rarity": "Nadirlik",
-  "rarity.industrial": "Endüstriyel",
+  "rarity.industrial": "Endüstriyel Sınıf",
   "rarity.milspec": "Askeri Sınıf",
   "rarity.restricted": "Kısıtlı",
   "rarity.classified": "Gizli",
