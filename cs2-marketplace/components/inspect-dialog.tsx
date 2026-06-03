@@ -70,7 +70,7 @@ export function InspectDialog({
               <Row label={t("inspect.yourPrice")}>
                 <div className="flex flex-col items-end gap-0.5">
                   <span className="font-bold text-success">{formatPrice(skin.price)}</span>
-                  <span className="text-[10px] text-muted-foreground/70">{t("inspect.steamRef")} {formatUSD(skin.price)}</span>
+                  <span className="text-[10px] text-muted-foreground/70">{t("inspect.steamRef")} {formatUSD(skin.priceUsd ?? skin.price)}</span>
                 </div>
               </Row>
               <Row label={t("inspect.delivery")}>

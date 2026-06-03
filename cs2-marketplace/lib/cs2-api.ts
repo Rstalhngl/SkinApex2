@@ -1,4 +1,5 @@
 import type { Skin, Rarity, Exterior } from "./skins"
+import { getUsdToTry } from "./skins"
 
 const BASE = "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en"
 
@@ -8,7 +9,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v14"
+const CACHE_KEY = "skx_cs2_v15"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -299,9 +300,11 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
   // Use real market price when available
   const realPrice = resolvePrice(raw.market_hash_name, isSpecial, rarity, seed)
   const [prMin, prMax] = isSpecial ? KNIFE_GLOVE_PRICE : WEAPON_PRICE[rarity]
-  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const priceUsd = realPrice ?? Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const rate = getUsdToTry()
+  const price = Math.round(priceUsd * rate)          // TRY
   const discount = Math.round(rnd(seed, 2, 3, 40))
-  const oldPrice = Math.round(price * (1 + discount / 100) * 100) / 100
+  const oldPrice = Math.round(price * (1 + discount / 100)) // TRY
 
   const minF = raw.min_float ?? 0, maxF = raw.max_float ?? 1
 
@@ -335,7 +338,8 @@ export function transformAgent(raw: CS2AgentRaw, index: number): Skin | null {
   const mhn = raw.market_hash_name || raw.name
   const realPrice = priceMap[mhn]
   const [prMin, prMax] = AGENT_PRICE[rarity]
-  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const priceUsd = realPrice ?? Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const price = Math.round(priceUsd * getUsdToTry())
   const discount = Math.round(rnd(seed, 2, 5, 30))
   return {
     id: 4000 + index,
@@ -345,7 +349,8 @@ export function transformAgent(raw: CS2AgentRaw, index: number): Skin | null {
     exterior: "FN",
     rarity,
     float: 0,
-    oldPrice: Math.round(price * (1 + discount / 100) * 100) / 100,
+    priceUsd,
+    oldPrice: Math.round(price * (1 + discount / 100)),
     price,
     discount,
     isST: false, isSV: false,
@@ -363,7 +368,8 @@ export function transformMusicKit(raw: CS2MusicKitRaw, index: number): Skin | nu
   const seed = fnv1a(raw.id)
   const mhn = raw.market_hash_name || `Music Kit | ${raw.name}`
   const realPrice = priceMap[mhn] || priceMap[`StatTrak™ Music Kit | ${raw.name}`]
-  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, MUSIC_PRICE[0], MUSIC_PRICE[1]) * 100) / 100
+  const priceUsd = realPrice ?? Math.round(rnd(seed, 1, MUSIC_PRICE[0], MUSIC_PRICE[1]) * 100) / 100
+  const price = Math.round(priceUsd * getUsdToTry())
   const discount = Math.round(rnd(seed, 2, 3, 25))
   return {
     id: 5000 + index,
@@ -373,7 +379,8 @@ export function transformMusicKit(raw: CS2MusicKitRaw, index: number): Skin | nu
     exterior: "FN",
     rarity: "milspec",
     float: 0,
-    oldPrice: Math.round(price * (1 + discount / 100) * 100) / 100,
+    priceUsd,
+    oldPrice: Math.round(price * (1 + discount / 100)),
     price,
     discount,
     isST: false, isSV: false,
@@ -396,7 +403,8 @@ export function transformSticker(raw: CS2StickerRaw, index: number): Skin | null
   const mhn = raw.market_hash_name || raw.name
   const realPrice = priceMap[mhn]
   const [prMin, prMax] = STICKER_PRICE[rarity]
-  const price = realPrice ? Math.round(realPrice * 100) / 100 : Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const priceUsd = realPrice ?? Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const price = Math.round(priceUsd * getUsdToTry())
   const discount = Math.round(rnd(seed, 2, 3, 30))
   return {
     id: 6000 + index,
@@ -406,7 +414,8 @@ export function transformSticker(raw: CS2StickerRaw, index: number): Skin | null
     exterior: "FN",
     rarity,
     float: 0,
-    oldPrice: Math.round(price * (1 + discount / 100) * 100) / 100,
+    priceUsd,
+    oldPrice: Math.round(price * (1 + discount / 100)),
     price,
     discount,
     isST: false, isSV: false,

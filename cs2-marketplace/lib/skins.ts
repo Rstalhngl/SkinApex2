@@ -28,8 +28,9 @@ export interface Skin {
   exterior: Exterior
   rarity: Rarity
   float: number
-  oldPrice: number
-  price: number
+  oldPrice: number    // TRY
+  price: number       // TRY
+  priceUsd?: number   // USD — Steam reference only
   discount: number
   isST: boolean
   isSV: boolean
@@ -152,8 +153,9 @@ export const skins: Skin[] = [
     exterior: "FN",
     rarity: "classified",
     float: 0.012,
-    oldPrice: 140.0,
-    price: 120.0,
+    oldPrice: 6300,
+    price: 5400,
+    priceUsd: 120.0,
     discount: 14,
     isST: false,
     isSV: false,
@@ -170,8 +172,9 @@ export const skins: Skin[] = [
     exterior: "MW",
     rarity: "covert",
     float: 0.091,
-    oldPrice: 58.0,
-    price: 45.0,
+    oldPrice: 2610,
+    price: 2025,
+    priceUsd: 45.0,
     discount: 22,
     isST: true,
     isSV: false,
@@ -188,8 +191,9 @@ export const skins: Skin[] = [
     exterior: "FT",
     rarity: "contraband",
     float: 0.21,
-    oldPrice: 1400.0,
-    price: 1280.0,
+    oldPrice: 63000,
+    price: 57600,
+    priceUsd: 1280.0,
     discount: 8,
     isST: false,
     isSV: true,
@@ -206,8 +210,9 @@ export const skins: Skin[] = [
     exterior: "FN",
     rarity: "covert",
     float: 0.005,
-    oldPrice: 415.0,
-    price: 290.0,
+    oldPrice: 18675,
+    price: 13050,
+    priceUsd: 290.0,
     discount: 30,
     isST: false,
     isSV: false,
@@ -224,8 +229,9 @@ export const skins: Skin[] = [
     exterior: "FT",
     rarity: "classified",
     float: 0.184,
-    oldPrice: 160.0,
-    price: 120.0,
+    oldPrice: 7200,
+    price: 5400,
+    priceUsd: 120.0,
     discount: 25,
     isST: true,
     isSV: false,
@@ -242,8 +248,9 @@ export const skins: Skin[] = [
     exterior: "FN",
     rarity: "restricted",
     float: 0.041,
-    oldPrice: 1550.0,
-    price: 1472.0,
+    oldPrice: 69750,
+    price: 66240,
+    priceUsd: 1472.0,
     discount: 5,
     isST: false,
     isSV: false,
@@ -260,8 +267,9 @@ export const skins: Skin[] = [
     exterior: "FN",
     rarity: "milspec",
     float: 0.025,
-    oldPrice: 98.0,
-    price: 80.0,
+    oldPrice: 4410,
+    price: 3600,
+    priceUsd: 80.0,
     discount: 18,
     isST: false,
     isSV: false,
@@ -278,8 +286,9 @@ export const skins: Skin[] = [
     exterior: "FN",
     rarity: "industrial",
     float: 0.022,
-    oldPrice: 74.0,
-    price: 65.0,
+    oldPrice: 3330,
+    price: 2925,
+    priceUsd: 65.0,
     discount: 12,
     isST: false,
     isSV: false,
@@ -296,8 +305,9 @@ export const skins: Skin[] = [
     exterior: "MW",
     rarity: "restricted",
     float: 0.078,
-    oldPrice: 110.0,
-    price: 88.0,
+    oldPrice: 4950,
+    price: 3960,
+    priceUsd: 88.0,
     discount: 20,
     isST: true,
     isSV: false,
@@ -321,8 +331,8 @@ export const liveSalesPool: { item: string; action: SaleAction; price: string }[
   { item: "USP-S | Kill Confirmed", action: "traded", price: "₺3.606" },
 ]
 
-// Live USD → TRY rate — updated at runtime via /api/exchange-rate
-// Falls back to a recent rate if fetch fails
+// Live USD → TRY rate — used at LOAD TIME to convert API prices to TRY
+// After conversion, prices are stored as TRY. Rate also used for Steam reference.
 let _usdToTry = 45.96
 
 export function setUsdToTry(rate: number) {
@@ -333,12 +343,13 @@ export function getUsdToTry(): number {
   return _usdToTry
 }
 
-export function formatPrice(value: number) {
+/** Format a TRY value for display */
+export function formatPrice(tryValue: number) {
   return new Intl.NumberFormat("tr-TR", {
     style: "currency",
     currency: "TRY",
     maximumFractionDigits: 0,
-  }).format(Math.round(value * _usdToTry))
+  }).format(Math.round(tryValue))
 }
 
 /** Raw USD price for Steam reference display */

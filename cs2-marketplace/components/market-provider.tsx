@@ -64,7 +64,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   // ── Market state ─────────────────────────────────────────────────────────
   const [cart, setCart] = useState<Skin[]>([])
   const [wishlist, setWishlist] = useState<number[]>([])
-  const [wallet, setWallet] = useState(412.8)  // USD — displayed via formatPrice()
+  const [wallet, setWallet] = useState(18900)  // TRY
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [steamProfile, setSteamProfile] = useState<SteamProfile | null>(null)
   const [tradeUrl, setTradeUrlState] = useState("")
@@ -218,7 +218,6 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const deposit = useCallback((amount: number) => {
     setWallet((prev) => prev + amount)
-    // amount is in USD — display via formatPrice which converts to TRY
     toast.success(t("toast.depositSuccess"), {
       description: t("toast.depositDesc", { amount: formatPrice(amount) }),
     })

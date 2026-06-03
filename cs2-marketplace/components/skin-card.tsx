@@ -177,7 +177,7 @@ export function SkinCard({
           <div className="flex flex-col items-end">
             <span className="text-sm font-bold text-success">{formatPrice(skin.price)}</span>
             {skin.hasFloat !== false && (
-              <span className="text-[10px] text-muted-foreground/60">{formatUSD(skin.price)}</span>
+              <span className="text-[10px] text-muted-foreground/60">{formatUSD(skin.priceUsd ?? skin.price)}</span>
             )}
           </div>
         </div>

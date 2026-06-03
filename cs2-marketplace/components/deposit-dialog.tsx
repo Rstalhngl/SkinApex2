@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMarket } from "@/components/market-provider"
-import { getUsdToTry } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 
 const PRESETS = [1000, 5000, 10000, 20000]
@@ -31,11 +30,9 @@ export function DepositDialog({
   const [amount, setAmount] = useState("1000")
 
   const handleDeposit = () => {
-    const tryValue = Number.parseFloat(amount)
-    if (!Number.isNaN(tryValue) && tryValue > 0) {
-      // Wallet stores USD internally — convert TRY input to USD before adding
-      const usdValue = tryValue / getUsdToTry()
-      deposit(usdValue)
+    const value = Number.parseFloat(amount)
+    if (!Number.isNaN(value) && value > 0) {
+      deposit(value)   // value is TRY, wallet is TRY — direct add
       onOpenChange(false)
       setAmount("1000")
     }

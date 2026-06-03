@@ -85,7 +85,7 @@ export function SellDialog({
               />
               <p className="text-xs text-muted-foreground">
                 {t("sell.marketRef")} {formatPrice(skin.price)}
-                <span className="ml-1 text-muted-foreground/60">({formatUSD(skin.price)})</span>
+                <span className="ml-1 text-muted-foreground/60">({formatUSD(skin.priceUsd ?? skin.price)})</span>
               </p>
             </div>
           </div>

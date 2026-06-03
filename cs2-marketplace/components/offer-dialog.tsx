@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice, formatUSD, getUsdToTry } from "@/lib/skins"
+import { type Skin, formatPrice, formatUSD } from "@/lib/skins"
 import { sendOffer } from "@/lib/offers"
 import { useI18n } from "@/lib/i18n"
 import { toast } from "sonner"
@@ -31,9 +31,8 @@ export function OfferDialog({
   const { t } = useI18n()
 
   // All values stored internally as TRY
-  const rate = getUsdToTry()
-  const listingTry  = skin ? Math.round(skin.price * rate) : 0
-  const minTry      = skin ? Math.round(skin.price * MIN_RATIO * rate) : 0
+  const listingTry  = skin ? Math.round(skin.price) : 0
+  const minTry      = skin ? Math.round(skin.price * MIN_RATIO) : 0
 
   // Use string for the input so user can freely type without clamping mid-keystroke
   const [inputStr, setInputStr] = useState<string>(String(listingTry))
@@ -42,7 +41,7 @@ export function OfferDialog({
 
   const handleOpen = (open: boolean) => {
     if (!open) onClose()
-    else if (skin) setInputStr(String(Math.round(skin.price * getUsdToTry())))
+    else if (skin) setInputStr(String(Math.round(skin.price)))
   }
 
   const handleSlider = (val: number[]) => {
@@ -55,7 +54,7 @@ export function OfferDialog({
     ? Math.max(0, Math.min(100, Math.round(((tryValue - minTry) / (listingTry - minTry)) * 100)))
     : 100
 
-  const usdEquiv = tryValue / rate
+  const usdEquiv = skin?.priceUsd ? tryValue / listingTry * (skin.priceUsd) : tryValue / 45.96
 
   const handleSend = () => {
     if (!skin) return
@@ -66,7 +65,7 @@ export function OfferDialog({
     const usdFinal = finalTry / rate
     const userName = steamProfile?.steamName ?? "Anonim"
     sendOffer(
-      { id: skin.id, type: skin.type, title: skin.title, img: skin.img, price: skin.price },
+      { id: skin.id, type: skin.type, title: skin.title, img: skin.img, price: skin.price, priceUsd: skin.priceUsd },
       usdFinal,
       userName,
       steamProfile?.steamAvatar,
