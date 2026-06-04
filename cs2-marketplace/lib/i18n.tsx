@@ -244,6 +244,9 @@ const en: Dict = {
 
   // Header
   "header.myOffers": "My Offers",
+  "header.myOrders": "My Orders",
+  "orders.title": "My Orders",
+  "orders.empty": "No orders yet.",
 }
 
 const tr: Dict = {
@@ -461,6 +464,9 @@ const tr: Dict = {
 
   // Header
   "header.myOffers": "Tekliflerim",
+  "header.myOrders": "Siparişlerim",
+  "orders.title": "Siparişlerim",
+  "orders.empty": "Henüz sipariş bulunmuyor.",
 }
 
 const de: Dict = {

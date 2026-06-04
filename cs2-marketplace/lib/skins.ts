@@ -59,15 +59,18 @@ export type CategoryKey =
   | "agent"
 
 export const CATEGORIES: { key: CategoryKey; icon: string }[] = [
-  { key: "rifle", icon: "/categories/rifle.png" },
-  { key: "smg", icon: "/categories/smg.png" },
-  { key: "pistol", icon: "/categories/pistol.png" },
-  { key: "heavy", icon: "/categories/heavy.png" },
-  { key: "knife", icon: "/categories/knife.png" },
-  { key: "glove", icon: "/categories/glove.png" },
+  // Row 1: Tabanca, Hafif Makine (SMG), Tüfek
+  { key: "pistol",  icon: "/categories/pistol.png" },
+  { key: "smg",    icon: "/categories/smg.png" },
+  { key: "rifle",  icon: "/categories/rifle.png" },
+  // Row 2: Ağır Silah, Bıçak, Eldiven
+  { key: "heavy",  icon: "/categories/heavy.png" },
+  { key: "knife",  icon: "/categories/knife.png" },
+  { key: "glove",  icon: "/categories/glove.png" },
+  // Row 3: Müzik Kiti, Ajan, Çıkartma
+  { key: "music",   icon: "/categories/music.png" },
+  { key: "agent",  icon: "/categories/agent.png" },
   { key: "sticker", icon: "/categories/sticker.png" },
-  { key: "music", icon: "/categories/music.png" },
-  { key: "agent", icon: "/categories/agent.png" },
 ]
 
 const CATEGORY_BY_WEAPON: Record<string, CategoryKey> = {

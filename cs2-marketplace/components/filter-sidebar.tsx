@@ -55,7 +55,7 @@ export function FilterSidebar({
         <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
           {t("filter.categories")}
         </Label>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {CATEGORIES.map((c) => {
             const active = filters.category === c.key
             return (

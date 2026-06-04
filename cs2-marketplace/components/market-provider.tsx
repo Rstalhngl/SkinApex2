@@ -7,6 +7,7 @@ import type { Skin } from "@/lib/skins"
 import { formatPrice, skins as demoSkins } from "@/lib/skins"
 import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
+import { createOrder } from "@/lib/orders"
 import { useI18n } from "@/lib/i18n"
 
 export interface SteamProfile {
@@ -237,7 +238,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     toast.success(t("toast.purchaseTitle"), {
       description: t("toast.purchaseDesc", { n: cart.length }),
     })
-    cart.forEach((skin) => pushActivity(`${skin.type} | ${skin.title}`, "bought", formatPrice(skin.price)))
+    cart.forEach((skin) => {
+      pushActivity(`${skin.type} | ${skin.title}`, "bought", formatPrice(skin.price))
+      createOrder(skin, skin.price)
+    })
     setCart([])
   }, [cart, cartTotal, wallet, t])
 
