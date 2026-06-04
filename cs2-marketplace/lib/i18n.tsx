@@ -39,6 +39,7 @@ const en: Dict = {
   "header.openWishlist": "Open wishlist",
   "header.profile": "Profile & Inventory",
   "header.tradeUrl": "Trade URL Settings",
+  "header.withdraw": "Withdraw Funds",
   "header.deposit": "Deposit Funds",
   "header.theme": "Theme",
   "header.theme.dark": "Dark Mode",
@@ -62,6 +63,9 @@ const en: Dict = {
   "empty.reset": "Reset filters",
 
   // Filters
+  "filter.priceRange": "Price Range",
+  "filter.priceAll": "All Prices",
+  "filter.reset": "Reset Filters",
   "filter.title": "Market Filters",
   "filter.categories": "Categories",
   "category.rifle": "Rifles",
@@ -268,6 +272,7 @@ const tr: Dict = {
   "header.openWishlist": "İstek listesini aç",
   "header.profile": "Profil ve Envanter",
   "header.tradeUrl": "Takas URL Ayarları",
+  "header.withdraw": "Para Çek",
   "header.deposit": "Bakiye Yükle",
   "header.theme": "Tema",
   "header.theme.dark": "Koyu Mod",
@@ -289,6 +294,9 @@ const tr: Dict = {
   "empty.title": "Seçilen parametrelerle eşleşen ilan bulunamadı.",
   "empty.reset": "Filtreleri sıfırla",
 
+  "filter.priceRange": "Fiyat Aralığı",
+  "filter.priceAll": "Tüm Fiyatlar",
+  "filter.reset": "Filtreleri Sıfırla",
   "filter.title": "Pazar Filtreleri",
   "filter.categories": "Kategoriler",
   "category.rifle": "Tüfekler",

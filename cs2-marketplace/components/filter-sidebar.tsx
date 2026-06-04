@@ -1,6 +1,6 @@
 "use client"
 
-import { SlidersHorizontal } from "lucide-react"
+import { RotateCcw, SlidersHorizontal } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 import { CATEGORIES, RARITIES, WEAPONS_BY_CATEGORY, type CategoryKey, type Rarity } from "@/lib/skins"
@@ -32,14 +33,20 @@ export interface Filters {
   category: CategoryKey | null
   weapon: string | null
   rarity: Rarity | null
+  priceMin: number
+  priceMax: number
 }
+
+export const PRICE_FILTER_MAX = 200000 // TRY
 
 export function FilterSidebar({
   filters,
   onChange,
+  onReset,
 }: {
   filters: Filters
   onChange: (filters: Filters) => void
+  onReset?: () => void
 }) {
   const { t } = useI18n()
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch })
@@ -50,6 +57,39 @@ export function FilterSidebar({
         <SlidersHorizontal className="h-4 w-4 text-primary" />
         {t("filter.title")}
       </h3>
+
+      {/* Reset filters button */}
+      {onReset && (
+        <button
+          onClick={onReset}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-input py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+        >
+          <RotateCcw className="h-3 w-3" />
+          {t("filter.reset")}
+        </button>
+      )}
+
+      {/* Price range filter */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            {t("filter.priceRange")}
+          </Label>
+          <span className="text-[10px] text-muted-foreground">
+            {filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX
+              ? `₺${filters.priceMin.toLocaleString("tr-TR")} – ${filters.priceMax >= PRICE_FILTER_MAX ? "₺200K+" : "₺" + filters.priceMax.toLocaleString("tr-TR")}`
+              : t("filter.priceAll")}
+          </span>
+        </div>
+        <Slider
+          min={0}
+          max={PRICE_FILTER_MAX}
+          step={500}
+          value={[filters.priceMin, filters.priceMax]}
+          onValueChange={([min, max]) => set({ priceMin: min, priceMax: max })}
+          className="mt-1"
+        />
+      </div>
 
       <div className="space-y-2">
         <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">

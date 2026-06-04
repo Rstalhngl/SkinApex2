@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import { ChevronDown, ExternalLink, Globe, Handshake, LogOut, Moon, Package, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
+import { Banknote, ChevronDown, ExternalLink, Globe, Handshake, LogOut, Moon, Package, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import { CartSheet } from "@/components/cart-sheet"
 import { WishlistSheet } from "@/components/wishlist-sheet"
 import { DepositDialog } from "@/components/deposit-dialog"
 import { TradeUrlDialog } from "@/components/trade-url-dialog"
+import { WithdrawDialog } from "@/components/withdraw-dialog"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { OffersSheet } from "@/components/offers-sheet"
 import { OrdersSheet } from "@/components/orders-sheet"
@@ -44,6 +45,7 @@ export function SiteHeader({
   const { resolvedTheme, setTheme } = useTheme()
   const [depositOpen, setDepositOpen] = useState(false)
   const [tradeUrlOpen, setTradeUrlOpen] = useState(false)
+  const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const currentLang = LANGS.find((l) => l.code === lang) ?? LANGS[0]
 
@@ -239,6 +241,13 @@ export function SiteHeader({
                 <Wallet className="h-4 w-4" />
                 {t("header.deposit")}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setWithdrawOpen(true)}
+                className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
+              >
+                <Banknote className="h-4 w-4" />
+                {t("header.withdraw")}
+              </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border" />
               <DropdownMenuItem
                 onClick={(e) => {
@@ -268,6 +277,7 @@ export function SiteHeader({
       </header>
 
       <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+      <WithdrawDialog open={withdrawOpen} onOpenChange={setWithdrawOpen} />
       <TradeUrlDialog open={tradeUrlOpen} onOpenChange={setTradeUrlOpen} />
     </>
   )

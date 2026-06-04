@@ -24,6 +24,8 @@ const DEFAULT_FILTERS: Filters = {
   category: null,
   weapon: null,
   rarity: null,
+  priceMin: 0,
+  priceMax: 200000,
 }
 
 const PAGE_SIZE = 48
@@ -94,6 +96,9 @@ export function Marketplace() {
     if (filters.category) list = list.filter((s) => categoryOf(s.type) === filters.category)
     if (filters.weapon) list = list.filter((s) => s.type === filters.weapon)
     if (filters.rarity) list = list.filter((s) => s.rarity === filters.rarity)
+    if (filters.priceMin > 0 || filters.priceMax < 200000) {
+      list = list.filter((s) => s.price >= filters.priceMin && s.price <= filters.priceMax)
+    }
     if (filters.st) list = list.filter((s) => s.isST)
     if (filters.sv) list = list.filter((s) => s.isSV)
     if (filters.exterior !== "all") list = list.filter((s) => s.exterior === filters.exterior)
@@ -129,6 +134,8 @@ export function Marketplace() {
     !!filters.category ||
     !!filters.weapon ||
     !!filters.rarity ||
+    filters.priceMin > 0 ||
+    filters.priceMax < 200000 ||
     !!search
 
   return (
@@ -138,7 +145,7 @@ export function Marketplace() {
 
       <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 md:grid-cols-[280px_1fr] md:px-10">
         <aside className="hidden h-fit rounded-xl border border-border bg-card p-6 md:block">
-          <FilterSidebar filters={filters} onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }} />
+          <FilterSidebar filters={filters} onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }} onReset={resetFilters} />
         </aside>
 
         <div className="flex flex-col gap-5">
@@ -166,7 +173,7 @@ export function Marketplace() {
               <SheetContent side="left" className="border-border bg-card">
                 <SheetTitle className="sr-only">{t("filter.title")}</SheetTitle>
                 <div className="mt-6">
-                  <FilterSidebar filters={filters} onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }} />
+                  <FilterSidebar filters={filters} onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }} onReset={resetFilters} />
                 </div>
               </SheetContent>
             </Sheet>
