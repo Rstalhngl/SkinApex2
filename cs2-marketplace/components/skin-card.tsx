@@ -178,6 +178,9 @@ export function SkinCard({
             </span>
           )}
         </div>
+        {skin.pattern && skin.pattern !== skin.title && (
+          <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary/70">{skin.pattern}</div>
+        )}
         <div className="text-[10px] font-bold uppercase text-muted-foreground">{skin.type}</div>
         <div className="truncate text-sm font-semibold text-foreground">{skin.title}</div>
         <div className="mt-2.5 flex items-baseline justify-between border-t border-border pt-2">

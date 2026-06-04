@@ -40,6 +40,7 @@ export interface Skin {
   stickers: { name: string; img: string }[]
   hasFloat?: boolean
   marketHashName?: string
+  pattern?: string  // pattern/finish name (e.g. "Doppler", "Case Hardened")
 }
 
 export const CURRENT_USER = {

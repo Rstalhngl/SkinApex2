@@ -11,6 +11,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 import { CATEGORIES, RARITIES, WEAPONS_BY_CATEGORY, type CategoryKey, type Rarity } from "@/lib/skins"
@@ -152,15 +153,41 @@ export function FilterSidebar({
 
       {/* Price range filter — below sort */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            {t("filter.priceRange")}
-          </Label>
-          <span className="text-[10px] text-muted-foreground">
-            {filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX
-              ? `₺${filters.priceMin.toLocaleString("tr-TR")} – ${filters.priceMax >= PRICE_FILTER_MAX ? "₺200K+" : "₺" + filters.priceMax.toLocaleString("tr-TR")}`
-              : t("filter.priceAll")}
-          </span>
+        <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          {t("filter.priceRange")}
+        </Label>
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">₺</span>
+            <Input
+              type="number"
+              min={0}
+              max={filters.priceMax}
+              value={filters.priceMin || ""}
+              onChange={e => {
+                const v = parseInt(e.target.value) || 0
+                set({ priceMin: Math.min(v, filters.priceMax) })
+              }}
+              placeholder="Min"
+              className="h-7 border-border bg-input pl-5 text-[11px] text-foreground"
+            />
+          </div>
+          <span className="text-[10px] text-muted-foreground">–</span>
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">₺</span>
+            <Input
+              type="number"
+              min={filters.priceMin}
+              max={PRICE_FILTER_MAX}
+              value={filters.priceMax >= PRICE_FILTER_MAX ? "" : filters.priceMax}
+              onChange={e => {
+                const v = parseInt(e.target.value)
+                set({ priceMax: isNaN(v) ? PRICE_FILTER_MAX : Math.max(v, filters.priceMin) })
+              }}
+              placeholder="Max"
+              className="h-7 border-border bg-input pl-5 text-[11px] text-foreground"
+            />
+          </div>
         </div>
         <Slider
           min={0}
@@ -170,6 +197,11 @@ export function FilterSidebar({
           onValueChange={([min, max]) => set({ priceMin: min, priceMax: max })}
           className="mt-1"
         />
+        {(filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX) && (
+          <p className="text-[10px] text-muted-foreground">
+            ₺{filters.priceMin.toLocaleString("tr-TR")} – {filters.priceMax >= PRICE_FILTER_MAX ? "₺200.000+" : "₺" + filters.priceMax.toLocaleString("tr-TR")}
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">

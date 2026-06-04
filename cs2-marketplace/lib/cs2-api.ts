@@ -9,7 +9,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v16"
+const CACHE_KEY = "skx_cs2_v17"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -27,6 +27,7 @@ interface CS2SkinRaw {
   stattrak: boolean
   souvenir: boolean
   market_hash_name: string
+  pattern: { id: string; name: string } | null
   image: string
 }
 
@@ -339,6 +340,7 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
     stickers: isSpecial ? [] : buildStickers(seed),
     hasFloat: true,
     marketHashName: raw.market_hash_name || undefined,
+    pattern: raw.pattern?.name || undefined,
   }
 }
 
