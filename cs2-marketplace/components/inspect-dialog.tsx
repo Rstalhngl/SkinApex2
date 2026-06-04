@@ -63,7 +63,7 @@ export function InspectDialog({
               )}
               <Row label={t("inspect.discountRate")}>
                 {skin.discount < 0 ? (
-                  <span className="font-bold text-destructive">+{Math.abs(skin.discount)}% Piyasa Üstü</span>
+                  <span className="font-bold text-destructive">+{Math.abs(skin.discount)}% {t("inspect.aboveMarket")}</span>
                 ) : (
                   <span className="font-bold text-success">{t("inspect.off", { n: skin.discount })}</span>
                 )}

@@ -16,11 +16,11 @@ const TYPE_ICON: Record<Notification["type"], React.ReactNode> = {
   offer_withdrawn: <X className="h-3.5 w-3.5 text-muted-foreground" />,
 }
 
-function timeAgo(ts: number): string {
+function timeAgo(ts: number, t: (k: string, v?: Record<string, string|number>) => string): string {
   const diff = Date.now() - ts
-  if (diff < 60_000) return "Az önce"
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}d önce`
-  return `${Math.floor(diff / 3_600_000)}s önce`
+  if (diff < 60_000) return t("notif.justNow")
+  if (diff < 3_600_000) return t("notif.minsAgo", { n: Math.floor(diff / 60_000) })
+  return t("notif.hoursAgo", { n: Math.floor(diff / 3_600_000) })
 }
 
 export function NotificationsBell() {
@@ -103,7 +103,7 @@ export function NotificationsBell() {
                     <p className={cn("text-xs leading-snug", !n.read ? "text-foreground font-semibold" : "text-muted-foreground")}>
                       {n.message}
                     </p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground/60">{timeAgo(n.createdAt)}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground/60">{timeAgo(n.createdAt, t)}</p>
                   </div>
                   {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
                 </li>

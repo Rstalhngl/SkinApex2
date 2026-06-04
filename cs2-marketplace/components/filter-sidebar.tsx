@@ -252,7 +252,7 @@ export function FilterSidebar({
       {onReset && (
         <button
           onClick={onReset}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-input py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/10 py-1.5 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/20"
         >
           <RotateCcw className="h-3 w-3" />
           {t("filter.reset")}

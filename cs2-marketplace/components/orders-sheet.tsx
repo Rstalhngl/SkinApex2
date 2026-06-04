@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   getOrders, subscribeOrders, openSupportTicket, escrowTimeLeft,
-  STATUS_LABEL, STATUS_COLOR, type Order,
+  STATUS_COLOR, type Order,
 } from "@/lib/orders"
 import { formatPrice } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
@@ -43,12 +43,12 @@ function SupportDialog({
   const handleSubmit = () => {
     const opened = openSupportTicket(order.id)
     if (opened) {
-      toast.success("Destek talebi oluşturuldu", {
-        description: "Mail uygulamanız açılıyor...",
+      toast.success(t("order.supportTicket"), {
+        description: t("order.supportTicketCreate"),
       })
       window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`
     } else {
-      toast.error("Destek talebi oluşturulamadı", {
+      toast.error(t("order.supportTicket"), {
         description: "Sipariş için destek süresi dolmuş olabilir.",
       })
     }
@@ -86,13 +86,11 @@ function SupportDialog({
 
           <p className="text-xs leading-relaxed">
             Destek talebiniz <strong className="text-foreground">{SUPPORT_EMAIL}</strong> adresine
-            yönlendirilecektir. Mail uygulamanız otomatik olarak açılacak. Talebiniz incelendikten sonra
-            en kısa sürede geri dönüş yapılacaktır.
+            yönlendirilecektir. Mail uygulamanız otomatik olarak açılacak. {t("order.supportDesc", { email: SUPPORT_EMAIL })}
           </p>
 
           <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-400">
-            <strong>Önemli:</strong> Satıcının ürünü geri çektiği doğrulanırsa ödemeniz iade edilir
-            ve satıcı 1 hafta süreyle ilan açamaz.
+            {t("order.supportWarning")}
           </div>
         </div>
 
@@ -135,7 +133,7 @@ function OrderRow({ order }: { order: Order }) {
           <p className="text-[11px] text-muted-foreground">{order.exterior}</p>
           <p className="text-xs font-bold text-primary">{formatPrice(order.priceTry)}</p>
           <p className={cn("text-[10px] font-semibold", STATUS_COLOR[order.status])}>
-            {STATUS_LABEL[order.status]}
+            {t(`order.status.${order.status}`)}
             {order.status === "escrow" && (
               <span className="ml-1 text-muted-foreground/60">({escrowTimeLeft(order)})</span>
             )}
@@ -194,8 +192,7 @@ export function OrdersSheet({ trigger }: { trigger?: React.ReactNode }) {
         {escrowOrders.length > 0 && (
           <div className="border-b border-yellow-500/20 bg-yellow-500/10 px-5 py-3">
             <p className="text-xs text-yellow-400">
-              <strong>{escrowOrders.length} sipariş</strong> 8 günlük emanet sürecinde.
-              Ürün teslim edilmezse "Destek Talebi" oluşturabilirsiniz.
+              {t("order.escrowInfo", { n: escrowOrders.length })}
             </p>
           </div>
         )}

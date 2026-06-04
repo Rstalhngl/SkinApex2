@@ -16,13 +16,6 @@ import { formatUSD } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
-const STATUS_LABEL: Record<string, string> = {
-  pending:   "Beklemede",
-  accepted:  "Kabul Edildi",
-  rejected:  "Reddedildi",
-  withdrawn: "Geri Çekildi",
-}
-
 const STATUS_CLASS: Record<string, string> = {
   pending:   "text-yellow-400",
   accepted:  "text-success",
@@ -31,6 +24,7 @@ const STATUS_CLASS: Record<string, string> = {
 }
 
 function OfferRow({ offer }: { offer: Offer }) {
+  const { t } = useI18n()
   const ratio = Math.round((offer.offerPrice / offer.listingPrice) * 100)
   return (
     <li className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0">
@@ -47,7 +41,7 @@ function OfferRow({ offer }: { offer: Offer }) {
           <span className="ml-1 text-muted-foreground/60">({ratio}%)</span>
         </p>
         <p className={cn("text-[10px] font-bold", STATUS_CLASS[offer.status])}>
-          {STATUS_LABEL[offer.status]}
+          {t(`offer.status.${offer.status}`)}
         </p>
       </div>
       {offer.status === "pending" && (

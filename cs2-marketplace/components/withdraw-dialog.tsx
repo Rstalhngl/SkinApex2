@@ -36,8 +36,8 @@ export function WithdrawDialog({
     if (!isValid) return
     // Deduct from wallet (deposit negative amount)
     deposit(-reqAmount)
-    toast.success("Para çekme talebi alındı", {
-      description: `${fmt(reqAmount)} — IBAN'ınıza 1-3 iş günü içinde aktarılacak.`,
+    toast.success(t("withdraw.success"), {
+      description: t("withdraw.successDesc"),
     })
     onOpenChange(false)
     setAmount("")
@@ -53,13 +53,13 @@ export function WithdrawDialog({
             {t("header.withdraw")}
           </DialogTitle>
           <DialogDescription>
-            Bakiyenizden banka hesabınıza para çekin.
+            {t("withdraw.title")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="flex items-center justify-between rounded-lg border border-border bg-input px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Mevcut Bakiye</span>
+            <span className="text-muted-foreground">{t("withdraw.balance")}</span>
             <span className="font-bold text-success">{formatPrice(walletTry)}</span>
           </div>
 
@@ -81,7 +81,7 @@ export function WithdrawDialog({
               />
             </div>
             {reqAmount > walletTry && (
-              <p className="text-[11px] text-destructive">Bakiyenizi aşamazsınız.</p>
+              <p className="text-[11px] text-destructive">{t("withdraw.tooHigh")}</p>
             )}
           </div>
 
@@ -94,12 +94,12 @@ export function WithdrawDialog({
               value={iban}
               onChange={e => setIban(e.target.value.toUpperCase())}
               className="border-border bg-input font-mono text-sm text-foreground"
-              placeholder="TR00 0000 0000 0000 0000 0000 00"
+              placeholder={t("withdraw.ibanPlaceholder")}
             />
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Para transferleri 1-3 iş günü içinde tamamlanır. Minimum çekim tutarı ₺500'dir.
+            {t("withdraw.info")}
           </p>
         </div>
 
