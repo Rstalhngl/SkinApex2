@@ -43,7 +43,15 @@ export function SkinCard({
               {isListed ? t("sell.listedBadge") : t("sell.ownedBadge")}
             </span>
           )}
-          <span className="rounded bg-success/15 px-1.5 py-0.5 font-bold text-success">-{skin.discount}%</span>
+          {skin.discount !== 0 && (
+            <span className={
+              skin.discount < 0
+                ? "rounded bg-destructive/15 px-1.5 py-0.5 font-bold text-destructive"
+                : "rounded bg-success/15 px-1.5 py-0.5 font-bold text-success"
+            }>
+              {skin.discount < 0 ? `+${Math.abs(skin.discount)}%` : `-${skin.discount}%`}
+            </span>
+          )}
         </div>
       </div>
 

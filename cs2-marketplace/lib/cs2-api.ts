@@ -9,7 +9,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v15"
+const CACHE_KEY = "skx_cs2_v16"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -300,11 +300,22 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
   // Use real market price when available
   const realPrice = resolvePrice(raw.market_hash_name, isSpecial, rarity, seed)
   const [prMin, prMax] = isSpecial ? KNIFE_GLOVE_PRICE : WEAPON_PRICE[rarity]
-  const priceUsd = realPrice ?? Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
+  const refPriceUsd = realPrice ?? Math.round(rnd(seed, 1, prMin, prMax) * 100) / 100
   const rate = getUsdToTry()
-  const price = Math.round(priceUsd * rate)          // TRY
-  const discount = Math.round(rnd(seed, 2, 3, 40))
-  const oldPrice = Math.round(price * (1 + discount / 100)) // TRY
+  const refPriceTry = Math.round(refPriceUsd * rate) // Steam reference in TRY
+
+  // ~30% of listings are priced above market (premium), 70% below (discount)
+  const isPremium = xr(seed + 33_333) < 0.30
+  const variationPct = isPremium
+    ? Math.round(rnd(seed, 7, 3, 35))   // +3% to +35% above market
+    : Math.round(rnd(seed, 8, 3, 40))   // -3% to -40% below market
+  const marketDiff = isPremium ? variationPct : -variationPct
+
+  // listing price based on market variation
+  const price = Math.round(refPriceTry * (1 + marketDiff / 100))
+  const priceUsd = refPriceUsd
+  const oldPrice = isPremium ? refPriceTry : Math.round(price * (1 + Math.abs(marketDiff) / 100))
+  const discount = marketDiff  // negative = premium, positive = discount
 
   const minF = raw.min_float ?? 0, maxF = raw.max_float ?? 1
 

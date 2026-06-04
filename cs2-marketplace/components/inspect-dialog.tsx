@@ -62,7 +62,11 @@ export function InspectDialog({
                 </Row>
               )}
               <Row label={t("inspect.discountRate")}>
-                <span className="font-bold text-success">{t("inspect.off", { n: skin.discount })}</span>
+                {skin.discount < 0 ? (
+                  <span className="font-bold text-destructive">+{Math.abs(skin.discount)}% Piyasa Üstü</span>
+                ) : (
+                  <span className="font-bold text-success">{t("inspect.off", { n: skin.discount })}</span>
+                )}
               </Row>
               <Row label={t("inspect.listPrice")}>
                 <span className="text-muted-foreground line-through">{formatPrice(skin.oldPrice)}</span>
