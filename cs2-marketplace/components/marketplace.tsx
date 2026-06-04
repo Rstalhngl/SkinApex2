@@ -144,8 +144,10 @@ export function Marketplace() {
       <SiteHeader onResetFilters={resetFilters} onShowMyListings={() => setMyListings(true)} />
 
       <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 md:grid-cols-[280px_1fr] md:px-10">
-        <aside className="hidden h-fit rounded-xl border border-border bg-card p-6 md:block">
+        <aside className="hidden md:block">
+          <div className="sticky top-[64px] max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-border bg-card p-6 scrollbar-thin">
           <FilterSidebar filters={filters} onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }} onReset={resetFilters} />
+          </div>
         </aside>
 
         <div className="flex flex-col gap-5">

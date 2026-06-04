@@ -58,39 +58,8 @@ export function FilterSidebar({
         {t("filter.title")}
       </h3>
 
-      {/* Reset filters button */}
-      {onReset && (
-        <button
-          onClick={onReset}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-input py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-        >
-          <RotateCcw className="h-3 w-3" />
-          {t("filter.reset")}
-        </button>
-      )}
 
       {/* Price range filter */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            {t("filter.priceRange")}
-          </Label>
-          <span className="text-[10px] text-muted-foreground">
-            {filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX
-              ? `₺${filters.priceMin.toLocaleString("tr-TR")} – ${filters.priceMax >= PRICE_FILTER_MAX ? "₺200K+" : "₺" + filters.priceMax.toLocaleString("tr-TR")}`
-              : t("filter.priceAll")}
-          </span>
-        </div>
-        <Slider
-          min={0}
-          max={PRICE_FILTER_MAX}
-          step={500}
-          value={[filters.priceMin, filters.priceMax]}
-          onValueChange={([min, max]) => set({ priceMin: min, priceMax: max })}
-          className="mt-1"
-        />
-      </div>
-
       <div className="space-y-2">
         <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
           {t("filter.categories")}
@@ -181,6 +150,28 @@ export function FilterSidebar({
         </Select>
       </div>
 
+      {/* Price range filter — below sort */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            {t("filter.priceRange")}
+          </Label>
+          <span className="text-[10px] text-muted-foreground">
+            {filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX
+              ? `₺${filters.priceMin.toLocaleString("tr-TR")} – ${filters.priceMax >= PRICE_FILTER_MAX ? "₺200K+" : "₺" + filters.priceMax.toLocaleString("tr-TR")}`
+              : t("filter.priceAll")}
+          </span>
+        </div>
+        <Slider
+          min={0}
+          max={PRICE_FILTER_MAX}
+          step={500}
+          value={[filters.priceMin, filters.priceMax]}
+          onValueChange={([min, max]) => set({ priceMin: min, priceMax: max })}
+          className="mt-1"
+        />
+      </div>
+
       <div className="space-y-2">
         <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
           {t("filter.rarity")}
@@ -256,6 +247,17 @@ export function FilterSidebar({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Reset button at bottom */}
+      {onReset && (
+        <button
+          onClick={onReset}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-input py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+        >
+          <RotateCcw className="h-3 w-3" />
+          {t("filter.reset")}
+        </button>
+      )}
     </div>
   )
 }
