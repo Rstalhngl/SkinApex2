@@ -171,6 +171,7 @@ const en: Dict = {
 
   // Inspect
   "inspect.popularity": "Popularity {n}/100",
+  "inspect.patternSeed": "Pattern Seed",
   "inspect.floatValue": "Exact Float Value",
   "inspect.discountRate": "Market Discount Rate",
   "inspect.off": "-{n}% Off",
@@ -425,6 +426,7 @@ const tr: Dict = {
   "deposit.button": "Yükle",
 
   "inspect.popularity": "Popülerlik {n}/100",
+  "inspect.patternSeed": "Kalıp Numarası",
   "inspect.floatValue": "Kesin Float Değeri",
   "inspect.discountRate": "Pazar İndirim Oranı",
   "inspect.off": "-%{n} İndirim",

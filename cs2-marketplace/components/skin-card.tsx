@@ -178,10 +178,17 @@ export function SkinCard({
             </span>
           )}
         </div>
-        {skin.pattern && skin.pattern !== skin.title && (
-          <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary/70">{skin.pattern}</div>
-        )}
-        <div className="text-[10px] font-bold uppercase text-muted-foreground">{skin.type}</div>
+        <div className="flex items-center justify-between text-[10px] font-bold uppercase text-muted-foreground">
+          <span>{skin.type}</span>
+          <div className="flex items-center gap-1">
+            {skin.phase && (
+              <span className="rounded bg-primary/20 px-1 py-px text-[9px] font-bold text-primary">{skin.phase}</span>
+            )}
+            {skin.patternSeed !== undefined && skin.hasFloat !== false && (
+              <span className="rounded bg-border px-1 py-px text-[9px] text-muted-foreground">#{skin.patternSeed}</span>
+            )}
+          </div>
+        </div>
         <div className="truncate text-sm font-semibold text-foreground">{skin.title}</div>
         <div className="mt-2.5 flex items-baseline justify-between border-t border-border pt-2">
           <span className="text-[11px] text-muted-foreground line-through">{formatPrice(skin.oldPrice)}</span>

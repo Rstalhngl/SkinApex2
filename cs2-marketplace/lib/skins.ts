@@ -40,7 +40,8 @@ export interface Skin {
   stickers: { name: string; img: string }[]
   hasFloat?: boolean
   marketHashName?: string
-  pattern?: string  // pattern/finish name (e.g. "Doppler", "Case Hardened")
+  patternSeed?: number  // 0-999 kalıp şablonu numarası
+  phase?: string        // Doppler phase (e.g. "Phase 1", "Ruby", "Sapphire")
 }
 
 export const CURRENT_USER = {

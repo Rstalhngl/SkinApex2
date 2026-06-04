@@ -9,7 +9,7 @@ const AGENTS_URL       = `${BASE}/agents.json`
 const MUSIC_KITS_URL   = `${BASE}/music_kits.json`
 const STICKERS_URL     = `${BASE}/stickers.json`
 
-const CACHE_KEY = "skx_cs2_v17"
+const CACHE_KEY = "skx_cs2_v18"
 const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 h
 
 // ─── API shapes ──────────────────────────────────────────────────────────────
@@ -209,6 +209,28 @@ function floatForExterior(ext: Exterior, minF: number, maxF: number, seed: numbe
   return Math.round(rnd(seed, 3, lo, hi) * 10_000) / 10_000
 }
 
+// ─── Phase mapping ───────────────────────────────────────────────────────────
+
+const PHASE_MAP: Record<string, string> = {
+  am_doppler_phase1: "Phase 1",
+  am_doppler_phase2: "Phase 2",
+  am_doppler_phase3: "Phase 3",
+  am_doppler_phase4: "Phase 4",
+  am_ruby_marbleized: "Ruby",
+  am_sapphire_marbleized: "Sapphire",
+  am_blackpearl_marbleized: "Black Pearl",
+  am_gamma_doppler_phase1: "Phase 1",
+  am_gamma_doppler_phase2: "Phase 2",
+  am_gamma_doppler_phase3: "Phase 3",
+  am_gamma_doppler_phase4: "Phase 4",
+  am_emerald_marbleized: "Emerald",
+}
+
+function extractPhase(patternId: string | undefined): string | undefined {
+  if (!patternId) return undefined
+  return PHASE_MAP[patternId] ?? undefined
+}
+
 // ─── Rarity mapping ───────────────────────────────────────────────────────────
 
 function mapWeaponRarity(name: string): Rarity {
@@ -340,7 +362,8 @@ export function transformSkin(raw: CS2SkinRaw, index: number): Skin | null {
     stickers: isSpecial ? [] : buildStickers(seed),
     hasFloat: true,
     marketHashName: raw.market_hash_name || undefined,
-    pattern: raw.pattern?.name || undefined,
+    patternSeed: Math.floor(xr(seed + 12_345) * 1000),  // deterministic 0-999
+    phase: extractPhase(raw.pattern?.id),
   }
 }
 

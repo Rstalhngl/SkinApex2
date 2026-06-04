@@ -61,6 +61,16 @@ export function InspectDialog({
                   <span className="font-bold text-primary">{skin.float.toFixed(4)}</span>
                 </Row>
               )}
+              {skin.patternSeed !== undefined && skin.hasFloat !== false && (
+                <Row label={t("inspect.patternSeed")}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-foreground">#{skin.patternSeed}</span>
+                    {skin.phase && (
+                      <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold text-primary">{skin.phase}</span>
+                    )}
+                  </div>
+                </Row>
+              )}
               <Row label={t("inspect.discountRate")}>
                 {skin.discount < 0 ? (
                   <span className="font-bold text-destructive">+{Math.abs(skin.discount)}% {t("inspect.aboveMarket")}</span>
