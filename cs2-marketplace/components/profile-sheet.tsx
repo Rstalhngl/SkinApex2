@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from "react"
 import {
-  ExternalLink, Lock, Package, PackageCheck, RefreshCw, ShieldAlert, User,
+  ExternalLink, Lock, Package, PackageCheck, RefreshCw, ShieldAlert, Tag, User,
 } from "lucide-react"
+import { toast } from "sonner"
+
+const COMMISSION_RATE = 0.07  // 7% platform commission
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet"
@@ -247,22 +250,133 @@ function InventoryTab() {
   )
 }
 
-function InvCard({ item, marketItems }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[] }) {
-  const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price
+function ListingDialog({
+  item, refPrice, open, onClose
+}: {
+  item: InventoryItem
+  refPrice: number | null
+  open: boolean
+  onClose: () => void
+}) {
+  const [price, setPrice] = useState(refPrice ? String(Math.round(refPrice)) : "")
+  const priceNum = parseFloat(price) || 0
+  const commission = Math.round(priceNum * COMMISSION_RATE)
+  const netToSeller = Math.round(priceNum * (1 - COMMISSION_RATE))
+  const fmt = (v: number) =>
+    new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
+
+  if (!open) return null
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
-      <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor }} />
-      <div className="flex h-[70px] items-center justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.img} alt={item.name} className="max-h-full max-w-[90%] object-contain"
-          referrerPolicy="no-referrer" loading="lazy" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Tag className="h-5 w-5 text-primary" />
+          <h3 className="text-sm font-bold text-foreground">İlanı Yayınla</h3>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item.img} alt={item.name} className="h-14 w-16 object-contain" referrerPolicy="no-referrer" />
+          <div>
+            <p className="text-xs font-semibold text-foreground">{item.name}</p>
+            {item.exterior && <p className="text-[10px] text-muted-foreground">{item.exterior}</p>}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            Satış Fiyatı (TL)
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₺</span>
+            <input
+              type="number"
+              min={1}
+              value={price}
+              onChange={e => setPrice(e.target.value)}
+              className="w-full rounded-md border border-border bg-input pl-7 pr-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+          {refPrice && (
+            <p className="text-[10px] text-muted-foreground">Piyasa referansı: {fmt(refPrice)}</p>
+          )}
+        </div>
+
+        {priceNum > 0 && (
+          <div className="rounded-lg border border-border bg-input p-3 space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Satış Fiyatı</span>
+              <span className="text-foreground font-semibold">{fmt(priceNum)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Platform Komisyonu (%7)</span>
+              <span className="text-destructive">-{fmt(commission)}</span>
+            </div>
+            <div className="flex justify-between border-t border-border pt-1 mt-1">
+              <span className="font-bold text-foreground">Elinize Geçecek</span>
+              <span className="font-bold text-success">{fmt(netToSeller)}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button onClick={onClose}
+            className="flex-1 rounded-md border border-border py-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
+            İptal
+          </button>
+          <button
+            disabled={priceNum <= 0}
+            onClick={() => {
+              toast.success("İlan yayınlandı!", {
+                description: `${item.name} — ${fmt(priceNum)} (elinize geçecek: ${fmt(netToSeller)})`,
+              })
+              onClose()
+            }}
+            className="flex-1 rounded-md bg-primary py-2 text-xs font-bold uppercase text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Yayınla
+          </button>
+        </div>
       </div>
-      <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type}</p>
-      <p className="truncate text-[10px] font-semibold text-foreground leading-tight">{item.name.replace("StatTrak™ ", "").replace("Souvenir ", "")}</p>
-      {item.exterior && <p className="text-[9px] text-muted-foreground">{item.exterior}</p>}
-      {price && <p className="text-[10px] font-bold text-success">{formatPrice(price)}</p>}
     </div>
+  )
+}
+
+function InvCard({ item, marketItems }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[] }) {
+  const [listOpen, setListOpen] = useState(false)
+  const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price ?? null
+
+  return (
+    <>
+      <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
+        <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor }} />
+        <div className="flex h-[70px] items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item.img} alt={item.name} className="max-h-full max-w-[90%] object-contain"
+            referrerPolicy="no-referrer" loading="lazy" />
+        </div>
+        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type}</p>
+        <p className="truncate text-[10px] font-semibold text-foreground leading-tight">
+          {item.name.replace("StatTrak™ ", "").replace("Souvenir ", "")}
+        </p>
+        {item.exterior && <p className="text-[9px] text-muted-foreground">{item.exterior}</p>}
+        {price && <p className="text-[10px] font-bold text-success">{formatPrice(price)}</p>}
+
+        {item.tradable && (
+          <div className="absolute inset-0 flex items-center justify-center bg-card/90 opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              onClick={() => setListOpen(true)}
+              className="flex items-center gap-1 rounded-md bg-primary px-2 py-1.5 text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
+            >
+              <Tag className="h-3 w-3" />
+              Listele
+            </button>
+          </div>
+        )}
+      </div>
+      <ListingDialog item={item} refPrice={price} open={listOpen} onClose={() => setListOpen(false)} />
+    </>
   )
 }
 

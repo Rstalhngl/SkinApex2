@@ -52,7 +52,7 @@ const MarketContext = createContext<MarketContextValue | null>(null)
 const LS_STEAM = "skx_steam_profile"
 const LS_TRADE_URL = "skx_trade_url"
 const LS_LISTED = "skx_listed_skins"
-const LS_WALLET = "skx_wallet"
+const walletKey = (steamId?: string | null) => steamId ? `skx_wallet_${steamId}` : "skx_wallet_guest"
 
 export function MarketProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n()
@@ -119,11 +119,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       if (saved) setListedSkins(JSON.parse(saved))
     } catch {}
 
-    // Restore wallet balance
-    try {
-      const savedWallet = localStorage.getItem(LS_WALLET)
-      if (savedWallet) setWallet(parseFloat(savedWallet))
-    } catch {}
+    // Wallet restored per-user in steamId block above; skip here
+    // (will be set to 0 or user value when login completes)
 
     const steamId = searchParams.get("steamId")
     if (steamId) {
@@ -137,6 +134,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       setSteamProfile(profile)
       setIsLoggedIn(true)
       try { localStorage.setItem(LS_STEAM, JSON.stringify(profile)) } catch {}
+      // Restore this user's wallet balance
+      try {
+        const saved = localStorage.getItem(walletKey(steamId))
+        if (saved) setWallet(parseFloat(saved))
+        else setWallet(0)
+      } catch { setWallet(0) }
       toast.success(t("toast.login.title"), {
         description: t("toast.steam.loginSuccess", { name: profile.steamName ?? `...${steamId.slice(-4)}` }),
       })
@@ -153,6 +156,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
           const profile: SteamProfile = JSON.parse(saved)
           setSteamProfile(profile)
           setIsLoggedIn(true)
+          // Restore this user's saved wallet
+          const savedWallet = localStorage.getItem(walletKey(profile.steamId))
+          if (savedWallet) setWallet(parseFloat(savedWallet))
         }
       } catch {}
     }
@@ -172,10 +178,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     setIsLoggedIn(false)
     setSteamProfile(null)
-    setWallet(0)
+    setWallet(0)   // state only — localStorage wallet is preserved for next login
     try {
       localStorage.removeItem(LS_STEAM)
-      localStorage.removeItem(LS_WALLET)
       localStorage.setItem("skx_logged_out", "1")
     } catch {}
     toast.success(t("toast.logout.title"), { description: t("toast.logout.desc") })
@@ -238,7 +243,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const deposit = useCallback((amount: number) => {
     setWallet((prev) => {
       const next = prev + amount
-      try { localStorage.setItem(LS_WALLET, String(next)) } catch {}
+      try {
+        const sid = steamProfile?.steamId
+        localStorage.setItem(walletKey(sid), String(next))
+      } catch {}
       return next
     })
     toast.success(t("toast.depositSuccess"), {
@@ -258,7 +266,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
     setWallet((prev) => {
       const next = prev - cartTotal
-      try { localStorage.setItem(LS_WALLET, String(next)) } catch {}
+      try {
+        const sid = steamProfile?.steamId
+        localStorage.setItem(walletKey(sid), String(next))
+      } catch {}
       return next
     })
     toast.success(t("toast.purchaseTitle"), {
