@@ -120,6 +120,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
     const steamId = searchParams.get("steamId")
     if (steamId) {
+      // Explicit Steam login — clear any logout flag
+      try { sessionStorage.removeItem("skx_logged_out") } catch {}
       const profile: SteamProfile = {
         steamId,
         steamName: searchParams.get("steamName"),
@@ -135,14 +137,18 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    try {
-      const saved = localStorage.getItem(LS_STEAM)
-      if (saved) {
-        const profile: SteamProfile = JSON.parse(saved)
-        setSteamProfile(profile)
-        setIsLoggedIn(true)
-      }
-    } catch {}
+    // Restore session only if user has NOT explicitly logged out this browser session
+    const explicitLogout = (() => { try { return sessionStorage.getItem("skx_logged_out") === "1" } catch { return false } })()
+    if (!explicitLogout) {
+      try {
+        const saved = localStorage.getItem(LS_STEAM)
+        if (saved) {
+          const profile: SteamProfile = JSON.parse(saved)
+          setSteamProfile(profile)
+          setIsLoggedIn(true)
+        }
+      } catch {}
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

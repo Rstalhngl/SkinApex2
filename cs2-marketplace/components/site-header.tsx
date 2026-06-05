@@ -204,17 +204,15 @@ export function SiteHeader({
               } />
               {steamProfile?.steamId && (
                 <>
-                  <DropdownMenuItem asChild className="cursor-pointer text-foreground focus:bg-input focus:text-primary">
-                    <a
-                      href={steamInventoryUrl(steamProfile.steamId)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                  <InventorySheet trigger={
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
+                      className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
                     >
                       <Package className="h-4 w-4" />
                       {t("header.steamInventory")}
-                      <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-50" />
-                    </a>
-                  </DropdownMenuItem>
+                    </DropdownMenuItem>
+                  } />
                   <DropdownMenuItem asChild className="cursor-pointer text-foreground focus:bg-input focus:text-primary">
                     <a
                       href={steamProfileUrl(steamProfile.steamId)}
