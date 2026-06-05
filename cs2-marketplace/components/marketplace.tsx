@@ -29,7 +29,7 @@ const DEFAULT_FILTERS: Filters = {
 }
 
 const PAGE_SIZE = 48
-const SUPPORT_EMAIL = "support@skinapex.gg"
+const SUPPORT_EMAIL = "support@skinapex.net"
 
 // ─── Loading skeleton ────────────────────────────────────────────────────────
 
