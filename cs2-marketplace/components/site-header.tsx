@@ -104,10 +104,10 @@ export function SiteHeader({
             <button
               type="button"
               onClick={() => {
-                // Preserve any routing token in the current URL (e.g. Cursor cloud _ingress_token)
                 const params = new URLSearchParams(window.location.search)
                 const token = params.get("_ingress_token")
-                const url = token ? `/api/auth/steam?_ingress_token=${encodeURIComponent(token)}` : "/api/auth/steam"
+                const origin = encodeURIComponent(window.location.origin)
+                const url = `/api/auth/steam?origin=${origin}` + (token ? `&_ingress_token=${encodeURIComponent(token)}` : "")
                 window.location.href = url
               }}
               className="flex items-center gap-2 rounded-md bg-[#171a21] px-3 py-2 text-xs font-semibold text-white ring-1 ring-inset ring-white/10 transition-all hover:bg-[#1b2838] hover:ring-[#66c0f4]/60"

@@ -9,9 +9,8 @@ export function LoginGate() {
   const handleLogin = () => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get("_ingress_token")
-    const url = token
-      ? `/api/auth/steam?_ingress_token=${encodeURIComponent(token)}`
-      : "/api/auth/steam"
+    const origin = encodeURIComponent(window.location.origin)
+    const url = `/api/auth/steam?origin=${origin}` + (token ? `&_ingress_token=${encodeURIComponent(token)}` : "")
     window.location.href = url
   }
 

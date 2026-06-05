@@ -4,19 +4,18 @@ const STEAM_OPENID = "https://steamcommunity.com/openid/login"
 const STEAM_ID_REGEX = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/
 
 function getBaseUrl(request: NextRequest): string {
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
+  // Client-sent origin takes priority
+  const clientOrigin = request.nextUrl.searchParams.get("origin")
+  if (clientOrigin) return clientOrigin.replace(/\/$/, "")
+
+  if (process.env.NEXT_PUBLIC_BASE_URL)
     return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "")
-  }
-  const fwdHost = request.headers.get("x-forwarded-host")
+
+  const fwdHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim()
   const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
-  if (fwdHost) {
-    const host = fwdHost.split(",")[0].trim()
-    return `${fwdProto}://${host}`
-  }
-  const host = request.headers.get("host") ?? ""
-  if (host && !host.startsWith("localhost") && !host.startsWith("127.")) {
-    return `https://${host}`
-  }
+  if (fwdHost && !fwdHost.startsWith("localhost"))
+    return `${fwdProto}://${fwdHost}`
+
   return new URL(request.url).origin
 }
 

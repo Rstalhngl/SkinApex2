@@ -1,46 +1,37 @@
 import { NextResponse } from "next/server"
 
-function getBaseUrl(request: Request): string {
-  // 1. Explicit production override via env var
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "")
-  }
-  // 2. Reverse-proxy / cloud forwarded headers (Cursor, Vercel, nginx…)
-  const fwdHost = request.headers.get("x-forwarded-host")
-  const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
-  if (fwdHost) {
-    const host = fwdHost.split(",")[0].trim()
-    return `${fwdProto}://${host}`
-  }
-  // 3. Host header fallback
-  const host = request.headers.get("host") ?? ""
-  if (host && !host.startsWith("localhost") && !host.startsWith("127.")) {
-    return `https://${host}`
-  }
-  // 4. Local dev fallback
-  return new URL(request.url).origin
-}
-
 export function GET(request: Request) {
-  const baseUrl = getBaseUrl(request)
   const reqUrl = new URL(request.url)
+
+  // Client passes its own origin so we always get the correct public URL.
+  // e.g. /api/auth/steam?origin=https://pod-xxx.cursorvm.com&_ingress_token=...
+  const clientOrigin = reqUrl.searchParams.get("origin")
   const ingressToken = reqUrl.searchParams.get("_ingress_token")
+
+  // Fallback chain if client didn't send origin
+  let baseUrl = clientOrigin ?? process.env.NEXT_PUBLIC_BASE_URL ?? ""
+  if (!baseUrl) {
+    const fwdHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim()
+    const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
+    if (fwdHost && !fwdHost.startsWith("localhost")) {
+      baseUrl = `${fwdProto}://${fwdHost}`
+    } else {
+      baseUrl = new URL(request.url).origin
+    }
+  }
+  baseUrl = baseUrl.replace(/\/$/, "")
 
   const callbackUrl = `${baseUrl}/api/auth/steam/callback`
   const returnTo = ingressToken
     ? `${callbackUrl}?_ingress_token=${encodeURIComponent(ingressToken)}`
     : callbackUrl
 
-  // IMPORTANT: Steam requires realm and return_to to share the same domain.
-  // realm is also the site name shown on the Steam login page.
-  // Use the dynamic baseUrl so both realm and return_to always match.
-  const realm = baseUrl
-
+  // realm and return_to MUST share the same domain (Steam OpenID requirement).
   const params = new URLSearchParams({
     "openid.ns": "http://specs.openid.net/auth/2.0",
     "openid.mode": "checkid_setup",
     "openid.return_to": returnTo,
-    "openid.realm": realm,
+    "openid.realm": baseUrl,
     "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
     "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
   })
