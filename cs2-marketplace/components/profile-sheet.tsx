@@ -8,8 +8,14 @@ import { toast } from "sonner"
 
 const COMMISSION_RATE = 0.07  // 7% platform commission
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet"
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -265,15 +271,18 @@ function ListingDialog({
   const fmt = (v: number) =>
     new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Tag className="h-5 w-5 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">İlanı Yayınla</h3>
-        </div>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="border-border bg-card sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <Tag className="h-5 w-5 text-primary" />
+            İlanı Yayınla
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {item.name} için satış fiyatı ve komisyon hesabı
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -285,17 +294,17 @@ function ListingDialog({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <Label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             Satış Fiyatı (TL)
-          </label>
+          </Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₺</span>
-            <input
+            <Input
               type="number"
               min={1}
               value={price}
               onChange={e => setPrice(e.target.value)}
-              className="w-full rounded-md border border-border bg-input pl-7 pr-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+              className="border-border bg-input pl-7 text-foreground"
             />
           </div>
           {refPrice && (
@@ -307,7 +316,7 @@ function ListingDialog({
           <div className="rounded-lg border border-border bg-input p-3 space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Satış Fiyatı</span>
-              <span className="text-foreground font-semibold">{fmt(priceNum)}</span>
+              <span className="font-semibold text-foreground">{fmt(priceNum)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Platform Komisyonu (%7)</span>
@@ -320,12 +329,11 @@ function ListingDialog({
           </div>
         )}
 
-        <div className="flex gap-2">
-          <button onClick={onClose}
-            className="flex-1 rounded-md border border-border py-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
+        <DialogFooter className="gap-2">
+          <Button variant="outline" className="border-border" onClick={onClose}>
             İptal
-          </button>
-          <button
+          </Button>
+          <Button
             disabled={priceNum <= 0}
             onClick={() => {
               toast.success("İlan yayınlandı!", {
@@ -333,13 +341,13 @@ function ListingDialog({
               })
               onClose()
             }}
-            className="flex-1 rounded-md bg-primary py-2 text-xs font-bold uppercase text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="bg-primary font-bold uppercase text-primary-foreground hover:bg-primary/90"
           >
             Yayınla
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -394,6 +402,7 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             <User className="h-5 w-5 text-primary" />
             {t("header.profile")}
           </SheetTitle>
+          <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
         </SheetHeader>
 
         <Tabs defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">

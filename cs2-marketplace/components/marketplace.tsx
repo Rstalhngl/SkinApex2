@@ -4,7 +4,8 @@ import { useMemo, useState } from "react"
 import { LifeBuoy, PackageOpen, Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle,
+  SheetDescription, SheetTrigger } from "@/components/ui/sheet"
 import { SiteHeader } from "@/components/site-header"
 import { LiveTicker } from "@/components/live-ticker"
 import { FilterSidebar, type Filters } from "@/components/filter-sidebar"
@@ -174,7 +175,7 @@ export function Marketplace() {
               </SheetTrigger>
               <SheetContent side="left" className="border-border bg-card">
                 <SheetTitle className="sr-only">{t("filter.title")}</SheetTitle>
-                <div className="mt-6">
+                <SheetDescription className="sr-only">Filtre paneli</SheetDescription><div className="mt-6">
                   <FilterSidebar filters={filters} onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }} onReset={resetFilters} />
                 </div>
               </SheetContent>

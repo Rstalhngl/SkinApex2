@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { Check, Handshake, X } from "lucide-react"
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -89,6 +90,7 @@ export function OffersSheet({ trigger }: { trigger?: React.ReactNode }) {
             <Handshake className="h-5 w-5 text-primary" />
             {t("offers.title")}
           </SheetTitle>
+          <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
         </SheetHeader>
 
         <Tabs defaultValue="incoming" className="flex flex-1 flex-col overflow-hidden">

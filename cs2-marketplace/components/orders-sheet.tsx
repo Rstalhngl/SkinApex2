@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { ExternalLink, HeartHandshake, Mail, PackageCheck, ShieldAlert } from "lucide-react"
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -186,6 +187,7 @@ export function OrdersSheet({ trigger }: { trigger?: React.ReactNode }) {
             <PackageCheck className="h-5 w-5 text-primary" />
             {t("orders.title")}
           </SheetTitle>
+          <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
         </SheetHeader>
 
         {/* Escrow info banner */}

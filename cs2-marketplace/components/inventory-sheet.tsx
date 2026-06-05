@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react"
 import { ExternalLink, Lock, Package, RefreshCw, Tag } from "lucide-react"
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
-import { formatPrice, steamMarketUrl } from "@/lib/skins"
+import { formatPrice } from "@/lib/skins"
 import type { InventoryItem } from "@/app/api/inventory/route"
 import { cn } from "@/lib/utils"
 
@@ -32,12 +33,12 @@ function InventoryCard({
   const price = useMarketPrice(item.marketHashName, marketItems)
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-3 transition-colors hover:border-[#243146]">
+    <div className="group relative flex h-[165px] flex-col overflow-hidden rounded-lg border border-border bg-card p-3 transition-all duration-200 hover:border-[#243146] hover:shadow-lg">
       {/* Rarity color bar */}
       <div className="absolute inset-x-0 top-0 h-0.5 rounded-t-lg" style={{ backgroundColor: item.rarityColor }} />
 
       {/* Badges */}
-      <div className="mb-1 flex items-center justify-between text-[9px]">
+      <div className="mb-1 flex items-center justify-between text-[9px] z-10">
         <span className="font-semibold text-muted-foreground">{item.exterior || "—"}</span>
         <div className="flex gap-1">
           {item.stattrak && <span className="rounded bg-[#cf6a32]/20 px-1 py-px font-bold text-[#cf6a32]">ST™</span>}
@@ -47,7 +48,7 @@ function InventoryCard({
       </div>
 
       {/* Image */}
-      <div className="flex h-[80px] items-center justify-center">
+      <div className="flex h-[75px] items-center justify-center transition-transform duration-200 group-hover:scale-95">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={item.img}
@@ -59,31 +60,39 @@ function InventoryCard({
       </div>
 
       {/* Info */}
-      <div className="mt-2 min-w-0">
+      <div className="mt-auto min-w-0 z-10 transition-opacity duration-200 group-hover:opacity-20">
         <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type}</p>
         <p className="truncate text-xs font-semibold text-foreground leading-tight">{item.name.replace("StatTrak™ ", "").replace("Souvenir ", "")}</p>
         {price && (
-          <p className="mt-1 text-[11px] font-bold text-success">{formatPrice(price)}</p>
+          <p className="mt-0.5 text-[11px] font-bold text-success">{formatPrice(price)}</p>
         )}
       </div>
 
-      {/* Hover actions */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/95 px-2 opacity-0 transition-opacity group-hover:opacity-100">
-        {item.tradable && (
+      {/* Hover actions - Düzenlenen Akıllı Katman */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/95 px-2.5 opacity-0 pointer-events-none transition-all duration-200 group-hover:opacity-100 group-hover:pointer-events-auto z-20">
+        {item.tradable ? (
           <Button
             size="sm"
-            onClick={() => onSell(item)}
-            className="h-7 w-full bg-primary px-2 text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSell(item);
+            }}
+            className="h-8 w-full bg-primary px-2 text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90 shadow-md cursor-pointer"
           >
             <Tag className="mr-1 h-3 w-3" />
             {t("sell.list")}
           </Button>
+        ) : (
+          <div className="flex h-8 w-full items-center justify-center gap-1 rounded-md bg-muted/50 text-[10px] font-bold text-destructive uppercase">
+            <Lock className="h-3 w-3" />
+            Takas Kilitli
+          </div>
         )}
         <a
           href={`https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.marketHashName)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-7 w-full items-center justify-center gap-1 rounded-md border border-border bg-input text-[10px] font-semibold text-muted-foreground hover:border-[#66c0f4] hover:text-[#66c0f4]"
+          className="flex h-8 w-full items-center justify-center gap-1 rounded-md border border-border bg-input text-[10px] font-semibold text-muted-foreground hover:border-[#66c0f4] hover:text-[#66c0f4] transition-colors"
         >
           <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" /></svg>
           Steam
@@ -136,6 +145,13 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
   const tradable = inventoryItems.filter(i => i.tradable)
   const locked = inventoryItems.filter(i => !i.tradable)
 
+  // Listele butonuna basınca çalışacak fonksiyon
+  const handleSellItem = (item: InventoryItem) => {
+    console.log("Listelenmek üzere seçilen skin:", item);
+    // Buraya dilersen market provider'ına veya state'ine ekleme kodunu yazabilirsin:
+    // Örn: setSelectedItem(item) veya openSellModal(item)
+  }
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
@@ -155,6 +171,7 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
               <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             </Button>
           </SheetTitle>
+          <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="flex-1">
@@ -198,13 +215,13 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
                   <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-success">
                     {t("inventory.tradable")} ({tradable.length})
                   </p>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5">
                     {tradable.map(item => (
                       <InventoryCard
                         key={item.assetId}
                         item={item}
                         marketItems={marketItems}
-                        onSell={() => {}}
+                        onSell={handleSellItem}
                       />
                     ))}
                   </div>
@@ -215,13 +232,13 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
                   <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                     {t("inventory.locked")} ({locked.length})
                   </p>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5 opacity-60">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5 opacity-60">
                     {locked.map(item => (
                       <InventoryCard
                         key={item.assetId}
                         item={item}
                         marketItems={marketItems}
-                        onSell={() => {}}
+                        onSell={handleSellItem}
                       />
                     ))}
                   </div>

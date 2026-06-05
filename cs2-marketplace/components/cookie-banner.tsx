@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -130,6 +131,7 @@ export function CookieBanner() {
               <Cookie className="h-5 w-5 text-primary" />
               Çerez Tercihleri
             </DialogTitle>
+            <DialogDescription className="sr-only">Çerez tercihlerinizi yönetin.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2 text-sm">
