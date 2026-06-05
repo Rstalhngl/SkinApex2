@@ -18,7 +18,7 @@ import { WithdrawDialog } from "@/components/withdraw-dialog"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { OffersSheet } from "@/components/offers-sheet"
 import { OrdersSheet } from "@/components/orders-sheet"
-import { InventorySheet } from "@/components/inventory-sheet"
+import { ProfileSheet } from "@/components/profile-sheet"
 import { useMarket } from "@/components/market-provider"
 import { CURRENT_USER, formatPrice, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
 import { LANGS, useI18n } from "@/lib/i18n"
@@ -175,7 +175,7 @@ export function SiteHeader({
                 <p className="text-xs font-bold text-success">{formatPrice(wallet)}</p>
               </div>
               <DropdownMenuSeparator className="bg-border sm:hidden" />
-              <InventorySheet trigger={
+              <ProfileSheet trigger={
                 <DropdownMenuItem
                   onSelect={(e) => e.preventDefault()}
                   className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
@@ -204,15 +204,7 @@ export function SiteHeader({
               } />
               {steamProfile?.steamId && (
                 <>
-                  <InventorySheet trigger={
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
-                    >
-                      <Package className="h-4 w-4" />
-                      {t("header.steamInventory")}
-                    </DropdownMenuItem>
-                  } />
+
                   <DropdownMenuItem asChild className="cursor-pointer text-foreground focus:bg-input focus:text-primary">
                     <a
                       href={steamProfileUrl(steamProfile.steamId)}
