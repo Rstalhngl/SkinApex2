@@ -14,10 +14,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { formatPrice } from "@/lib/skins"
 import { cn } from "@/lib/utils"
+import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
 
 export function WishlistSheet() {
-  const { wishlist, toggleWishlist, addToCart, items } = useMarket()
+  const { wishlist, toggleWishlist, addToCart, items, isLoggedIn } = useMarket()
   const { t } = useI18n()
   const wishedItems = items.filter((s) => wishlist.includes(s.id))
 

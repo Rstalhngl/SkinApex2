@@ -7,6 +7,8 @@ import {
   subscribeNotifications, type Notification,
 } from "@/lib/offers"
 import { cn } from "@/lib/utils"
+import { useMarket } from "@/components/market-provider"
+import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
 
 const TYPE_ICON: Record<Notification["type"], React.ReactNode> = {
@@ -24,6 +26,7 @@ function timeAgo(ts: number, t: (k: string, v?: Record<string, string|number>) =
 }
 
 export function NotificationsBell() {
+  const { isLoggedIn } = useMarket()
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>(() => getNotifications())
@@ -80,7 +83,11 @@ export function NotificationsBell() {
             )}
           </div>
 
-          {notifications.length === 0 ? (
+          {!isLoggedIn ? (
+            <div className="px-1 py-2">
+              <LoginGate />
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
               <Bell className="h-8 w-8 opacity-30" />
               <p className="text-xs">{t("notif.empty")}</p>

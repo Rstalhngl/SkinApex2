@@ -277,6 +277,8 @@ const en: Dict = {
   "notif.markAll": "Mark all read",
 
   // Header
+  "gate.title": "Login Required",
+  "gate.desc": "Please log in with your Steam account to access this feature.",
   "header.guestName": "Guest",
   "header.myOffers": "My Offers",
   "header.myOrders": "My Orders",
@@ -532,6 +534,8 @@ const tr: Dict = {
   "notif.markAll": "Tümünü okundu işaretle",
 
   // Header
+  "gate.title": "Oturum Açmanız Gerekiyor",
+  "gate.desc": "Bu özelliği kullanmak için Steam hesabınızla giriş yapın.",
   "header.guestName": "Misafir",
   "header.myOffers": "Tekliflerim",
   "header.myOrders": "Siparişlerim",

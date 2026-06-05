@@ -15,10 +15,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { formatPrice } from "@/lib/skins"
 import { cn } from "@/lib/utils"
+import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
 
 export function CartSheet() {
-  const { cart, cartTotal, removeFromCart, checkout, wallet } = useMarket()
+  const { cart, cartTotal, removeFromCart, checkout, wallet, isLoggedIn } = useMarket()
   const { t } = useI18n()
   const insufficient = cartTotal > wallet
 
@@ -47,7 +48,7 @@ export function CartSheet() {
           <SheetDescription className="sr-only">{t("cart.itemsDesc")}</SheetDescription>
         </SheetHeader>
 
-        {cart.length === 0 ? (
+        {!isLoggedIn ? <LoginGate /> : cart.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <ShoppingCart className="h-10 w-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("cart.empty")}</p>
