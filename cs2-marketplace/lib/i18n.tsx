@@ -236,6 +236,16 @@ const en: Dict = {
   "sell.listedBadge": "Listed",
 
   // Header additions
+  "inventory.title": "My Inventory",
+  "inventory.loading": "Loading inventory...",
+  "inventory.empty": "No CS2 items found.",
+  "inventory.private": "Inventory is Private",
+  "inventory.privateDesc": "Set your Steam inventory to public to view items here.",
+  "inventory.makePublic": "Open Steam Privacy Settings",
+  "inventory.error": "Could not load inventory. Try again.",
+  "inventory.retry": "Retry",
+  "inventory.tradable": "Tradable",
+  "inventory.locked": "Non-Tradable",
   "header.steamInventory": "Steam Inventory",
   "header.steamProfile": "Steam Profile",
 
@@ -493,6 +503,16 @@ const tr: Dict = {
   "sell.listedBadge": "Listelendi",
 
   // Header additions
+  "inventory.title": "Envanterim",
+  "inventory.loading": "Envanter yükleniyor...",
+  "inventory.empty": "CS2 item bulunamadı.",
+  "inventory.private": "Envanter Gizli",
+  "inventory.privateDesc": "Burada itemlerinizi görmek için Steam envanterinizi herkese açık yapın.",
+  "inventory.makePublic": "Steam Gizlilik Ayarlarını Aç",
+  "inventory.error": "Envanter yüklenemedi. Tekrar deneyin.",
+  "inventory.retry": "Tekrar Dene",
+  "inventory.tradable": "Takas Edilebilir",
+  "inventory.locked": "Takas Edilemez",
   "header.steamInventory": "Steam Envanteri",
   "header.steamProfile": "Steam Profili",
 
