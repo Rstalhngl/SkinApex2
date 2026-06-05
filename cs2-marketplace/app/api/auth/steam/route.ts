@@ -9,7 +9,6 @@ function getBaseUrl(request: Request): string {
   const fwdHost = request.headers.get("x-forwarded-host")
   const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
   if (fwdHost) {
-    // Use the first host if comma-separated list
     const host = fwdHost.split(",")[0].trim()
     return `${fwdProto}://${host}`
   }
@@ -32,11 +31,16 @@ export function GET(request: Request) {
     ? `${callbackUrl}?_ingress_token=${encodeURIComponent(ingressToken)}`
     : callbackUrl
 
+  // IMPORTANT: Steam requires realm and return_to to share the same domain.
+  // realm is also the site name shown on the Steam login page.
+  // Use the dynamic baseUrl so both realm and return_to always match.
+  const realm = baseUrl
+
   const params = new URLSearchParams({
     "openid.ns": "http://specs.openid.net/auth/2.0",
     "openid.mode": "checkid_setup",
     "openid.return_to": returnTo,
-    "openid.realm": "https://skinapex.net",  // displayed on Steam login page
+    "openid.realm": realm,
     "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
     "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
   })

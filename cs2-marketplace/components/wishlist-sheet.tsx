@@ -57,7 +57,7 @@ export function WishlistSheet() {
           <SheetDescription className="sr-only">{t("wishlist.savedDesc")}</SheetDescription>
         </SheetHeader>
 
-        {wishedItems.length === 0 ? (
+        {!isLoggedIn ? <LoginGate /> : wishedItems.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <Heart className="h-10 w-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("wishlist.empty")}</p>
