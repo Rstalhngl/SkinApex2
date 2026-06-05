@@ -194,15 +194,11 @@
   }
 }
 
-/* ─── Radix UI pointer-events global override ────────────────────────────────
-   Prevents body[style*="pointer-events:none"] from locking all clicks
-   when a Radix Dialog/Sheet is improperly unmounted or missing aria-description.
-   This is a defensive fix — proper aria descriptions are also added per-component. */
-body[style*="pointer-events"] {
+/* Radix UI'ın kilitlerini zorla aç */
+body[style*="pointer-events: none"] {
   pointer-events: auto !important;
 }
 
-/* Ensure Radix overlays never block interaction after dialog closes */
-[data-radix-focus-guard] {
-  pointer-events: none !important;
+[data-radix-scroll-area-viewport] {
+  pointer-events: auto !important;
 }

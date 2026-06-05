@@ -41,6 +41,12 @@ export default function RootLayout({
           <RadixPointerFix />
         </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
+        <script dangerouslySetInnerHTML={{ __html: `
+  const observer = new MutationObserver(() => {
+    document.body.style.pointerEvents = "auto";
+  });
+  observer.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+` }} />
       </body>
     </html>
   )
