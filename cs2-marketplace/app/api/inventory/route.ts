@@ -113,9 +113,19 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
 
 export async function GET(request: NextRequest) {
   const steamId = request.nextUrl.searchParams.get("steamId")
+  
+  // 📍 1. TAKİP LOGU: Sunucuya hangi Steam ID parametresi geliyor görelim
+  console.log("===> ENVANTERI CEKILEN STEAM ID:", steamId);
+
   if (!steamId) return NextResponse.json({ error: "steamId required" }, { status: 400 })
 
-  const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`
+  // 📍 2. API KEY ENTEGRASYONU: Steam API anahtarını .env dosyasından okuyoruz
+  const apiKey = process.env.STEAM_API_KEY
+  
+  // Eğer API anahtarı varsa URL'in sonuna güvenli şekilde ekliyoruz (Valve doğrulaması için)
+  const url = apiKey 
+    ? `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000&key=${apiKey}`
+    : `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`
 
   try {
     const res = await fetch(url, {
@@ -133,6 +143,9 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     })
 
+    // 📍 3. DURUM LOGU: Steam sunucusunun sitemize verdiği gerçek cevabı görelim
+    console.log(`===> STEAM RESPONDED WITH STATUS: ${res.status}`);
+
     if (res.status === 403 || res.status === 401) {
       return NextResponse.json({ error: "private", items: [] })
     }
@@ -140,7 +153,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: `steam_${res.status}`, items: [] })
     }
 
-    // Read raw bytes and decompress if needed
     const buffer = Buffer.from(await res.arrayBuffer())
     const encoding = res.headers.get("content-encoding") || ""
 
@@ -154,11 +166,11 @@ export async function GET(request: NextRequest) {
         jsonStr = buffer.toString("utf-8")
       }
     } catch {
-      // Try direct parse if decompression fails
       jsonStr = buffer.toString("utf-8")
     }
 
     if (!jsonStr || jsonStr.trim() === "null") {
+      console.log("===> STEAM RETURNED NULL RESPONSE");
       return NextResponse.json({ error: "private", items: [] })
     }
 
@@ -168,6 +180,7 @@ export async function GET(request: NextRequest) {
     }
 
     const items = parseInventory(data.assets || [], data.descriptions || [])
+    console.log(`===> SUCCESS: ${items.length} adet item basariyla listelendi.`);
     return NextResponse.json({ items, total: data.total_inventory_count || items.length })
 
   } catch (e) {
