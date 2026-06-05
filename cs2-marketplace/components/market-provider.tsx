@@ -52,6 +52,7 @@ const MarketContext = createContext<MarketContextValue | null>(null)
 const LS_STEAM = "skx_steam_profile"
 const LS_TRADE_URL = "skx_trade_url"
 const LS_LISTED = "skx_listed_skins"
+const LS_WALLET = "skx_wallet"
 
 export function MarketProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n()
@@ -65,7 +66,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   // ── Market state ─────────────────────────────────────────────────────────
   const [cart, setCart] = useState<Skin[]>([])
   const [wishlist, setWishlist] = useState<number[]>([])
-  const [wallet, setWallet] = useState(18900)  // TRY
+  const [wallet, setWallet] = useState(0)  // TRY — starts at 0, grows via deposit
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [steamProfile, setSteamProfile] = useState<SteamProfile | null>(null)
   const [tradeUrl, setTradeUrlState] = useState("")
@@ -118,6 +119,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       if (saved) setListedSkins(JSON.parse(saved))
     } catch {}
 
+    // Restore wallet balance
+    try {
+      const savedWallet = localStorage.getItem(LS_WALLET)
+      if (savedWallet) setWallet(parseFloat(savedWallet))
+    } catch {}
+
     const steamId = searchParams.get("steamId")
     if (steamId) {
       // Explicit Steam login — clear any logout flag
@@ -165,7 +172,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     setIsLoggedIn(false)
     setSteamProfile(null)
-    try { localStorage.removeItem(LS_STEAM) } catch {}
+    setWallet(0)
+    try {
+      localStorage.removeItem(LS_STEAM)
+      localStorage.removeItem(LS_WALLET)
+      localStorage.setItem("skx_logged_out", "1")
+    } catch {}
     toast.success(t("toast.logout.title"), { description: t("toast.logout.desc") })
   }, [t])
 
@@ -224,7 +236,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [t])
 
   const deposit = useCallback((amount: number) => {
-    setWallet((prev) => prev + amount)
+    setWallet((prev) => {
+      const next = prev + amount
+      try { localStorage.setItem(LS_WALLET, String(next)) } catch {}
+      return next
+    })
     toast.success(t("toast.depositSuccess"), {
       description: t("toast.depositDesc", { amount: formatPrice(amount) }),
     })
@@ -240,7 +256,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       })
       return
     }
-    setWallet((prev) => prev - cartTotal)
+    setWallet((prev) => {
+      const next = prev - cartTotal
+      try { localStorage.setItem(LS_WALLET, String(next)) } catch {}
+      return next
+    })
     toast.success(t("toast.purchaseTitle"), {
       description: t("toast.purchaseDesc", { n: cart.length }),
     })

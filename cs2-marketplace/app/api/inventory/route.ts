@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import zlib from "zlib"
+import { promisify } from "util"
+
+const gunzip = promisify(zlib.gunzip)
+const inflate = promisify(zlib.inflate)
 
 const STEAM_IMG = "https://community.akamai.steamstatic.com/economy/image/"
 
@@ -20,7 +25,6 @@ interface SteamDescription {
   icon_url: string
   type: string
   tags: { category: string; internal_name: string; localized_tag_name: string }[]
-  descriptions?: { type: string; value: string }[]
 }
 
 export interface InventoryItem {
@@ -38,39 +42,43 @@ export interface InventoryItem {
   souvenir: boolean
 }
 
+const RARITY_COLORS: Record<string, string> = {
+  "Contraband": "#e4ae39",
+  "Covert": "#eb4b4b",
+  "Classified": "#d32ce6",
+  "Restricted": "#8847ff",
+  "Mil-Spec Grade": "#4b69ff",
+  "Industrial Grade": "#5e98d9",
+  "Base Grade": "#b0c3d9",
+  "Consumer Grade": "#b0c3d9",
+  "High Grade": "#4b69ff",
+  "Remarkable": "#8847ff",
+  "Exotic": "#d32ce6",
+  "Extraordinary": "#eb4b4b",
+  "Distinguished": "#4b69ff",
+  "Exceptional": "#8847ff",
+  "Superior": "#d32ce6",
+  "Master": "#eb4b4b",
+}
+
+const RARITY_ORDER = [
+  "Contraband", "Covert", "Extraordinary", "Master", "Classified", "Superior",
+  "Restricted", "Exotic", "Exceptional", "Mil-Spec Grade", "Remarkable",
+  "Distinguished", "Industrial Grade", "High Grade", "Consumer Grade", "Base Grade",
+]
+
 function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]): InventoryItem[] {
   const descMap = new Map<string, SteamDescription>()
   for (const d of descriptions) {
     descMap.set(`${d.classid}_${d.instanceid}`, d)
   }
 
-  const RARITY_COLORS: Record<string, string> = {
-    "Contraband": "#e4ae39",
-    "Covert": "#eb4b4b",
-    "Classified": "#d32ce6",
-    "Restricted": "#8847ff",
-    "Mil-Spec Grade": "#4b69ff",
-    "Industrial Grade": "#5e98d9",
-    "Base Grade": "#b0c3d9",
-    "Consumer Grade": "#b0c3d9",
-    "High Grade": "#4b69ff",
-    "Remarkable": "#8847ff",
-    "Exotic": "#d32ce6",
-    "Extraordinary": "#eb4b4b",
-    "Distinguished": "#4b69ff",
-    "Exceptional": "#8847ff",
-    "Superior": "#d32ce6",
-    "Master": "#eb4b4b",
-  }
-
   const items: InventoryItem[] = []
-
   for (const asset of assets) {
     const desc = descMap.get(`${asset.classid}_${asset.instanceid}`)
     if (!desc) continue
 
     const tags: Record<string, string> = {}
-    const tagColors: Record<string, string> = {}
     for (const tag of (desc.tags || [])) {
       tags[tag.category] = tag.localized_tag_name
     }
@@ -78,9 +86,6 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
     const rarity = tags["Rarity"] || tags["Quality"] || ""
     const exterior = tags["Exterior"] || ""
     const type = tags["Type"] || desc.type || ""
-
-    const stattrak = desc.name.includes("StatTrak™")
-    const souvenir = desc.name.includes("Souvenir")
 
     items.push({
       assetId: asset.assetid,
@@ -93,58 +98,80 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
       rarity,
       rarityColor: RARITY_COLORS[rarity] || "#b0c3d9",
       type,
-      stattrak,
-      souvenir,
+      stattrak: desc.name.includes("StatTrak™"),
+      souvenir: desc.name.includes("Souvenir"),
     })
   }
+
+  items.sort((a, b) => {
+    if (a.tradable !== b.tradable) return a.tradable ? -1 : 1
+    return RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
+  })
 
   return items
 }
 
 export async function GET(request: NextRequest) {
   const steamId = request.nextUrl.searchParams.get("steamId")
-  if (!steamId) {
-    return NextResponse.json({ error: "steamId required" }, { status: 400 })
-  }
+  if (!steamId) return NextResponse.json({ error: "steamId required" }, { status: 400 })
+
+  const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`
 
   try {
-    // Try different count values & no caching to avoid stale results
-    const res = await fetch(
-      `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000&norender=0`,
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "Accept": "application/json",
-          "Referer": `https://steamcommunity.com/profiles/${steamId}/inventory/`,
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        cache: "no-store",
-      }
-    )
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": `https://steamcommunity.com/profiles/${steamId}/inventory/`,
+        "X-Requested-With": "XMLHttpRequest",
+        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+      },
+      cache: "no-store",
+    })
 
     if (res.status === 403 || res.status === 401) {
-      return NextResponse.json({ error: "private", items: [] }, { status: 200 })
+      return NextResponse.json({ error: "private", items: [] })
     }
     if (!res.ok) {
-      return NextResponse.json({ error: `steam_${res.status}`, items: [] }, { status: 200 })
+      return NextResponse.json({ error: `steam_${res.status}`, items: [] })
     }
 
-    const data = await res.json()
-    if (!data || data === null) {
-      return NextResponse.json({ error: "private", items: [] }, { status: 200 })
+    // Read raw bytes and decompress if needed
+    const buffer = Buffer.from(await res.arrayBuffer())
+    const encoding = res.headers.get("content-encoding") || ""
+
+    let jsonStr: string
+    try {
+      if (encoding.includes("gzip")) {
+        jsonStr = (await gunzip(buffer)).toString("utf-8")
+      } else if (encoding.includes("deflate")) {
+        jsonStr = (await inflate(buffer)).toString("utf-8")
+      } else {
+        jsonStr = buffer.toString("utf-8")
+      }
+    } catch {
+      // Try direct parse if decompression fails
+      jsonStr = buffer.toString("utf-8")
+    }
+
+    if (!jsonStr || jsonStr.trim() === "null") {
+      return NextResponse.json({ error: "private", items: [] })
+    }
+
+    const data = JSON.parse(jsonStr)
+    if (!data || data.success === false) {
+      return NextResponse.json({ error: "private", items: [] })
     }
 
     const items = parseInventory(data.assets || [], data.descriptions || [])
-
-    // Sort: tradable first, then by rarity (covert > classified > ...)
-    const RARITY_ORDER = ["Contraband", "Covert", "Extraordinary", "Classified", "Superior", "Restricted", "Exotic", "Mil-Spec Grade", "Remarkable", "Exceptional", "Industrial Grade", "Distinguished", "High Grade", "Consumer Grade", "Base Grade"]
-    items.sort((a, b) => {
-      if (a.tradable !== b.tradable) return a.tradable ? -1 : 1
-      return RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
-    })
-
     return NextResponse.json({ items, total: data.total_inventory_count || items.length })
+
   } catch (e) {
-    return NextResponse.json({ error: "fetch_failed", items: [] }, { status: 200 })
+    console.error("Inventory fetch error:", e)
+    return NextResponse.json({ error: "fetch_failed", items: [] })
   }
 }
