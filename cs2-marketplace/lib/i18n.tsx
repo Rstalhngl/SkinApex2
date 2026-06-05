@@ -277,6 +277,7 @@ const en: Dict = {
   "notif.markAll": "Mark all read",
 
   // Header
+  "header.guestName": "Guest",
   "header.myOffers": "My Offers",
   "header.myOrders": "My Orders",
   "orders.title": "My Orders",
@@ -531,6 +532,7 @@ const tr: Dict = {
   "notif.markAll": "Tümünü okundu işaretle",
 
   // Header
+  "header.guestName": "Misafir",
   "header.myOffers": "Tekliflerim",
   "header.myOrders": "Siparişlerim",
   "orders.title": "Siparişlerim",

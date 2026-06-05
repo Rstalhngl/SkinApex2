@@ -52,8 +52,8 @@ export function SiteHeader({
   useEffect(() => setMounted(true), [])
   const isDark = !mounted || resolvedTheme === "dark"
 
-  const displayName = steamProfile?.steamName ?? CURRENT_USER.name
-  const displayAvatar = steamProfile?.steamAvatar ?? CURRENT_USER.avatar
+  const displayName = steamProfile?.steamName ?? steamProfile?.steamId ?? t("header.guestName")
+  const displayAvatar = steamProfile?.steamAvatar ?? null
 
   return (
     <>
@@ -150,6 +150,7 @@ export function SiteHeader({
           <WishlistSheet />
           <CartSheet />
 
+          {isLoggedIn && (
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-3 rounded-full border border-border bg-input py-1 pl-1 pr-3 transition-colors hover:border-primary">
               <span className="h-7 w-7 overflow-hidden rounded-full border-2 border-primary">
@@ -273,6 +274,7 @@ export function SiteHeader({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
       </header>
 
