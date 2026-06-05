@@ -125,7 +125,7 @@ export function CookieBanner() {
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="border-border bg-card sm:max-w-md">
+        <DialogContent className="border-border bg-card sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <Cookie className="h-5 w-5 text-primary" />

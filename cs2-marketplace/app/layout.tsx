@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { CookieBanner } from '@/components/cookie-banner'
 import { AiChat } from '@/components/ai-chat'
+import { RadixPointerFix } from '@/components/radix-pointer-fix'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
@@ -37,6 +38,7 @@ export default function RootLayout({
           <Toaster position="bottom-right" />
           <CookieBanner />
           <AiChat />
+          <RadixPointerFix />
         </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

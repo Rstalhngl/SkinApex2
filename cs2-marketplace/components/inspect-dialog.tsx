@@ -31,7 +31,7 @@ export function InspectDialog({
   return (
     <>
     <Dialog open={!!skin} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="border-border bg-card sm:max-w-lg">
+      <DialogContent className="border-border bg-card sm:max-w-lg" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         {skin && (
           <>
             <DialogHeader>

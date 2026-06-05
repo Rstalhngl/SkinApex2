@@ -48,7 +48,7 @@ export function SellDialog({
 
   return (
     <Dialog open={!!skin} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="border-border bg-card sm:max-w-sm">
+      <DialogContent className="border-border bg-card sm:max-w-sm" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Tag className="h-5 w-5 text-primary" />

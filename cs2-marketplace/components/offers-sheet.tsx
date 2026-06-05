@@ -84,7 +84,7 @@ export function OffersSheet({ trigger }: { trigger?: React.ReactNode }) {
   return (
     <Sheet>
       {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-md">
+      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle className="flex items-center gap-2 text-foreground">
             <Handshake className="h-5 w-5 text-primary" />

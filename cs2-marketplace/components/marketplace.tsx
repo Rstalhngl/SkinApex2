@@ -173,7 +173,7 @@ export function Marketplace() {
                   <SlidersHorizontal className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="border-border bg-card">
+              <SheetContent side="left" className="border-border bg-card" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
                 <SheetTitle className="sr-only">{t("filter.title")}</SheetTitle>
                 <SheetDescription className="sr-only">Filtre paneli</SheetDescription><div className="mt-6">
                   <FilterSidebar filters={filters} onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }} onReset={resetFilters} />
