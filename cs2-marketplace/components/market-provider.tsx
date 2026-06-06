@@ -277,7 +277,24 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     })
     cart.forEach((skin) => {
       pushActivity(`${skin.type} | ${skin.title}`, "bought", formatPrice(skin.price))
-      createOrder(skin, skin.price)
+      // Create 2-hour delivery order (escrow holds money, not item)
+      createOrder({ ...skin, escrowHours: 2 } as Parameters<typeof createOrder>[0], skin.price)
+      // Mark listing as sold if it came from real listings store
+      if ((skin as Record<string, unknown>).listingId) {
+        import("@/lib/listings").then(({ markSold }) => {
+          const listing = markSold((skin as Record<string, unknown>).listingId as string)
+          if (listing) {
+            // Notify seller
+            import("@/lib/offers").then(({ pushActivity: _ }) => {})
+            import("sonner").then(({ toast }) => {
+              toast.info(`Ürün satıldı: ${listing.name}`, {
+                description: `Alıcı ödemeyi yaptı. 2 saat içinde teslim edin. Elinize geçecek: ${new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(listing.netToSeller)}`,
+                duration: 8000,
+              })
+            })
+          }
+        })
+      }
     })
     setCart([])
   }, [cart, cartTotal, wallet, t])

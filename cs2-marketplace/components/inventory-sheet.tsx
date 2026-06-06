@@ -23,6 +23,7 @@ import { formatPrice } from "@/lib/skins"
 import type { InventoryItem } from "@/app/api/inventory/route"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { createListing } from "@/lib/listings"
 
 const COMMISSION = 0.07
 
@@ -38,6 +39,7 @@ function ListingDialog({
   refPrice: number | null
   open: boolean
   onClose: () => void
+  onList?: (priceTry: number) => void
 }) {
   const [price, setPrice] = useState("")
 
@@ -137,8 +139,9 @@ function ListingDialog({
           <Button
             disabled={priceNum <= 0}
             onClick={() => {
+              if (onList) onList(priceNum)
               toast.success("İlan yayınlandı!", {
-                description: `${item.name} — ${fmt(priceNum)} (net: ${fmt(net)})`,
+                description: `${item.name} — ${fmt(priceNum)} (elinize geçecek: ${fmt(net)})`,
               })
               onClose()
             }}
@@ -162,9 +165,11 @@ function useMarketPrice(marketHashName: string, items: import("@/lib/skins").Ski
 function InventoryCard({
   item,
   marketItems,
+  steamProfile,
 }: {
   item: InventoryItem
   marketItems: import("@/lib/skins").Skin[]
+  steamProfile: import("@/components/market-provider").SteamProfile | null
 }) {
   const { t } = useI18n()
   const [listOpen, setListOpen] = useState(false)
@@ -253,6 +258,14 @@ function InventoryCard({
         refPrice={price}
         open={listOpen}
         onClose={() => setListOpen(false)}
+        onList={(priceTry) => {
+          if (!steamProfile) return
+          createListing(item, priceTry, {
+            steamId: steamProfile.steamId,
+            steamName: steamProfile.steamName,
+            steamAvatar: steamProfile.steamAvatar,
+          })
+        }}
       />
     </>
   )
@@ -356,7 +369,7 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
                   </p>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
                     {tradable.map(item => (
-                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} />
+                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} steamProfile={steamProfile} />
                     ))}
                   </div>
                 </section>
@@ -368,7 +381,7 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
                   </p>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3 opacity-60">
                     {locked.map(item => (
-                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} />
+                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} steamProfile={steamProfile} />
                     ))}
                   </div>
                 </section>
