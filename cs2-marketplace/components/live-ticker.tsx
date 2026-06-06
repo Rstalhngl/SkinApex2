@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { getActivity, subscribeActivity, type ActivityEvent } from "@/lib/activity-feed"
-import { LIVE_SYNC_MS } from "@/lib/live-sync"
+import { LIVE_SYNC_MS, WS_FALLBACK_SYNC_MS } from "@/lib/live-sync"
+import { isWsConnected, subscribeWsActivity, subscribeWsConnection } from "@/lib/ws-client"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
@@ -100,6 +101,11 @@ export function LiveTicker() {
   }, [enqueue, t])
 
   useEffect(() => {
+    const unsubWs = subscribeWsActivity((e) => {
+      if (e.action !== "bought" && e.action !== "listed") return
+      enqueue(toTickerItem(e.id, e.item, e.action, e.price, t, "ws"))
+    })
+
     const load = async (initial: boolean) => {
       try {
         const res = await fetch("/api/activity", { cache: "no-store" })
@@ -122,8 +128,20 @@ export function LiveTicker() {
     }
 
     void load(true)
-    const interval = setInterval(() => void load(false), LIVE_SYNC_MS)
-    return () => clearInterval(interval)
+
+    let interval: ReturnType<typeof setInterval> | null = null
+    const startPolling = (wsConnected: boolean) => {
+      if (interval) clearInterval(interval)
+      interval = setInterval(() => void load(false), wsConnected ? WS_FALLBACK_SYNC_MS : LIVE_SYNC_MS)
+    }
+    startPolling(isWsConnected())
+    const unsubConn = subscribeWsConnection(startPolling)
+
+    return () => {
+      unsubWs()
+      unsubConn()
+      if (interval) clearInterval(interval)
+    }
   }, [enqueue, markSeen, t])
 
   return (

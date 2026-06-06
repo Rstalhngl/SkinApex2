@@ -14,7 +14,14 @@ import {
   subscribeListings,
   syncListings,
 } from "@/lib/listings"
-import { LIVE_SYNC_MS } from "@/lib/live-sync"
+import { LIVE_SYNC_MS, WS_FALLBACK_SYNC_MS } from "@/lib/live-sync"
+import {
+  connectWs,
+  disconnectWs,
+  isWsConnected,
+  subscribeWsChannel,
+  subscribeWsConnection,
+} from "@/lib/ws-client"
 import { syncUserSales } from "@/lib/sales"
 import { syncOffers } from "@/lib/offers"
 import { syncUserNotifications } from "@/lib/user-notifications"
@@ -189,6 +196,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [steamProfile?.steamId, cartListingIds, hydrateCart])
 
   useEffect(() => {
+    connectWs(steamProfile?.steamId)
+    return () => disconnectWs()
+  }, [steamProfile?.steamId])
+
+  useEffect(() => {
     const steamId = steamProfile?.steamId
     const syncAll = () => {
       void syncListings().then(() => {
@@ -201,13 +213,39 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
         void refreshWallet()
       }
     }
+
+    const unsubListings = subscribeWsChannel("listings", () => {
+      void syncListings().then(() => {
+        if (cartListingIds.length > 0) hydrateCart(cartListingIds, steamId)
+      })
+    })
+    const unsubSales = subscribeWsChannel("sales", () => { if (isLoggedIn && steamId) void syncUserSales() })
+    const unsubNotif = subscribeWsChannel("notifications", () => { if (isLoggedIn && steamId) void syncUserNotifications() })
+    const unsubOffers = subscribeWsChannel("offers", () => { if (isLoggedIn && steamId) void syncOffers(steamId) })
+    const unsubWallet = subscribeWsChannel("wallet", () => { if (isLoggedIn) void refreshWallet() })
+
     syncAll()
-    const interval = setInterval(syncAll, LIVE_SYNC_MS)
+
+    let interval: ReturnType<typeof setInterval> | null = null
+    const startPolling = (wsConnected: boolean) => {
+      if (interval) clearInterval(interval)
+      interval = setInterval(syncAll, wsConnected ? WS_FALLBACK_SYNC_MS : LIVE_SYNC_MS)
+    }
+    startPolling(isWsConnected())
+    const unsubConn = subscribeWsConnection(startPolling)
+
     const onVisible = () => { if (document.visibilityState === "visible") syncAll() }
     document.addEventListener("visibilitychange", onVisible)
     window.addEventListener("focus", syncAll)
+
     return () => {
-      clearInterval(interval)
+      unsubListings()
+      unsubSales()
+      unsubNotif()
+      unsubOffers()
+      unsubWallet()
+      unsubConn()
+      if (interval) clearInterval(interval)
       document.removeEventListener("visibilitychange", onVisible)
       window.removeEventListener("focus", syncAll)
     }

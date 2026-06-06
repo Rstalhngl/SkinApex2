@@ -10,6 +10,7 @@ import {
 } from "@/lib/listings-store"
 import { processExpiredSales } from "@/lib/sale-lifecycle"
 import { userOwnsAsset } from "@/lib/steam-inventory"
+import { publishListingCreated, publishListingsChanged } from "@/lib/ws-publish"
 
 const COMMISSION = 0.07
 
@@ -97,6 +98,13 @@ export async function POST(req: Request) {
     store.listings = [listing, ...store.listings]
     await writeListingsStore(store)
 
+    publishListingCreated({
+      listingId: listing.id,
+      itemName: listing.name,
+      priceTry: listing.priceTry,
+      sellerId: listing.sellerId,
+    })
+
     return NextResponse.json({ listing })
   } catch {
     return NextResponse.json({ error: "server_error" }, { status: 500 })
@@ -131,6 +139,8 @@ export async function PATCH(req: Request) {
     const net = Math.round(priceTry * (1 - COMMISSION))
     store.listings[idx] = { ...listing, priceTry, netToSeller: net }
     await writeListingsStore(store)
+
+    publishListingsChanged()
 
     return NextResponse.json({ listing: store.listings[idx] })
   } catch {

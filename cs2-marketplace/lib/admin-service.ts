@@ -5,6 +5,7 @@ import { creditWallet } from "@/lib/wallet-store"
 import { payoutDeliveredSale } from "@/lib/purchase-service"
 import { getDisputedSales, patchSale } from "@/lib/sales-store"
 import { readSalesStore } from "@/lib/sales-store"
+import { publishUserChannel } from "@/lib/ws-publish"
 
 export async function notifyAdmins(message: string, extra?: { saleId?: string }): Promise<void> {
   for (const steamId of getAdminSteamIds()) {
@@ -78,5 +79,10 @@ export async function resolveDispute(
   }
 
   await patchSale(updated)
+  publishUserChannel("sales", sale.buyerId)
+  publishUserChannel("sales", sale.sellerId)
+  if (action === "buyer_refund") {
+    publishUserChannel("wallet", sale.buyerId)
+  }
   return updated
 }

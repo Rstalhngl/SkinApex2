@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { isSession, requireSession } from "@/lib/api-auth"
 import { readListingsStore, writeListingsStore } from "@/lib/listings-store"
+import { publishListingsChanged } from "@/lib/ws-publish"
 
 export async function POST(req: Request) {
   const session = await requireSession()
@@ -29,6 +30,8 @@ export async function POST(req: Request) {
 
     store.listings[idx] = { ...listing, status: "cancelled" }
     await writeListingsStore(store)
+
+    publishListingsChanged()
 
     return NextResponse.json({ ok: true })
   } catch {

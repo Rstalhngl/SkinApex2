@@ -3,6 +3,7 @@ import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
 import { notifyAdmins } from "@/lib/admin-service"
 import { refundExpiredSale, payoutDeliveredSale } from "@/lib/purchase-service"
 import { addUserNotification } from "@/lib/notifications-store"
+import { publishUserChannel } from "@/lib/ws-publish"
 
 /** Auto-expire pending deliveries past deadline; returns updated sales. */
 export async function processExpiredSales(): Promise<void> {
@@ -43,6 +44,8 @@ export async function markSaleDeliveredByBot(saleId: string): Promise<Sale | nul
   await writeSalesStore(store)
 
   await payoutDeliveredSale(updated)
+  publishUserChannel("sales", sale.buyerId)
+  publishUserChannel("sales", sale.sellerId)
   await addUserNotification(
     sale.buyerId,
     "item_sold",
@@ -67,6 +70,8 @@ export async function markSaleDelivered(saleId: string, sellerId: string): Promi
   await writeSalesStore(store)
 
   await payoutDeliveredSale(updated)
+  publishUserChannel("sales", sale.sellerId)
+  publishUserChannel("sales", sale.buyerId)
   return updated
 }
 
@@ -91,6 +96,8 @@ export async function confirmSaleReceived(saleId: string, buyerId: string): Prom
   if (sale.status === "pending_delivery" && !sale.deliveredAt) {
     await payoutDeliveredSale(updated)
   }
+  publishUserChannel("sales", sale.buyerId)
+  publishUserChannel("sales", sale.sellerId)
   return updated
 }
 
@@ -124,6 +131,8 @@ export async function disputeSale(saleId: string, buyerId: string): Promise<Sale
     `Yeni destek talebi: ${sale.itemName} — ${sale.priceTry} TL (Satış: ${sale.id})`,
     { saleId: sale.id },
   )
+  publishUserChannel("sales", sale.buyerId)
+  publishUserChannel("sales", sale.sellerId)
 
   return updated
 }

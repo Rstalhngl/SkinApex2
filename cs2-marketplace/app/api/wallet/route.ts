@@ -6,6 +6,7 @@ import {
   getWalletBalance,
   getWalletTransactions,
 } from "@/lib/wallet-store"
+import { publishUserChannel } from "@/lib/ws-publish"
 
 export async function GET() {
   const session = await requireSession()
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     if (action === "deposit") {
       const result = await creditWallet(session.steamId, amount, "deposit")
       if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
+      publishUserChannel("wallet", session.steamId)
       return NextResponse.json({ balance: result.balance })
     }
 
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
       }
       const result = await debitWallet(session.steamId, amount, "withdraw")
       if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
+      publishUserChannel("wallet", session.steamId)
       return NextResponse.json({ balance: result.balance })
     }
 

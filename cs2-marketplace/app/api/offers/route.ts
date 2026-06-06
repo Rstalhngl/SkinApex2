@@ -6,6 +6,7 @@ import { readListingsStore } from "@/lib/listings-store"
 import { readOffersStore, writeOffersStore } from "@/lib/offers-store"
 import { completePurchase } from "@/lib/purchase-service"
 import { getUserTradeUrl } from "@/lib/user-store"
+import { publishUserChannel } from "@/lib/ws-publish"
 
 export async function GET(req: Request) {
   const session = await requireSession()
@@ -85,6 +86,8 @@ export async function POST(req: Request) {
       `${session.steamName ?? "Bir kullanıcı"} teklif verdi: ${listing.name} — ${fmt(offerTry)}`,
       { listingId: listing.id },
     )
+    publishUserChannel("offers", listing.sellerId)
+    publishUserChannel("offers", session.steamId)
 
     return NextResponse.json({ offer })
   } catch {
@@ -166,6 +169,8 @@ export async function PATCH(req: Request) {
         { listingId: offer.listingId },
       )
     }
+    publishUserChannel("offers", offer.buyerId)
+    publishUserChannel("offers", offer.sellerId)
 
     return NextResponse.json({ offer: store.offers[idx] })
   } catch {

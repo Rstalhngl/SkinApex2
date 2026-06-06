@@ -29,5 +29,18 @@ module.exports = {
       max_restarts: 10,
       autorestart: true,
     },
+    {
+      name: "skinapex-ws",
+      script: "scripts/ws-server.cjs",
+      cwd: "./",
+      env: {
+        NODE_ENV: "production",
+        WS_PORT: 3001,
+      },
+      max_memory_restart: "128M",
+      min_uptime: "10s",
+      max_restarts: 10,
+      autorestart: true,
+    },
   ],
 }

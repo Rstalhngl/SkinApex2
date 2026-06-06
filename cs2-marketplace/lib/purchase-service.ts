@@ -10,6 +10,7 @@ import { addUserNotification } from "@/lib/notifications-store"
 import { isValidTradeUrl } from "@/lib/trade-url"
 import { buildSaleTradeFields } from "@/lib/trade-delivery-service"
 import { isTradeBotEnabled } from "@/lib/trade-bot-config"
+import { publishPurchaseEvents, publishUserChannel } from "@/lib/ws-publish"
 
 export interface PurchaseBuyer {
   steamId: string
@@ -95,6 +96,15 @@ export async function completePurchase(
   )
 
   await rejectPendingOffersForListing(listing.id)
+
+  publishPurchaseEvents({
+    buyerId: buyer.steamId,
+    sellerId: listing.sellerId,
+    itemName: listing.name,
+    priceTry: chargeAmount,
+    saleId: sale.id,
+    listingId: listing.id,
+  })
 
   return { ok: true, sale, listing: updatedListing }
 }
@@ -191,6 +201,15 @@ export async function completeBatchPurchase(
           { saleId: sale.id, listingId: listing.id },
         )
         await rejectPendingOffersForListing(listing.id)
+
+        publishPurchaseEvents({
+          buyerId: buyer.steamId,
+          sellerId: listing.sellerId,
+          itemName: listing.name,
+          priceTry: charge,
+          saleId: sale.id,
+          listingId: listing.id,
+        })
       }
 
       await writeListingsStore(listingsStore)
@@ -237,6 +256,7 @@ export async function refundExpiredSale(sale: Sale): Promise<void> {
 
 export async function payoutDeliveredSale(sale: Sale): Promise<void> {
   await creditWallet(sale.sellerId, sale.netToSeller, "sale_payout", sale.id, sale.itemName)
+  publishUserChannel("wallet", sale.sellerId)
   await addUserNotification(
     sale.sellerId,
     "item_sold",
