@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from "react"
 import {
-  ExternalLink, Lock, Package, PackageCheck, RefreshCw, ShieldAlert, Tag, User,
+  ExternalLink, Lock, Package, Pencil, RefreshCw, Tag, User, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
-import { createListing } from "@/lib/listings"
+import {
+  cancelListing, createListing, getActiveListings,
+  subscribeListings, syncListings, updateListingPrice, type Listing,
+} from "@/lib/listings"
 
 const COMMISSION_RATE = 0.07  // 7% platform commission
 import {
@@ -22,11 +25,9 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
+import { OrdersPanel } from "@/components/orders-panel"
 import { formatPrice, steamProfileUrl } from "@/lib/skins"
-import {
-  getOrders, subscribeOrders, openSupportTicket, escrowTimeLeft,
-  STATUS_LABEL, STATUS_COLOR, type Order,
-} from "@/lib/orders"
+import { fetchWalletData, type WalletTransaction } from "@/lib/user-data-client"
 import type { InventoryItem } from "@/lib/inventory-types"
 import { cn } from "@/lib/utils"
 
@@ -35,6 +36,14 @@ import { cn } from "@/lib/utils"
 function ProfileTab() {
   const { t } = useI18n()
   const { steamProfile, wallet, isLoggedIn } = useMarket()
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([])
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    void fetchWalletData().then((data) => {
+      if (data) setTransactions(data.transactions.slice(0, 5))
+    })
+  }, [isLoggedIn, wallet])
 
   if (!isLoggedIn || !steamProfile) return null
 
@@ -71,6 +80,24 @@ function ProfileTab() {
         </div>
       </div>
 
+      <div className="w-full rounded-xl border border-border bg-input p-4 text-left text-sm">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("wallet.recentTx")}</p>
+        {transactions.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{t("wallet.noTx")}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {transactions.map((tx) => (
+              <li key={tx.id} className="flex items-center justify-between text-xs">
+                <span className="truncate text-muted-foreground">{tx.type}</span>
+                <span className={cn("font-semibold", tx.amount >= 0 ? "text-success" : "text-destructive")}>
+                  {tx.amount >= 0 ? "+" : ""}{formatPrice(Math.abs(tx.amount))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {steamProfile.steamId && (
         <a
           href={steamProfileUrl(steamProfile.steamId)}
@@ -89,67 +116,159 @@ function ProfileTab() {
   )
 }
 
-// ─── Orders tab ──────────────────────────────────────────────────────────────
+// ─── My listings tab ──────────────────────────────────────────────────────────
 
-function OrderRow({ order }: { order: Order }) {
+function ListingCard({
+  listing,
+  onDelist,
+  onPriceUpdated,
+}: {
+  listing: Listing
+  onDelist: (listing: Listing) => void
+  onPriceUpdated: () => void
+}) {
   const { t } = useI18n()
-  const [hovered, setHovered] = useState(false)
-  const [supportOpen, setSupportOpen] = useState(false)
-  const canDispute = order.status === "escrow" && Date.now() < order.escrowReleasesAt
+  const displayName = (listing.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
+
+  const handleEditPrice = async () => {
+    const next = window.prompt(t("listings.editPricePrompt"), String(listing.priceTry))
+    if (!next) return
+    const priceTry = Math.round(parseFloat(next))
+    if (!Number.isFinite(priceTry) || priceTry <= 0) {
+      toast.error(t("listings.invalidPrice"))
+      return
+    }
+    const updated = await updateListingPrice(listing.id, priceTry)
+    if (updated) {
+      toast.success(t("listings.priceUpdated"))
+      onPriceUpdated()
+    } else {
+      toast.error(t("listings.priceUpdateFailed"))
+    }
+  }
 
   return (
-    <li
-      className="relative flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-input/40 transition-colors"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div className="flex h-12 w-14 shrink-0 items-center justify-center rounded-md bg-input">
+    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
+      <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: listing.rarityColor ?? "#b0c3d9" }} />
+      <div className="flex h-[70px] items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={order.skinImg || "/placeholder.svg"} alt={order.skinName}
-          className="max-h-10 max-w-[85%] object-contain" referrerPolicy="no-referrer" />
+        <img
+          src={listing.img || "/placeholder.svg"}
+          alt={displayName}
+          className="max-h-full max-w-[90%] object-contain"
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
+        />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-semibold text-foreground">{order.skinName}</p>
-        <p className="text-[10px] text-muted-foreground">{order.exterior} · {new Date(order.boughtAt).toLocaleDateString("tr-TR")}</p>
-        <p className="text-xs font-bold text-success">{formatPrice(order.priceTry)}</p>
-        <p className={cn("text-[10px] font-semibold", STATUS_COLOR[order.status])}>
-          {t(`order.status.${order.status}`)}
-          {order.status === "escrow" && <span className="ml-1 text-muted-foreground/60">({escrowTimeLeft(order)})</span>}
-        </p>
+      <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{listing.type ?? ""}</p>
+      <p className="truncate text-[10px] font-semibold text-foreground leading-tight">{displayName}</p>
+      {listing.exterior && <p className="text-[9px] text-muted-foreground">{listing.exterior}</p>}
+      <p className="text-[10px] font-bold text-success">{formatPrice(listing.priceTry)}</p>
+
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/90 px-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          onClick={handleEditPrice}
+          className="flex h-7 w-full items-center justify-center gap-1 rounded-md bg-primary px-2 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Pencil className="h-3 w-3 shrink-0" />
+          <span className="truncate">{t("listings.editPrice")}</span>
+        </button>
+        <button
+          onClick={() => onDelist(listing)}
+          className="flex h-7 w-full min-w-0 max-w-full items-center justify-center gap-1 rounded-md bg-destructive px-2 text-[10px] font-semibold text-destructive-foreground hover:bg-destructive/90"
+        >
+          <XCircle className="h-3 w-3 shrink-0" />
+          <span className="truncate">{t("sell.unpublish")}</span>
+        </button>
       </div>
-      {hovered && canDispute && (
-        <Button size="sm" variant="destructive" className="absolute right-3 h-7 gap-1 text-[10px]"
-          onClick={() => setSupportOpen(true)}>
-          <ShieldAlert className="h-3 w-3" />
-          {t("order.supportTicket")}
-        </Button>
-      )}
-    </li>
+    </div>
   )
 }
 
-function OrdersTab() {
+function MyListingsTab() {
   const { t } = useI18n()
-  const [orders, setOrders] = useState<Order[]>(() => getOrders())
-  useEffect(() => subscribeOrders(() => setOrders([...getOrders()])), [])
+  const { steamProfile } = useMarket()
+  const [listings, setListings] = useState<Listing[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (orders.length === 0) return (
-    <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
-      <PackageCheck className="h-10 w-10 opacity-30" />
-      <p className="text-sm">{t("orders.empty")}</p>
-    </div>
-  )
+  const refresh = () => {
+    const mine = getActiveListings().filter((l) => l.sellerId === steamProfile?.steamId)
+    setListings(mine)
+  }
+
+  useEffect(() => {
+    let mounted = true
+    setLoading(true)
+    syncListings().finally(() => {
+      if (!mounted) return
+      refresh()
+      setLoading(false)
+    })
+    const unsub = subscribeListings(() => refresh())
+    return () => { mounted = false; unsub() }
+  }, [steamProfile?.steamId])
+
+  const handleDelist = async (listing: Listing) => {
+    if (!steamProfile?.steamId) return
+    const ok = await cancelListing(listing.id)
+    if (ok) {
+      toast.success(t("sell.unpublished"))
+      refresh()
+    } else {
+      toast.error(t("sell.unpublishFailed"))
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">{t("listings.loading")}</p>
+      </div>
+    )
+  }
+
+  if (listings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+        <Tag className="h-10 w-10 opacity-30" />
+        <p className="text-sm">{t("listings.empty")}</p>
+      </div>
+    )
+  }
 
   return (
-    <ul>
-      {orders.map(o => <OrderRow key={o.id} order={o} />)}
-    </ul>
+    <div className="space-y-4 p-3">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs text-muted-foreground">
+          {t("listings.count").replace("{count}", String(listings.length))}
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[10px]"
+          onClick={() => { setLoading(true); syncListings().finally(() => { refresh(); setLoading(false) }) }}
+        >
+          <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
+        </Button>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+        {listings.map((listing) => (
+          <ListingCard key={listing.id} listing={listing} onDelist={handleDelist} onPriceUpdated={refresh} />
+        ))}
+      </div>
+    </div>
   )
 }
 
 // ─── Inventory tab ────────────────────────────────────────────────────────────
 
-function InventoryTab() {
+function InventoryTab({
+  onListClick,
+}: {
+  onListClick: (item: InventoryItem, price: number | null) => void
+}) {
   const { t } = useI18n()
   const { steamProfile, items: marketItems } = useMarket()
   const [invItems, setInvItems] = useState<InventoryItem[]>([])
@@ -157,24 +276,29 @@ function InventoryTab() {
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   const fetched = useRef(false)
-  // Lifted listing state — dialog rendered outside ScrollArea/Sheet
-  const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
-  const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
-  const handleListClick = (item: InventoryItem, price: number | null) => {
-    setListingItem(item); setListingRefPrice(price)
-  }
 
   const fetchInv = async () => {
-    if (!steamProfile?.steamId) return
+    const steamId = steamProfile?.steamId
+    if (!steamId) return
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/inventory?steamId=${steamProfile.steamId}`)
+      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`)
+      if (!res.ok) throw new Error(`http_${res.status}`)
       const data = await res.json()
-      if (data.error === "private") { setError("private"); setInvItems([]) }
-      else if (data.error) { setError("error"); setInvItems([]) }
-      else { setInvItems(data.items || []); setTotal(data.total || 0) }
-    } catch { setError("error") }
+      if (data.error === "private") { setError("private"); setInvItems([]); setTotal(0) }
+      else if (data.error) { setError("error"); setInvItems([]); setTotal(0) }
+      else {
+        const safe = (data.items ?? []).filter(
+          (item: unknown): item is InventoryItem =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof (item as InventoryItem).assetId === "string",
+        )
+        setInvItems(safe)
+        setTotal(data.total ?? safe.length)
+      }
+    } catch { setError("error"); setInvItems([]); setTotal(0) }
     finally { setLoading(false) }
   }
 
@@ -231,68 +355,64 @@ function InventoryTab() {
   const locked = invItems.filter(i => !i.tradable)
 
   return (
-    <>
-      <div className="space-y-4 p-3">
-        <div className="flex items-center justify-between px-1">
-          <p className="text-xs text-muted-foreground">{total} item · {tradable.length} {t("inventory.tradable")}</p>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={fetchInv}>
-            <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
-          </Button>
-        </div>
-        {tradable.length > 0 && (
-          <section>
-            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-success">
-              {t("inventory.tradable")} ({tradable.length})
-            </p>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-              {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />)}
-            </div>
-          </section>
-        )}
-        {locked.length > 0 && (
-          <section className="opacity-60">
-            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              {t("inventory.locked")} ({locked.length})
-            </p>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-              {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />)}
-            </div>
-          </section>
-        )}
+    <div className="space-y-4 p-3">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs text-muted-foreground">{total} item · {tradable.length} {t("inventory.tradable")}</p>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={fetchInv}>
+          <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
+        </Button>
       </div>
-      <ListingDialog
-        item={listingItem}
-        refPrice={listingRefPrice}
-        open={!!listingItem}
-        onClose={() => { setListingItem(null); setListingRefPrice(null) }}
-        onList={(priceTry) => {
-          if (!steamProfile || !listingItem) return
-          createListing(listingItem, priceTry, {
-            steamId: steamProfile.steamId,
-            steamName: steamProfile.steamName,
-            steamAvatar: steamProfile.steamAvatar,
-          })
-        }}
-      />
-    </>
+      {tradable.length > 0 && (
+        <section>
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-success">
+            {t("inventory.tradable")} ({tradable.length})
+          </p>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+            {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
+          </div>
+        </section>
+      )}
+      {locked.length > 0 && (
+        <section className="opacity-60">
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            {t("inventory.locked")} ({locked.length})
+          </p>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+            {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
+          </div>
+        </section>
+      )}
+    </div>
   )
 }
 
 function ListingDialog({
   item, refPrice, open, onClose, onList
 }: {
-  item: InventoryItem
+  item: InventoryItem | null
   refPrice: number | null
   open: boolean
   onClose: () => void
   onList?: (priceTry: number) => void
 }) {
-  const [price, setPrice] = useState(refPrice ? String(Math.round(refPrice)) : "")
+  const [price, setPrice] = useState("")
+
+  useEffect(() => {
+    if (open) {
+      setPrice(refPrice != null ? String(Math.round(refPrice)) : "")
+    } else {
+      setPrice("")
+    }
+  }, [open, refPrice])
+
+  if (!item) return null
+
   const priceNum = parseFloat(price) || 0
   const commission = Math.round(priceNum * COMMISSION_RATE)
   const netToSeller = Math.round(priceNum * (1 - COMMISSION_RATE))
   const fmt = (v: number) =>
     new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
+  const displayName = (item.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -303,15 +423,21 @@ function ListingDialog({
             İlanı Yayınla
           </DialogTitle>
           <DialogDescription className="sr-only">
-            {item.name} için satış fiyatı ve komisyon hesabı
+            {displayName || "Ürün"} için satış fiyatı ve komisyon hesabı
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.img} alt={item.name} className="h-14 w-16 object-contain" referrerPolicy="no-referrer" />
+          <img
+            src={item.img || "/placeholder.svg"}
+            alt={displayName}
+            className="h-14 w-16 object-contain"
+            referrerPolicy="no-referrer"
+            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
+          />
           <div>
-            <p className="text-xs font-semibold text-foreground">{item.name}</p>
+            <p className="text-xs font-semibold text-foreground">{displayName}</p>
             {item.exterior && <p className="text-[10px] text-muted-foreground">{item.exterior}</p>}
           </div>
         </div>
@@ -361,7 +487,7 @@ function ListingDialog({
             onClick={() => {
               if (onList) onList(priceNum)
               toast.success("İlan yayınlandı!", {
-                description: `${item.name} — ${fmt(priceNum)} (elinize geçecek: ${fmt(netToSeller)})`,
+                description: `${displayName || "Ürün"} — ${fmt(priceNum)} (elinize geçecek: ${fmt(netToSeller)})`,
               })
               onClose()
             }}
@@ -377,18 +503,25 @@ function ListingDialog({
 
 function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[]; onListClick: (item: InventoryItem, price: number | null) => void }) {
   const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price ?? null
+  const displayName = (item.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
-        <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor }} />
+        <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor ?? "#b0c3d9" }} />
         <div className="flex h-[70px] items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.img} alt={item.name} className="max-h-full max-w-[90%] object-contain"
-            referrerPolicy="no-referrer" loading="lazy" />
+          <img
+            src={item.img || "/placeholder.svg"}
+            alt={displayName}
+            className="max-h-full max-w-[90%] object-contain"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
+          />
         </div>
-        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type}</p>
+        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type ?? ""}</p>
         <p className="truncate text-[10px] font-semibold text-foreground leading-tight">
-          {item.name.replace("StatTrak™ ", "").replace("Souvenir ", "")}
+          {displayName}
         </p>
         {item.exterior && <p className="text-[9px] text-muted-foreground">{item.exterior}</p>}
         {price && <p className="text-[10px] font-bold text-success">{formatPrice(price)}</p>}
@@ -412,37 +545,73 @@ function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; mark
 
 export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
   const { t } = useI18n()
+  const { steamProfile } = useMarket()
+  const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
+  const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
+
+  const handleListClick = (item: InventoryItem, price: number | null) => {
+    setListingItem(item)
+    setListingRefPrice(price)
+  }
+
+  const handleListClose = () => {
+    setListingItem(null)
+    setListingRefPrice(null)
+  }
 
   return (
-    <Sheet>
-      {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-lg">
-        <SheetHeader className="border-b border-border px-5 py-4">
-          <SheetTitle className="flex items-center gap-2 text-foreground">
-            <User className="h-5 w-5 text-primary" />
-            {t("header.profile")}
-          </SheetTitle>
-          <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
-        </SheetHeader>
+    <>
+      <Sheet>
+        {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
+        <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-lg">
+          <SheetHeader className="border-b border-border px-5 py-4">
+            <SheetTitle className="flex items-center gap-2 text-foreground">
+              <User className="h-5 w-5 text-primary" />
+              {t("header.profile")}
+            </SheetTitle>
+            <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
+          </SheetHeader>
 
-        <Tabs defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
-          <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-3 bg-input">
-            <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
-            <TabsTrigger value="orders" className="text-xs">{t("orders.title")}</TabsTrigger>
-            <TabsTrigger value="inventory" className="text-xs">{t("inventory.title")}</TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
+            <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-2 gap-1 bg-input sm:grid-cols-4">
+              <TabsTrigger value="profile" className="text-[10px] sm:text-xs">Profil</TabsTrigger>
+              <TabsTrigger value="orders" className="text-[10px] sm:text-xs">{t("orders.title")}</TabsTrigger>
+              <TabsTrigger value="listings" className="text-[10px] sm:text-xs">{t("listings.myActive")}</TabsTrigger>
+              <TabsTrigger value="inventory" className="text-[10px] sm:text-xs">{t("inventory.title")}</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="profile" className="flex-1 overflow-hidden mt-0">
-            <ScrollArea className="h-full"><ProfileTab /></ScrollArea>
-          </TabsContent>
-          <TabsContent value="orders" className="flex-1 overflow-hidden mt-0">
-            <ScrollArea className="h-full"><OrdersTab /></ScrollArea>
-          </TabsContent>
-          <TabsContent value="inventory" className="flex-1 overflow-hidden mt-0">
-            <ScrollArea className="h-full"><InventoryTab /></ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </SheetContent>
-    </Sheet>
+            <TabsContent value="profile" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full"><ProfileTab /></ScrollArea>
+            </TabsContent>
+            <TabsContent value="orders" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full"><OrdersPanel /></ScrollArea>
+            </TabsContent>
+            <TabsContent value="listings" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full"><MyListingsTab /></ScrollArea>
+            </TabsContent>
+            <TabsContent value="inventory" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full">
+                <InventoryTab onListClick={handleListClick} />
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </SheetContent>
+      </Sheet>
+
+      {/* Render outside Sheet to avoid nested Radix modal conflicts */}
+      <ListingDialog
+        item={listingItem}
+        refPrice={listingRefPrice}
+        open={listingItem !== null}
+        onClose={handleListClose}
+        onList={async (priceTry) => {
+          if (!steamProfile || !listingItem) return
+          const listing = await createListing(listingItem, priceTry)
+          if (!listing) {
+            toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
+          }
+        }}
+      />
+    </>
   )
 }
