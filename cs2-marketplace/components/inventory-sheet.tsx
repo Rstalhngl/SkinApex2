@@ -165,19 +165,17 @@ function useMarketPrice(marketHashName: string, items: import("@/lib/skins").Ski
 function InventoryCard({
   item,
   marketItems,
-  steamProfile,
+  onListClick,
 }: {
   item: InventoryItem
   marketItems: import("@/lib/skins").Skin[]
-  steamProfile: import("@/components/market-provider").SteamProfile | null
+  onListClick: (item: InventoryItem, refPrice: number | null) => void
 }) {
   const { t } = useI18n()
-  const [listOpen, setListOpen] = useState(false)
   const price = useMarketPrice(item.marketHashName, marketItems)
 
   return (
-    <>
-      <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-3 transition-colors hover:border-[#243146]">
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-3 transition-colors hover:border-[#243146]">
         {/* Rarity color top bar — thicker for visibility */}
         <div
           className="absolute inset-x-0 top-0 h-1 rounded-t-xl"
@@ -251,23 +249,7 @@ function InventoryCard({
             <ExternalLink className="h-2.5 w-2.5" />
           </a>
         </div>
-      </div>
-
-      <ListingDialog
-        item={item}
-        refPrice={price}
-        open={listOpen}
-        onClose={() => setListOpen(false)}
-        onList={(priceTry) => {
-          if (!steamProfile) return
-          createListing(item, priceTry, {
-            steamId: steamProfile.steamId,
-            steamName: steamProfile.steamName,
-            steamAvatar: steamProfile.steamAvatar,
-          })
-        }}
-      />
-    </>
+    </div>
   )
 }
 
@@ -281,6 +263,14 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
+  // Listing dialog state — rendered OUTSIDE SheetContent to avoid nested modal issues
+  const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
+  const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
+
+  const handleListClick = (item: InventoryItem, refPrice: number | null) => {
+    setListingItem(item)
+    setListingRefPrice(refPrice)
+  }
 
   const fetchInventory = async () => {
     if (!steamProfile?.steamId) return
@@ -308,6 +298,7 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
   const locked = inventoryItems.filter(i => !i.tradable)
 
   return (
+    <>
     <Sheet open={open} onOpenChange={setOpen}>
       {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
       <SheetContent
@@ -369,7 +360,7 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
                   </p>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
                     {tradable.map(item => (
-                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} steamProfile={steamProfile} />
+                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />
                     ))}
                   </div>
                 </section>
@@ -381,7 +372,7 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
                   </p>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3 opacity-60">
                     {locked.map(item => (
-                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} steamProfile={steamProfile} />
+                      <InventoryCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />
                     ))}
                   </div>
                 </section>
@@ -391,5 +382,22 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
         </ScrollArea>
       </SheetContent>
     </Sheet>
+
+    {/* ListingDialog rendered OUTSIDE Sheet to avoid nested Radix modal pointer-events conflict */}
+    <ListingDialog
+      item={listingItem}
+      refPrice={listingRefPrice}
+      open={!!listingItem}
+      onClose={() => { setListingItem(null); setListingRefPrice(null) }}
+      onList={(priceTry) => {
+        if (!steamProfile || !listingItem) return
+        createListing(listingItem, priceTry, {
+          steamId: steamProfile.steamId,
+          steamName: steamProfile.steamName,
+          steamAvatar: steamProfile.steamAvatar,
+        })
+      }}
+    />
+    </>
   )
 }

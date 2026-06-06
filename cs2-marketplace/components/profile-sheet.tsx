@@ -157,6 +157,12 @@ function InventoryTab() {
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   const fetched = useRef(false)
+  // Lifted listing state — dialog rendered outside ScrollArea/Sheet
+  const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
+  const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
+  const handleListClick = (item: InventoryItem, price: number | null) => {
+    setListingItem(item); setListingRefPrice(price)
+  }
 
   const fetchInv = async () => {
     if (!steamProfile?.steamId) return
@@ -225,35 +231,50 @@ function InventoryTab() {
   const locked = invItems.filter(i => !i.tradable)
 
   return (
-    <div className="space-y-4 p-3">
-      <div className="flex items-center justify-between px-1">
-        <p className="text-xs text-muted-foreground">{total} item · {tradable.length} {t("inventory.tradable")}</p>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={fetchInv}>
-          <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
-        </Button>
+    <>
+      <div className="space-y-4 p-3">
+        <div className="flex items-center justify-between px-1">
+          <p className="text-xs text-muted-foreground">{total} item · {tradable.length} {t("inventory.tradable")}</p>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={fetchInv}>
+            <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
+          </Button>
+        </div>
+        {tradable.length > 0 && (
+          <section>
+            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-success">
+              {t("inventory.tradable")} ({tradable.length})
+            </p>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+              {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />)}
+            </div>
+          </section>
+        )}
+        {locked.length > 0 && (
+          <section className="opacity-60">
+            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              {t("inventory.locked")} ({locked.length})
+            </p>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+              {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />)}
+            </div>
+          </section>
+        )}
       </div>
-
-      {tradable.length > 0 && (
-        <section>
-          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-success">
-            {t("inventory.tradable")} ({tradable.length})
-          </p>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-            {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} />)}
-          </div>
-        </section>
-      )}
-      {locked.length > 0 && (
-        <section className="opacity-60">
-          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            {t("inventory.locked")} ({locked.length})
-          </p>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-            {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} />)}
-          </div>
-        </section>
-      )}
-    </div>
+      <ListingDialog
+        item={listingItem}
+        refPrice={listingRefPrice}
+        open={!!listingItem}
+        onClose={() => { setListingItem(null); setListingRefPrice(null) }}
+        onList={(priceTry) => {
+          if (!steamProfile || !listingItem) return
+          createListing(listingItem, priceTry, {
+            steamId: steamProfile.steamId,
+            steamName: steamProfile.steamName,
+            steamAvatar: steamProfile.steamAvatar,
+          })
+        }}
+      />
+    </>
   )
 }
 
@@ -353,14 +374,11 @@ function ListingDialog({
   )
 }
 
-function InvCard({ item, marketItems }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[] }) {
-  const [listOpen, setListOpen] = useState(false)
+function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[]; onListClick: (item: InventoryItem, price: number | null) => void }) {
   const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price ?? null
-  const { steamProfile } = useMarket()
 
   return (
-    <>
-      <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
+    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
         <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor }} />
         <div className="flex h-[70px] items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -377,7 +395,7 @@ function InvCard({ item, marketItems }: { item: InventoryItem; marketItems: impo
         {item.tradable && (
           <div className="absolute inset-0 flex items-center justify-center bg-card/90 opacity-0 transition-opacity group-hover:opacity-100">
             <button
-              onClick={() => setListOpen(true)}
+              onClick={() => onListClick(item, price)}
               className="flex items-center gap-1 rounded-md bg-primary px-2 py-1.5 text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
             >
               <Tag className="h-3 w-3" />
@@ -385,22 +403,7 @@ function InvCard({ item, marketItems }: { item: InventoryItem; marketItems: impo
             </button>
           </div>
         )}
-      </div>
-      <ListingDialog
-        item={item}
-        refPrice={price}
-        open={listOpen}
-        onClose={() => setListOpen(false)}
-        onList={(priceTry) => {
-          if (!steamProfile) return
-          createListing(item, priceTry, {
-            steamId: steamProfile.steamId,
-            steamName: steamProfile.steamName,
-            steamAvatar: steamProfile.steamAvatar,
-          })
-        }}
-      />
-    </>
+    </div>
   )
 }
 
