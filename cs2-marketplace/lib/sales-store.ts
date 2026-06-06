@@ -75,6 +75,34 @@ export async function getSalesForSeller(sellerId: string): Promise<Sale[]> {
   return store.sales.filter((s) => s.sellerId === sellerId)
 }
 
+export async function getDisputedSales(): Promise<Sale[]> {
+  if (isDbEnabled()) {
+    const res = await query<{ payload: Sale }>(
+      `SELECT payload FROM sales WHERE payload->>'status' = 'disputed'
+       ORDER BY (payload->>'disputedAt')::bigint DESC`,
+    )
+    return res.rows.map((r) => r.payload)
+  }
+  const store = await readSalesStore()
+  return store.sales.filter((s) => s.status === "disputed")
+}
+
+export async function patchSale(sale: Sale): Promise<void> {
+  if (isDbEnabled()) {
+    await query(
+      `INSERT INTO sales (id, payload) VALUES ($1, $2::jsonb)
+       ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload`,
+      [sale.id, JSON.stringify(sale)],
+    )
+    return
+  }
+  const store = await readSalesStore()
+  const idx = store.sales.findIndex((s) => s.id === sale.id)
+  if (idx === -1) return
+  store.sales[idx] = sale
+  await writeSalesStore(store)
+}
+
 export async function getSalesForBuyer(buyerId: string): Promise<Sale[]> {
   if (isDbEnabled()) {
     const res = await query<{ payload: Sale }>(

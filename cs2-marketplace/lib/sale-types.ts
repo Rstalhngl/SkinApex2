@@ -1,4 +1,5 @@
-export type SaleStatus = "pending_delivery" | "delivered" | "expired" | "disputed"
+export type SaleStatus = "pending_delivery" | "delivered" | "expired" | "disputed" | "resolved"
+export type SaleResolution = "buyer_refund" | "seller_paid"
 
 export interface Sale {
   id: string
@@ -19,6 +20,10 @@ export interface Sale {
   deliveredAt?: number
   confirmedAt?: number
   disputedAt?: number
+  resolution?: SaleResolution
+  adminNote?: string
+  resolvedAt?: number
+  resolvedBy?: string
 }
 
 export const SALE_STATUS_LABEL: Record<SaleStatus, string> = {
@@ -26,6 +31,7 @@ export const SALE_STATUS_LABEL: Record<SaleStatus, string> = {
   delivered: "Teslim Edildi",
   expired: "Süre Doldu",
   disputed: "Destek Talebi",
+  resolved: "Çözüldü",
 }
 
 export const SALE_STATUS_COLOR: Record<SaleStatus, string> = {
@@ -33,6 +39,7 @@ export const SALE_STATUS_COLOR: Record<SaleStatus, string> = {
   delivered: "text-success",
   expired: "text-destructive",
   disputed: "text-primary",
+  resolved: "text-muted-foreground",
 }
 
 export interface SalesStore {

@@ -1,6 +1,8 @@
 import type { Sale } from "@/lib/sale-types"
 import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
-import { refundDisputedSale, refundExpiredSale, payoutDeliveredSale } from "@/lib/purchase-service"
+import { notifyAdmins } from "@/lib/admin-service"
+import { refundExpiredSale, payoutDeliveredSale } from "@/lib/purchase-service"
+import { addUserNotification } from "@/lib/notifications-store"
 
 /** Auto-expire pending deliveries past deadline; returns updated sales. */
 export async function processExpiredSales(): Promise<void> {
@@ -75,6 +77,23 @@ export async function disputeSale(saleId: string, buyerId: string): Promise<Sale
   const updated: Sale = { ...sale, status: "disputed", disputedAt: Date.now() }
   store.sales[idx] = updated
   await writeSalesStore(store)
-  await refundDisputedSale(updated)
+
+  await addUserNotification(
+    sale.buyerId,
+    "item_sold",
+    `Destek talebiniz alındı, inceleniyor: ${sale.itemName}`,
+    { saleId: sale.id },
+  )
+  await addUserNotification(
+    sale.sellerId,
+    "item_sold",
+    `Alıcı destek talebi açtı: ${sale.itemName}. Admin incelemesi bekleniyor.`,
+    { saleId: sale.id },
+  )
+  await notifyAdmins(
+    `Yeni destek talebi: ${sale.itemName} — ${sale.priceTry} TL (Satış: ${sale.id})`,
+    { saleId: sale.id },
+  )
+
   return updated
 }
