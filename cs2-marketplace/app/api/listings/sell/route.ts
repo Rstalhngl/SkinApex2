@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     salesStore.sales = [sale, ...salesStore.sales]
     await writeSalesStore(salesStore)
 
-    const itemLabel = `${listing.type} | ${listing.name}`
+    const itemLabel = listing.name
     await addUserNotification(
       listing.sellerId,
       "item_sold",
