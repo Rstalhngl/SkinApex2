@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from "react"
 import {
-  ExternalLink, Lock, Package, PackageCheck, RefreshCw, ShieldAlert, Tag, User,
+  ExternalLink, Lock, Package, PackageCheck, RefreshCw, ShieldAlert, Tag, User, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
-import { createListing } from "@/lib/listings"
+import {
+  cancelListing, createListing, getActiveListings,
+  subscribeListings, syncListings, type Listing,
+} from "@/lib/listings"
 
 const COMMISSION_RATE = 0.07  // 7% platform commission
 import {
@@ -200,6 +203,126 @@ function OrdersTab() {
           {orders.map((o) => <OrderRow key={o.id} order={o} />)}
         </ul>
       )}
+    </div>
+  )
+}
+
+// ─── My listings tab ──────────────────────────────────────────────────────────
+
+function ListingCard({
+  listing,
+  onDelist,
+}: {
+  listing: Listing
+  onDelist: (listing: Listing) => void
+}) {
+  const { t } = useI18n()
+  const displayName = (listing.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
+
+  return (
+    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
+      <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: listing.rarityColor ?? "#b0c3d9" }} />
+      <div className="flex h-[70px] items-center justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={listing.img || "/placeholder.svg"}
+          alt={displayName}
+          className="max-h-full max-w-[90%] object-contain"
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
+        />
+      </div>
+      <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{listing.type ?? ""}</p>
+      <p className="truncate text-[10px] font-semibold text-foreground leading-tight">{displayName}</p>
+      {listing.exterior && <p className="text-[9px] text-muted-foreground">{listing.exterior}</p>}
+      <p className="text-[10px] font-bold text-success">{formatPrice(listing.priceTry)}</p>
+
+      <div className="absolute inset-0 flex items-center justify-center bg-card/90 px-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          onClick={() => onDelist(listing)}
+          className="flex h-8 w-full min-w-0 max-w-full items-center justify-center gap-1 rounded-md bg-destructive px-2 text-[10px] font-semibold text-destructive-foreground hover:bg-destructive/90"
+        >
+          <XCircle className="h-3 w-3 shrink-0" />
+          <span className="truncate">{t("sell.unpublish")}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MyListingsTab() {
+  const { t } = useI18n()
+  const { steamProfile } = useMarket()
+  const [listings, setListings] = useState<Listing[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const refresh = () => {
+    const mine = getActiveListings().filter((l) => l.sellerId === steamProfile?.steamId)
+    setListings(mine)
+  }
+
+  useEffect(() => {
+    let mounted = true
+    setLoading(true)
+    syncListings().finally(() => {
+      if (!mounted) return
+      refresh()
+      setLoading(false)
+    })
+    const unsub = subscribeListings(() => refresh())
+    return () => { mounted = false; unsub() }
+  }, [steamProfile?.steamId])
+
+  const handleDelist = async (listing: Listing) => {
+    if (!steamProfile?.steamId) return
+    const ok = await cancelListing(listing.id, steamProfile.steamId)
+    if (ok) {
+      toast.success(t("sell.unpublished"))
+      refresh()
+    } else {
+      toast.error(t("sell.unpublishFailed"))
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">{t("listings.loading")}</p>
+      </div>
+    )
+  }
+
+  if (listings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+        <Tag className="h-10 w-10 opacity-30" />
+        <p className="text-sm">{t("listings.empty")}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 p-3">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs text-muted-foreground">
+          {t("listings.count").replace("{count}", String(listings.length))}
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[10px]"
+          onClick={() => { setLoading(true); syncListings().finally(() => { refresh(); setLoading(false) }) }}
+        >
+          <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
+        </Button>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+        {listings.map((listing) => (
+          <ListingCard key={listing.id} listing={listing} onDelist={handleDelist} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -519,10 +642,11 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
           </SheetHeader>
 
           <Tabs defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
-            <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-3 bg-input">
-              <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
-              <TabsTrigger value="orders" className="text-xs">{t("orders.title")}</TabsTrigger>
-              <TabsTrigger value="inventory" className="text-xs">{t("inventory.title")}</TabsTrigger>
+            <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-2 gap-1 bg-input sm:grid-cols-4">
+              <TabsTrigger value="profile" className="text-[10px] sm:text-xs">Profil</TabsTrigger>
+              <TabsTrigger value="orders" className="text-[10px] sm:text-xs">{t("orders.title")}</TabsTrigger>
+              <TabsTrigger value="listings" className="text-[10px] sm:text-xs">{t("listings.myActive")}</TabsTrigger>
+              <TabsTrigger value="inventory" className="text-[10px] sm:text-xs">{t("inventory.title")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="flex-1 overflow-hidden mt-0">
@@ -530,6 +654,9 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             </TabsContent>
             <TabsContent value="orders" className="flex-1 overflow-hidden mt-0">
               <ScrollArea className="h-full"><OrdersTab /></ScrollArea>
+            </TabsContent>
+            <TabsContent value="listings" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full"><MyListingsTab /></ScrollArea>
             </TabsContent>
             <TabsContent value="inventory" className="flex-1 overflow-hidden mt-0">
               <ScrollArea className="h-full">

@@ -74,14 +74,14 @@ export function SkinCard({
           loading="lazy"
         />
         {/* Hover action buttons */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/95 px-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
           {isMyListing ? (
             <Button
               onClick={() => onDelist?.(skin)}
-              className="h-9 w-full bg-destructive text-xs font-bold uppercase tracking-wide text-destructive-foreground hover:bg-destructive/90"
+              className="h-8 w-full min-w-0 max-w-full bg-destructive px-2 text-[10px] font-semibold leading-tight text-destructive-foreground hover:bg-destructive/90"
             >
-              <XCircle className="mr-1.5 h-3.5 w-3.5" />
-              {t("sell.unpublish")}
+              <XCircle className="mr-1 h-3 w-3 shrink-0" />
+              <span className="truncate">{t("sell.unpublish")}</span>
             </Button>
           ) : isOwned ? (
             <div className="flex w-full gap-1.5">
@@ -128,19 +128,21 @@ export function SkinCard({
               {t("offer.makeOffer")}
             </button>
           )}
-          <a
-            href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat, skin.marketHashName)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-[#66c0f4] hover:text-[#66c0f4]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
-              <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
-            </svg>
-            {t("card.viewOnMarket")}
-            <ExternalLink className="h-3 w-3" />
-          </a>
+          {!isMyListing && (
+            <a
+              href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat, skin.marketHashName)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-[#66c0f4] hover:text-[#66c0f4]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+                <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
+              </svg>
+              {t("card.viewOnMarket")}
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </div>
       </div>
 
