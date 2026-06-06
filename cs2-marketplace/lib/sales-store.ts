@@ -30,3 +30,8 @@ export async function getSalesForSeller(sellerId: string): Promise<Sale[]> {
   const store = await readSalesStore()
   return store.sales.filter((s) => s.sellerId === sellerId)
 }
+
+export async function getSalesForBuyer(buyerId: string): Promise<Sale[]> {
+  const store = await readSalesStore()
+  return store.sales.filter((s) => s.buyerId === buyerId)
+}

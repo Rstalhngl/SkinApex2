@@ -306,6 +306,20 @@ const en: Dict = {
   "header.myOrders": "My Orders",
   "orders.title": "My Orders",
   "orders.empty": "No orders yet.",
+  "orders.purchases": "Purchases",
+  "orders.sales": "Sales",
+  "orders.noPurchases": "No purchases yet.",
+  "orders.noSales": "No sales yet.",
+  "orders.seller": "Seller",
+  "orders.buyer": "Buyer",
+  "orders.deliveryLeft": "Delivery time left",
+  "orders.buyerTradeUrl": "Buyer Trade URL",
+  "checkout.title": "Confirm Purchase",
+  "checkout.desc": "Enter your Steam Trade URL so the seller can deliver the item.",
+  "checkout.tradeUrlLabel": "Steam Trade URL",
+  "checkout.tradeUrlHint": "This URL will be shared with the seller for delivery.",
+  "checkout.confirm": "Confirm & Pay",
+  "checkout.processing": "Processing...",
 }
 
 const tr: Dict = {
@@ -585,6 +599,20 @@ const tr: Dict = {
   "header.myOrders": "Siparişlerim",
   "orders.title": "Siparişlerim",
   "orders.empty": "Henüz sipariş bulunmuyor.",
+  "orders.purchases": "Satın Aldıklarım",
+  "orders.sales": "Sattıklarım",
+  "orders.noPurchases": "Henüz satın alım yok.",
+  "orders.noSales": "Henüz satış yok.",
+  "orders.seller": "Satıcı",
+  "orders.buyer": "Alıcı",
+  "orders.deliveryLeft": "Teslimat süresi",
+  "orders.buyerTradeUrl": "Alıcı Takas URL",
+  "checkout.title": "Satın Alımı Onayla",
+  "checkout.desc": "Satıcının ürünü teslim edebilmesi için Steam Takas URL'nizi girin.",
+  "checkout.tradeUrlLabel": "Steam Takas URL",
+  "checkout.tradeUrlHint": "Bu URL satıcıya bildirilir ve teslimat için kullanılır.",
+  "checkout.confirm": "Onayla ve Öde",
+  "checkout.processing": "İşleniyor...",
 }
 
 const de: Dict = {

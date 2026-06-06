@@ -9,7 +9,7 @@ import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import { createOrder } from "@/lib/orders"
 import { purchaseListing } from "@/lib/listings"
-import { syncSellerSales } from "@/lib/sales"
+import { syncUserSales } from "@/lib/sales"
 import { syncOffers } from "@/lib/offers"
 import { syncUserNotifications } from "@/lib/user-notifications"
 import { useI18n } from "@/lib/i18n"
@@ -36,7 +36,7 @@ interface MarketContextValue {
   isInCart: (id: number) => boolean
   isWished: (id: number) => boolean
   deposit: (amount: number) => void
-  checkout: () => Promise<void>
+  checkout: (tradeUrl: string) => Promise<void>
   // Auth
   isLoggedIn: boolean
   steamProfile: SteamProfile | null
@@ -176,7 +176,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
     const sync = () => {
       void syncUserNotifications(steamId)
-      void syncSellerSales(steamId)
+      void syncUserSales(steamId)
       void syncOffers(steamId)
     }
     sync()
@@ -275,7 +275,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const cartTotal = useMemo(() => cart.reduce((sum, s) => sum + s.price, 0), [cart])
 
-  const checkout = useCallback(async () => {
+  const checkout = useCallback(async (tradeUrl: string) => {
     if (!isLoggedIn || !steamProfile) {
       toast.error(t("toast.login.title"), { description: t("toast.login.desc") })
       return
@@ -293,6 +293,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       const ok = await purchaseListing(skin.listingId, {
         steamId: steamProfile.steamId,
         steamName: steamProfile.steamName,
+        tradeUrl,
       })
       if (!ok) {
         toast.error("Satın alma başarısız", {
@@ -318,7 +319,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     })
     setCart([])
     void syncUserNotifications(steamProfile.steamId)
-    void syncSellerSales(steamProfile.steamId)
+    void syncUserSales(steamProfile.steamId)
   }, [cart, cartTotal, wallet, isLoggedIn, steamProfile, t])
 
   // ── Sell ──────────────────────────────────────────────────────────────────

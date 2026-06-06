@@ -55,7 +55,7 @@ export async function createListing(
 
 export async function purchaseListing(
   listingId: string,
-  buyer: { steamId: string; steamName: string | null },
+  buyer: { steamId: string; steamName: string | null; tradeUrl: string },
 ): Promise<boolean> {
   try {
     const res = await fetch("/api/listings/sell", {

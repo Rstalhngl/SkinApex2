@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { Sale } from "@/lib/sale-types"
 import { DELIVERY_MS } from "@/lib/sale-types"
+import { isValidTradeUrl } from "@/lib/trade-url"
 import { addUserNotification } from "@/lib/notifications-store"
 import { readListingsStore, writeListingsStore } from "@/lib/listings-store"
 import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
@@ -10,10 +11,14 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { listingId, buyer } = body as {
       listingId?: string
-      buyer?: { steamId?: string; steamName?: string | null }
+      buyer?: {
+        steamId?: string
+        steamName?: string | null
+        tradeUrl?: string
+      }
     }
 
-    if (!listingId || !buyer?.steamId) {
+    if (!listingId || !buyer?.steamId || !buyer.tradeUrl || !isValidTradeUrl(buyer.tradeUrl)) {
       return NextResponse.json({ error: "invalid_request" }, { status: 400 })
     }
 
@@ -51,6 +56,7 @@ export async function POST(req: Request) {
       soldAt,
       deliveryDeadline: soldAt + DELIVERY_MS,
       status: "pending_delivery",
+      buyerTradeUrl: buyer.tradeUrl.trim(),
     }
     salesStore.sales = [sale, ...salesStore.sales]
     await writeSalesStore(salesStore)
@@ -59,7 +65,7 @@ export async function POST(req: Request) {
     await addUserNotification(
       listing.sellerId,
       "item_sold",
-      `Ürününüz satıldı: ${itemLabel} — 2 saat içinde teslim edin`,
+      `Ürününüz satıldı: ${itemLabel} — 2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`,
       { saleId: sale.id, listingId: listing.id },
     )
 

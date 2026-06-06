@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server"
-import { getSalesForSeller } from "@/lib/sales-store"
+import { getSalesForBuyer, getSalesForSeller } from "@/lib/sales-store"
 
 export async function GET(req: Request) {
-  const sellerId = new URL(req.url).searchParams.get("sellerId")
-  if (!sellerId) {
-    return NextResponse.json({ error: "missing_seller_id" }, { status: 400 })
+  const steamId = new URL(req.url).searchParams.get("steamId")
+    ?? new URL(req.url).searchParams.get("sellerId")
+  if (!steamId) {
+    return NextResponse.json({ error: "missing_steam_id" }, { status: 400 })
   }
 
   try {
-    const sales = await getSalesForSeller(sellerId)
-    return NextResponse.json({ sales })
+    const [salesAsSeller, salesAsBuyer] = await Promise.all([
+      getSalesForSeller(steamId),
+      getSalesForBuyer(steamId),
+    ])
+    return NextResponse.json({ salesAsSeller, salesAsBuyer, sales: salesAsSeller })
   } catch {
-    return NextResponse.json({ sales: [] })
+    return NextResponse.json({ salesAsSeller: [], salesAsBuyer: [], sales: [] })
   }
 }

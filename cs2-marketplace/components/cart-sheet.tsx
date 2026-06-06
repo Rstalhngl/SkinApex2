@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { ShoppingCart, Trash2, X } from "lucide-react"
+import { CheckoutDialog } from "@/components/checkout-dialog"
 import {
   Sheet,
   SheetContent,
@@ -19,8 +21,9 @@ import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
 
 export function CartSheet() {
-  const { cart, cartTotal, removeFromCart, checkout, wallet, isLoggedIn } = useMarket()
+  const { cart, cartTotal, removeFromCart, wallet, isLoggedIn } = useMarket()
   const { t } = useI18n()
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const insufficient = cartTotal > wallet
 
   return (
@@ -106,7 +109,7 @@ export function CartSheet() {
               </p>
             )}
             <Button
-              onClick={checkout}
+              onClick={() => setCheckoutOpen(true)}
               disabled={cart.length === 0}
               className={cn(
                 "w-full font-bold uppercase tracking-wide",
@@ -118,6 +121,7 @@ export function CartSheet() {
           </div>
         </SheetFooter>
       </SheetContent>
+      <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} />
     </Sheet>
   )
 }
