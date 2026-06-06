@@ -12,6 +12,7 @@ import { SkinCard } from "@/components/skin-card"
 import { InspectDialog } from "@/components/inspect-dialog"
 import { SellDialog } from "@/components/sell-dialog"
 import { OfferDialog } from "@/components/offer-dialog"
+import { computeMarketDiscount } from "@/lib/cs2-api"
 import { itemHasFloat, resolveListingFloat } from "@/lib/item-wear"
 import { categoryOf, resolveItemType, type Exterior, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
@@ -68,6 +69,10 @@ function listingToSkin(listing: Listing): Skin & { listingId: string } {
 
   const numericId = parseInt(listing.id.replace("listing-", ""), 10)
   const hasFloat = itemHasFloat(type, listing.name, listing.marketHashName)
+  const { discount, priceUsd, refPriceTry } = computeMarketDiscount(
+    listing.priceTry,
+    listing.marketHashName,
+  )
 
   return {
     id: (Number.isFinite(numericId) ? numericId : Date.now()) + 100000,
@@ -79,10 +84,10 @@ function listingToSkin(listing: Listing): Skin & { listingId: string } {
     exterior,
     rarity,
     float: resolveListingFloat(exterior, listing.float, hasFloat),
-    oldPrice: Math.round(listing.priceTry * 1.1),
+    oldPrice: refPriceTry ?? Math.round(listing.priceTry * 1.1),
     price: listing.priceTry,
-    priceUsd: undefined,
-    discount: 0,
+    priceUsd,
+    discount,
     isST: listing.stattrak,
     isSV: listing.souvenir,
     popularity: 50,
@@ -122,7 +127,7 @@ function EmptyMarketplace({ onReset, hasFilters }: { onReset: () => void; hasFil
 
 export function Marketplace() {
   const { t } = useI18n()
-  const { steamProfile } = useMarket()
+  const { steamProfile, isLoadingItems } = useMarket()
 
   const [listings, setListings] = useState<Listing[]>(() => getActiveListings())
   const [loading, setLoading] = useState(true)
@@ -141,7 +146,7 @@ export function Marketplace() {
   const [offering, setOffering] = useState<Skin | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
-  const allSkins = useMemo(() => listings.map(listingToSkin), [listings])
+  const allSkins = useMemo(() => listings.map(listingToSkin), [listings, isLoadingItems])
 
   const visible = useMemo(() => {
     let list = [...allSkins]

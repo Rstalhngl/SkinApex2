@@ -38,7 +38,23 @@ export function SkinCard({
       className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-[#243146] cursor-pointer"
       onClick={() => onInspect(skin)}
     >
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+      {skin.discount !== 0 && (
+        <span
+          className={cn(
+            "absolute left-2 top-2 z-10 rounded px-1.5 py-0.5 text-[10px] font-bold",
+            skin.discount < 0
+              ? "bg-destructive/15 text-destructive"
+              : "bg-success/15 text-success",
+          )}
+        >
+          {skin.discount < 0 ? `+${Math.abs(skin.discount)}%` : `-${skin.discount}%`}
+        </span>
+      )}
+
+      <div className={cn(
+        "flex items-center justify-between text-[11px] text-muted-foreground",
+        skin.discount !== 0 && "mt-5",
+      )}>
         <span className="font-semibold">{skin.exterior}</span>
         <div className="flex items-center gap-1.5">
           {isOwned && (
@@ -49,15 +65,6 @@ export function SkinCard({
                 : "bg-primary/15 text-primary",
             )}>
               {isListed ? t("sell.listedBadge") : t("sell.ownedBadge")}
-            </span>
-          )}
-          {skin.discount !== 0 && (
-            <span className={
-              skin.discount < 0
-                ? "rounded bg-destructive/15 px-1.5 py-0.5 font-bold text-destructive"
-                : "rounded bg-success/15 px-1.5 py-0.5 font-bold text-success"
-            }>
-              {skin.discount < 0 ? `+${Math.abs(skin.discount)}%` : `-${skin.discount}%`}
             </span>
           )}
         </div>
