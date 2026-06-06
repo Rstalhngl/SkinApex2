@@ -12,7 +12,7 @@ import { SkinCard } from "@/components/skin-card"
 import { InspectDialog } from "@/components/inspect-dialog"
 import { SellDialog } from "@/components/sell-dialog"
 import { OfferDialog } from "@/components/offer-dialog"
-import { categoryOf, type Exterior, type Skin } from "@/lib/skins"
+import { categoryOf, resolveItemType, type Exterior, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
 import { useMarket } from "@/components/market-provider"
@@ -59,9 +59,9 @@ function listingToSkin(listing: Listing): Skin & { listingId: string } {
   }
   const rarity = rarityMap[rarityKey] ?? "milspec"
 
+  const type = resolveItemType(listing.type, listing.name, listing.marketHashName)
   const nameParts = (listing.name ?? "")
     .replace("StatTrak™ ", "").replace("Souvenir ", "").split(" | ")
-  const type = listing.type || nameParts[0] || "Unknown"
   const title = nameParts.slice(1).join(" | ").replace(/\s*\([^)]+\)\s*$/, "").trim()
     || (listing.name ?? "").replace(/\s*\([^)]+\)\s*$/, "")
 
@@ -207,6 +207,7 @@ export function Marketplace() {
           <div className="sticky top-[64px] max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-border bg-card p-6 scrollbar-thin">
             <FilterSidebar
               filters={filters}
+              listedItems={allSkins}
               onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }}
               onReset={resetFilters}
             />
@@ -245,6 +246,7 @@ export function Marketplace() {
                 <div className="mt-6">
                   <FilterSidebar
                     filters={filters}
+                    listedItems={allSkins}
                     onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE) }}
                     onReset={resetFilters}
                   />

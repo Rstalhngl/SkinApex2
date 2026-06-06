@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import type { Listing } from "@/lib/listing-types"
+import { resolveItemType } from "@/lib/skins"
 import {
   getActiveListingsFromStore,
   readListingsStore,
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
       exterior: item.exterior ?? "",
       rarity: item.rarity ?? "",
       rarityColor: item.rarityColor ?? "#b0c3d9",
-      type: item.type ?? "",
+      type: resolveItemType(item.type ?? "", item.name, item.marketHashName),
       stattrak: !!item.stattrak,
       souvenir: !!item.souvenir,
       priceTry,

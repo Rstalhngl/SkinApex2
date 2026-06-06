@@ -1,4 +1,5 @@
 import type { InventoryItem } from "@/lib/inventory-types"
+import { resolveItemType } from "@/lib/skins"
 import { NextRequest, NextResponse } from "next/server"
 import zlib from "zlib"
 import { promisify } from "util"
@@ -128,7 +129,11 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
 
     const rarity = tags["Rarity"] || tags["Quality"] || ""
     const exterior = tags["Exterior"] || ""
-    const type = tags["Type"] || desc.type || ""
+    const type = resolveItemType(
+      tags["Type"] || desc.type || "",
+      desc.name,
+      desc.market_hash_name,
+    )
 
     items.push({
       assetId: asset.assetid,
