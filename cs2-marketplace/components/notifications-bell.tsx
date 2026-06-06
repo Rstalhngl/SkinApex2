@@ -1,61 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Bell, Check, Handshake, PackageCheck, X } from "lucide-react"
-import {
-  getNotifications, getUnreadCount, markAllRead, markRead,
-  subscribeNotifications, type Notification,
-} from "@/lib/offers"
+import { Bell, Handshake, PackageCheck } from "lucide-react"
 import {
   getUserNotifications, getUserUnreadCount, markUserNotificationsRead,
   subscribeUserNotifications, syncUserNotifications,
 } from "@/lib/user-notifications"
-import { syncOffers } from "@/lib/offers"
-import type { UserNotification } from "@/lib/notification-types"
 import { cn } from "@/lib/utils"
 import { useMarket } from "@/components/market-provider"
 import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
-
-type DisplayNotification = {
-  id: string
-  message: string
-  createdAt: number
-  read: boolean
-  source: "offer" | "sale"
-  offerType?: Notification["type"]
-}
-
-const OFFER_ICON: Record<Notification["type"], React.ReactNode> = {
-  offer_received:  <Handshake className="h-3.5 w-3.5 text-primary" />,
-  offer_accepted:  <Check className="h-3.5 w-3.5 text-success" />,
-  offer_rejected:  <X className="h-3.5 w-3.5 text-destructive" />,
-  offer_withdrawn: <X className="h-3.5 w-3.5 text-muted-foreground" />,
-}
-
-function mergeNotifications(
-  offers: Notification[],
-  user: UserNotification[],
-): DisplayNotification[] {
-  const merged: DisplayNotification[] = [
-    ...user.map((n) => ({
-      id: `user-${n.id}`,
-      message: n.message,
-      createdAt: n.createdAt,
-      read: n.read,
-      source: "sale" as const,
-    })),
-    ...offers.map((n) => ({
-      id: `offer-${n.id}`,
-      message: n.message,
-      createdAt: n.createdAt,
-      read: n.read,
-      source: "offer" as const,
-      offerType: n.type,
-    })),
-  ]
-  return merged.sort((a, b) => b.createdAt - a.createdAt)
-}
 
 function timeAgo(ts: number, t: (k: string, v?: Record<string, string|number>) => string): string {
   const diff = Date.now() - ts
@@ -68,24 +22,16 @@ export function NotificationsBell() {
   const { isLoggedIn, steamProfile } = useMarket()
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState<DisplayNotification[]>(() =>
-    mergeNotifications(getNotifications(), getUserNotifications()),
-  )
-  const [unread, setUnread] = useState(
-    () => getUnreadCount() + getUserUnreadCount(),
-  )
+  const [notifications, setNotifications] = useState(() => getUserNotifications())
+  const [unread, setUnread] = useState(() => getUserUnreadCount())
   const ref = useRef<HTMLDivElement>(null)
 
   const refresh = () => {
-    setNotifications(mergeNotifications(getNotifications(), getUserNotifications()))
-    setUnread(getUnreadCount() + getUserUnreadCount())
+    setNotifications([...getUserNotifications()])
+    setUnread(getUserUnreadCount())
   }
 
-  useEffect(() => {
-    const unsubOffer = subscribeNotifications(refresh)
-    const unsubUser = subscribeUserNotifications(refresh)
-    return () => { unsubOffer(); unsubUser() }
-  }, [])
+  useEffect(() => subscribeUserNotifications(refresh), [])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -100,23 +46,19 @@ export function NotificationsBell() {
     setOpen(willOpen)
     if (willOpen && steamProfile?.steamId) {
       void syncUserNotifications(steamProfile.steamId)
-      void syncOffers(steamProfile.steamId)
       refresh()
     }
     if (willOpen && unread > 0 && steamProfile?.steamId) {
       setTimeout(() => {
-        markAllRead()
         void markUserNotificationsRead(steamProfile.steamId)
         refresh()
       }, 1500)
     }
   }
 
-  const handleRead = (n: DisplayNotification) => {
-    if (n.source === "offer") {
-      markRead(n.id.replace("offer-", ""))
-    } else if (steamProfile?.steamId) {
-      void markUserNotificationsRead(steamProfile.steamId, [n.id.replace("user-", "")])
+  const handleRead = (id: string) => {
+    if (steamProfile?.steamId) {
+      void markUserNotificationsRead(steamProfile.steamId, [id])
     }
     refresh()
   }
@@ -144,7 +86,6 @@ export function NotificationsBell() {
             {notifications.length > 0 && (
               <button
                 onClick={() => {
-                  markAllRead()
                   if (steamProfile?.steamId) void markUserNotificationsRead(steamProfile.steamId)
                   refresh()
                 }}
@@ -169,18 +110,16 @@ export function NotificationsBell() {
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  onClick={() => handleRead(n)}
+                  onClick={() => handleRead(n.id)}
                   className={cn(
                     "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-input",
                     !n.read && "bg-primary/5",
                   )}
                 >
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-input">
-                    {n.source === "sale"
-                      ? (n.message.includes("teklif") || n.message.includes("Teklif")
-                        ? <Handshake className="h-3.5 w-3.5 text-primary" />
-                        : <PackageCheck className="h-3.5 w-3.5 text-success" />)
-                      : OFFER_ICON[n.offerType ?? "offer_received"]}
+                    {n.message.includes("teklif") || n.message.includes("Teklif")
+                      ? <Handshake className="h-3.5 w-3.5 text-primary" />
+                      : <PackageCheck className="h-3.5 w-3.5 text-success" />}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className={cn("text-xs leading-snug", !n.read ? "text-foreground font-semibold" : "text-muted-foreground")}>

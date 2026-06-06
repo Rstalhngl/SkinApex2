@@ -140,6 +140,7 @@ export function Marketplace() {
   }, [])
 
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
+  const [myListingsOnly, setMyListingsOnly] = useState(false)
   const [search, setSearch] = useState("")
   const [inspecting, setInspecting] = useState<Skin | null>(null)
   const [selling, setSelling] = useState<Skin | null>(null)
@@ -156,6 +157,10 @@ export function Marketplace() {
       list = list.filter(
         (s) => s.title.toLowerCase().includes(q) || s.type.toLowerCase().includes(q),
       )
+    }
+
+    if (myListingsOnly && steamProfile?.steamId) {
+      list = list.filter((s) => s.sellerId === steamProfile.steamId)
     }
 
     if (filters.category) list = list.filter((s) => categoryOf(s.type) === filters.category)
@@ -180,7 +185,7 @@ export function Marketplace() {
     }
 
     return list
-  }, [allSkins, filters, search])
+  }, [allSkins, filters, search, myListingsOnly, steamProfile?.steamId])
 
   const displayed = visible.slice(0, visibleCount)
   const hasMore = visibleCount < visible.length
@@ -198,7 +203,7 @@ export function Marketplace() {
 
   const handleDelist = async (skin: Skin) => {
     if (!skin.listingId || !steamProfile?.steamId) return
-    const ok = await cancelListing(skin.listingId, steamProfile.steamId)
+    const ok = await cancelListing(skin.listingId)
     if (ok) {
       toast.success(t("sell.unpublished"))
     } else {
@@ -209,7 +214,17 @@ export function Marketplace() {
   return (
     <div className="min-h-screen pb-16">
       <LiveTicker />
-      <SiteHeader onResetFilters={resetFilters} onShowMyListings={() => {}} />
+      <SiteHeader
+        onResetFilters={() => { resetFilters(); setMyListingsOnly(false) }}
+        onShowMyListings={() => {
+          if (!steamProfile?.steamId) {
+            toast.error("Giriş yapmanız gerekiyor")
+            return
+          }
+          resetFilters()
+          setMyListingsOnly(true)
+        }}
+      />
 
       <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 md:grid-cols-[280px_1fr] md:px-10">
         <aside className="hidden md:block">
@@ -280,7 +295,13 @@ export function Marketplace() {
             </div>
           )}
 
-          {!activeFilters && listings.length > 0 && (
+          {myListingsOnly && steamProfile && (
+            <p className="text-xs font-semibold text-primary">
+              {t("results.myListings", { name: steamProfile.steamName ?? steamProfile.steamId })}
+            </p>
+          )}
+
+          {!activeFilters && !myListingsOnly && listings.length > 0 && (
             <p className="text-xs text-muted-foreground">
               {t("results.count", { n: visible.length })} {t("items.total")}
             </p>

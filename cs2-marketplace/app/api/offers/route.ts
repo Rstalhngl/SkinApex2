@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server"
 import type { StoredOffer } from "@/lib/offer-types"
+import { isSession, requireSession } from "@/lib/api-auth"
 import { addUserNotification } from "@/lib/notifications-store"
 import { readListingsStore } from "@/lib/listings-store"
 import { readOffersStore, writeOffersStore } from "@/lib/offers-store"
+import { completePurchase } from "@/lib/purchase-service"
+import { getUserTradeUrl } from "@/lib/user-store"
 
 export async function GET(req: Request) {
-  const steamId = new URL(req.url).searchParams.get("steamId")
-  if (!steamId) {
-    return NextResponse.json({ error: "missing_steam_id" }, { status: 400 })
-  }
+  const session = await requireSession()
+  if (!isSession(session)) return session
 
   try {
     const store = await readOffersStore()
     const offers = store.offers.filter(
-      (o) => o.sellerId === steamId || o.buyerId === steamId,
+      (o) => o.sellerId === session.steamId || o.buyerId === session.steamId,
     )
     return NextResponse.json({ offers })
   } catch {
@@ -22,15 +23,17 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const session = await requireSession()
+  if (!isSession(session)) return session
+
   try {
     const body = await req.json()
-    const { listingId, offerTry, buyer } = body as {
+    const { listingId, offerTry } = body as {
       listingId?: string
       offerTry?: number
-      buyer?: { steamId?: string; steamName?: string | null; steamAvatar?: string | null }
     }
 
-    if (!listingId || !offerTry || offerTry <= 0 || !buyer?.steamId) {
+    if (!listingId || !offerTry || offerTry <= 0) {
       return NextResponse.json({ error: "invalid_request" }, { status: 400 })
     }
 
@@ -41,7 +44,7 @@ export async function POST(req: Request) {
     if (!listing) {
       return NextResponse.json({ error: "listing_not_found" }, { status: 404 })
     }
-    if (listing.sellerId === buyer.steamId) {
+    if (listing.sellerId === session.steamId) {
       return NextResponse.json({ error: "cannot_offer_own_listing" }, { status: 400 })
     }
 
@@ -59,9 +62,9 @@ export async function POST(req: Request) {
       listingId: listing.id,
       sellerId: listing.sellerId,
       sellerName: listing.sellerName,
-      buyerId: buyer.steamId,
-      buyerName: buyer.steamName ?? buyer.steamId,
-      buyerAvatar: buyer.steamAvatar ?? undefined,
+      buyerId: session.steamId,
+      buyerName: session.steamName ?? session.steamId,
+      buyerAvatar: session.steamAvatar ?? undefined,
       itemName: listing.name,
       itemImg: listing.img,
       offerTry,
@@ -79,7 +82,7 @@ export async function POST(req: Request) {
     await addUserNotification(
       listing.sellerId,
       "offer_received",
-      `${buyer.steamName ?? "Bir kullanıcı"} teklif verdi: ${listing.name} — ${fmt(offerTry)}`,
+      `${session.steamName ?? "Bir kullanıcı"} teklif verdi: ${listing.name} — ${fmt(offerTry)}`,
       { listingId: listing.id },
     )
 
@@ -90,15 +93,17 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const session = await requireSession()
+  if (!isSession(session)) return session
+
   try {
     const body = await req.json()
-    const { offerId, status, steamId } = body as {
+    const { offerId, status } = body as {
       offerId?: string
       status?: StoredOffer["status"]
-      steamId?: string
     }
 
-    if (!offerId || !status || !steamId) {
+    if (!offerId || !status) {
       return NextResponse.json({ error: "invalid_request" }, { status: 400 })
     }
 
@@ -109,8 +114,34 @@ export async function PATCH(req: Request) {
     }
 
     const offer = store.offers[idx]
-    if (offer.sellerId !== steamId && offer.buyerId !== steamId) {
+    if (offer.sellerId !== session.steamId && offer.buyerId !== session.steamId) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 })
+    }
+
+    if (status === "accepted" && offer.sellerId !== session.steamId) {
+      return NextResponse.json({ error: "only_seller_can_accept" }, { status: 403 })
+    }
+
+    if (status === "accepted" && offer.status === "pending") {
+      const buyerTradeUrl = await getUserTradeUrl(offer.buyerId)
+      if (!buyerTradeUrl) {
+        return NextResponse.json({ error: "buyer_no_trade_url" }, { status: 400 })
+      }
+
+      const purchase = await completePurchase(
+        offer.listingId,
+        {
+          steamId: offer.buyerId,
+          steamName: offer.buyerName,
+          tradeUrl: buyerTradeUrl,
+        },
+        offer.offerTry,
+        "offer_purchase",
+      )
+
+      if (!purchase.ok) {
+        return NextResponse.json({ error: purchase.error }, { status: 400 })
+      }
     }
 
     store.offers[idx] = { ...offer, status }

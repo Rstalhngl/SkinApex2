@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server"
+import { isSession, requireSession } from "@/lib/api-auth"
 import { readListingsStore, writeListingsStore } from "@/lib/listings-store"
 
 export async function POST(req: Request) {
+  const session = await requireSession()
+  if (!isSession(session)) return session
+
   try {
     const body = await req.json()
-    const { listingId, sellerId } = body as {
-      listingId?: string
-      sellerId?: string
-    }
+    const { listingId } = body as { listingId?: string }
 
-    if (!listingId || !sellerId) {
+    if (!listingId) {
       return NextResponse.json({ error: "invalid_request" }, { status: 400 })
     }
 
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     }
 
     const listing = store.listings[idx]
-    if (listing.sellerId !== sellerId) {
+    if (listing.sellerId !== session.steamId) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 })
     }
 

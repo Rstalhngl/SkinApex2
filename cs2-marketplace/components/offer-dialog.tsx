@@ -85,9 +85,6 @@ export function OfferDialog({
         listingId: skin.listingId,
       },
       finalTry,
-      steamProfile.steamName ?? "Anonim",
-      steamProfile.steamAvatar,
-      steamProfile.steamId,
     )
     setSending(false)
 

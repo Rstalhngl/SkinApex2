@@ -25,7 +25,7 @@ export function InspectDialog({
 }) {
   const { addToCart, toggleWishlist, isWished, steamProfile } = useMarket()
   const { t } = useI18n()
-  const wished = skin ? isWished(skin.id) : false
+  const wished = skin ? isWished(skin.listingId) : false
   const isMyListing = skin ? isOwnListing(skin, steamProfile?.steamId) : false
   const [offerSkin, setOfferSkin] = useState<Skin | null>(null)
 

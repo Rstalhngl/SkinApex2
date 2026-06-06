@@ -158,7 +158,7 @@ function MyListingsTab() {
 
   const handleDelist = async (listing: Listing) => {
     if (!steamProfile?.steamId) return
-    const ok = await cancelListing(listing.id, steamProfile.steamId)
+    const ok = await cancelListing(listing.id)
     if (ok) {
       toast.success(t("sell.unpublished"))
       refresh()
@@ -553,11 +553,7 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
         onClose={handleListClose}
         onList={async (priceTry) => {
           if (!steamProfile || !listingItem) return
-          const listing = await createListing(listingItem, priceTry, {
-            steamId: steamProfile.steamId,
-            steamName: steamProfile.steamName,
-            steamAvatar: steamProfile.steamAvatar,
-          })
+          const listing = await createListing(listingItem, priceTry)
           if (!listing) {
             toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
           }

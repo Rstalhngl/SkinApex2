@@ -2,6 +2,7 @@
 
 import type { InventoryItem } from "@/lib/inventory-types"
 import type { Listing } from "@/lib/listing-types"
+import { apiFetch } from "@/lib/api-client"
 import { formatPrice } from "@/lib/skins"
 import { pushActivity } from "@/lib/activity-feed"
 
@@ -14,7 +15,7 @@ function notify() { listeners.forEach((cb) => cb()) }
 
 export async function syncListings(): Promise<void> {
   try {
-    const res = await fetch("/api/listings")
+    const res = await apiFetch("/api/listings")
     if (!res.ok) return
     const data = await res.json()
     listings = Array.isArray(data.listings) ? data.listings : []
@@ -27,13 +28,12 @@ export async function syncListings(): Promise<void> {
 export async function createListing(
   item: InventoryItem,
   priceTry: number,
-  seller: { steamId: string; steamName: string | null; steamAvatar: string | null },
 ): Promise<Listing | null> {
   try {
-    const res = await fetch("/api/listings", {
+    const res = await apiFetch("/api/listings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item, priceTry, seller }),
+      body: JSON.stringify({ item, priceTry }),
     })
     if (!res.ok) return null
 
@@ -55,13 +55,13 @@ export async function createListing(
 
 export async function purchaseListing(
   listingId: string,
-  buyer: { steamId: string; steamName: string | null; tradeUrl: string },
+  tradeUrl: string,
 ): Promise<boolean> {
   try {
-    const res = await fetch("/api/listings/sell", {
+    const res = await apiFetch("/api/listings/sell", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId, buyer }),
+      body: JSON.stringify({ listingId, tradeUrl }),
     })
     if (!res.ok) return false
 
@@ -79,15 +79,12 @@ export async function purchaseListing(
   }
 }
 
-export async function cancelListing(
-  listingId: string,
-  sellerId: string,
-): Promise<boolean> {
+export async function cancelListing(listingId: string): Promise<boolean> {
   try {
-    const res = await fetch("/api/listings/cancel", {
+    const res = await apiFetch("/api/listings/cancel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId, sellerId }),
+      body: JSON.stringify({ listingId }),
     })
     if (!res.ok) return false
 

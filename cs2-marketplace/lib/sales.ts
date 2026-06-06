@@ -1,6 +1,7 @@
 "use client"
 
 import type { Sale } from "@/lib/sale-types"
+import { apiFetch } from "@/lib/api-client"
 
 let salesAsSeller: Sale[] = []
 let salesAsBuyer: Sale[] = []
@@ -8,9 +9,9 @@ const listeners = new Set<() => void>()
 
 function notify() { listeners.forEach((cb) => cb()) }
 
-export async function syncUserSales(steamId: string): Promise<void> {
+export async function syncUserSales(_steamId?: string): Promise<void> {
   try {
-    const res = await fetch(`/api/sales?steamId=${encodeURIComponent(steamId)}`)
+    const res = await apiFetch("/api/sales")
     if (!res.ok) return
     const data = await res.json()
     salesAsSeller = Array.isArray(data.salesAsSeller) ? data.salesAsSeller : []
@@ -21,9 +22,49 @@ export async function syncUserSales(steamId: string): Promise<void> {
   }
 }
 
-/** @deprecated Use syncUserSales */
-export async function syncSellerSales(sellerId: string): Promise<void> {
-  return syncUserSales(sellerId)
+export async function markSaleDelivered(saleId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch("/api/sales/deliver", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ saleId }),
+    })
+    if (!res.ok) return false
+    await syncUserSales()
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function confirmSaleReceived(saleId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch("/api/sales/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ saleId }),
+    })
+    if (!res.ok) return false
+    await syncUserSales()
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function disputeSale(saleId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch("/api/sales/dispute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ saleId }),
+    })
+    if (!res.ok) return false
+    await syncUserSales()
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function getSalesAsSeller(): Sale[] { return salesAsSeller }

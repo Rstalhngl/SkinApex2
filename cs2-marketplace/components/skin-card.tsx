@@ -22,8 +22,8 @@ export function SkinCard({
 }) {
   const { addToCart, toggleWishlist, isWished, isInCart, listedSkins, steamProfile } = useMarket()
   const { t } = useI18n()
-  const wished = isWished(skin.id)
-  const inCart = isInCart(skin.id)
+  const wished = isWished(skin.listingId)
+  const inCart = isInCart(skin.listingId)
   const isOwned = skin.owner === "me"
   const isListed = listedSkins.includes(skin.id)
   const isMyListing = isOwnListing(skin, steamProfile?.steamId)

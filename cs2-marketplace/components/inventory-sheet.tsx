@@ -447,11 +447,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
 
   const handleConfirm = async (priceTry: number) => {
     if (!steamProfile || !listingItem) return
-    const listing = await createListing(listingItem, priceTry, {
-      steamId: steamProfile.steamId,
-      steamName: steamProfile.steamName,
-      steamAvatar: steamProfile.steamAvatar,
-    })
+    const listing = await createListing(listingItem, priceTry)
     if (!listing) {
       toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
     }

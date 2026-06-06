@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server"
+import { isSession, requireSession } from "@/lib/api-auth"
 import { getSalesForBuyer, getSalesForSeller } from "@/lib/sales-store"
+import { processExpiredSales } from "@/lib/sale-lifecycle"
 
-export async function GET(req: Request) {
-  const steamId = new URL(req.url).searchParams.get("steamId")
-    ?? new URL(req.url).searchParams.get("sellerId")
-  if (!steamId) {
-    return NextResponse.json({ error: "missing_steam_id" }, { status: 400 })
-  }
+export async function GET() {
+  const session = await requireSession()
+  if (!isSession(session)) return session
 
   try {
+    await processExpiredSales()
     const [salesAsSeller, salesAsBuyer] = await Promise.all([
-      getSalesForSeller(steamId),
-      getSalesForBuyer(steamId),
+      getSalesForSeller(session.steamId),
+      getSalesForBuyer(session.steamId),
     ])
     return NextResponse.json({ salesAsSeller, salesAsBuyer, sales: salesAsSeller })
   } catch {

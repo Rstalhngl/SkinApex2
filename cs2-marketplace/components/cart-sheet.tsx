@@ -60,7 +60,7 @@ export function CartSheet() {
           <ScrollArea className="flex-1">
             <ul className="divide-y divide-border">
               {cart.map((item) => (
-                <li key={item.id} className="flex items-center gap-3 px-5 py-3">
+                <li key={item.listingId ?? item.id} className="flex items-center gap-3 px-5 py-3">
                   <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-md bg-input">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -80,7 +80,7 @@ export function CartSheet() {
                   <div className="flex flex-col items-end gap-1">
                     <span className="font-bold text-success">{formatPrice(item.price)}</span>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => item.listingId && removeFromCart(item.listingId)}
                       className="text-muted-foreground transition-colors hover:text-destructive"
                       aria-label={t("cart.removeItem")}
                     >

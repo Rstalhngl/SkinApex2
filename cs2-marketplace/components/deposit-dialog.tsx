@@ -29,10 +29,10 @@ export function DepositDialog({
   const { t } = useI18n()
   const [amount, setAmount] = useState("1000")
 
-  const handleDeposit = () => {
+  const handleDeposit = async () => {
     const value = Number.parseFloat(amount)
     if (!Number.isNaN(value) && value > 0) {
-      deposit(value)   // value is TRY, wallet is TRY — direct add
+      await deposit(value)
       onOpenChange(false)
       setAmount("1000")
     }

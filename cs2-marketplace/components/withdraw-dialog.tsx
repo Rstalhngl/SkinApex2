@@ -23,12 +23,13 @@ export function WithdrawDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { wallet, deposit } = useMarket()
+  const { wallet, withdraw } = useMarket()
   const { t } = useI18n()
   const [amount, setAmount] = useState("")
   const [iban, setIban] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   const walletTry = Math.round(wallet * 100) / 100
   const reqAmount = parseFloat(amount) || 0
@@ -41,10 +42,15 @@ export function WithdrawDialog({
     trimmedFirstName.length >= 2 &&
     trimmedLastName.length >= 2
 
-  const handleWithdraw = () => {
-    if (!isValid) return
-    // Deduct from wallet (deposit negative amount)
-    deposit(-reqAmount)
+  const handleWithdraw = async () => {
+    if (!isValid || submitting) return
+    setSubmitting(true)
+    const ok = await withdraw(reqAmount)
+    setSubmitting(false)
+    if (!ok) {
+      toast.error(t("withdraw.failed"))
+      return
+    }
     toast.success(t("withdraw.success"), {
       description: t("withdraw.successDesc"),
     })
@@ -146,11 +152,11 @@ export function WithdrawDialog({
         <DialogFooter>
           <Button
             onClick={handleWithdraw}
-            disabled={!isValid || reqAmount < 500}
+            disabled={!isValid || reqAmount < 500 || submitting}
             className="w-full bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             <Banknote className="mr-2 h-4 w-4" />
-            Para Çek {amount && reqAmount > 0 ? `— ${fmt(reqAmount)}` : ""}
+            {submitting ? "..." : `Para Çek ${amount && reqAmount > 0 ? `— ${fmt(reqAmount)}` : ""}`}
           </Button>
         </DialogFooter>
       </DialogContent>

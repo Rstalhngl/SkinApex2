@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server"
+import { isSession, requireSession } from "@/lib/api-auth"
 import {
   getNotificationsForUser,
   markNotificationsRead,
 } from "@/lib/notifications-store"
 
-export async function GET(req: Request) {
-  const steamId = new URL(req.url).searchParams.get("steamId")
-  if (!steamId) {
-    return NextResponse.json({ error: "missing_steam_id" }, { status: 400 })
-  }
+export async function GET() {
+  const session = await requireSession()
+  if (!isSession(session)) return session
 
   try {
-    const notifications = await getNotificationsForUser(steamId)
+    const notifications = await getNotificationsForUser(session.steamId)
     return NextResponse.json({ notifications })
   } catch {
     return NextResponse.json({ notifications: [] })
@@ -19,13 +18,13 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const session = await requireSession()
+  if (!isSession(session)) return session
+
   try {
     const body = await req.json()
-    const { steamId, ids } = body as { steamId?: string; ids?: string[] }
-    if (!steamId) {
-      return NextResponse.json({ error: "missing_steam_id" }, { status: 400 })
-    }
-    await markNotificationsRead(steamId, ids)
+    const { ids } = body as { ids?: string[] }
+    await markNotificationsRead(session.steamId, ids)
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: "server_error" }, { status: 500 })
