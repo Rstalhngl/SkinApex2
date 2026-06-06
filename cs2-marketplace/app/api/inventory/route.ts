@@ -1,3 +1,4 @@
+import type { InventoryItem } from "@/lib/inventory-types"
 import { NextRequest, NextResponse } from "next/server"
 import zlib from "zlib"
 import { promisify } from "util"
@@ -28,20 +29,7 @@ interface SteamDescription {
   tags: { category: string; internal_name: string; localized_tag_name: string }[]
 }
 
-export interface InventoryItem {
-  assetId: string
-  name: string
-  marketHashName: string
-  tradable: boolean
-  marketable: boolean
-  img: string
-  exterior: string
-  rarity: string
-  rarityColor: string
-  type: string
-  stattrak: boolean
-  souvenir: boolean
-}
+
 
 const RARITY_COLORS: Record<string, string> = {
   "Contraband": "#e4ae39",

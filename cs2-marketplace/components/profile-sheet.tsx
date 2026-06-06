@@ -27,7 +27,7 @@ import {
   getOrders, subscribeOrders, openSupportTicket, escrowTimeLeft,
   STATUS_LABEL, STATUS_COLOR, type Order,
 } from "@/lib/orders"
-import type { InventoryItem } from "@/app/api/inventory/route"
+import type { InventoryItem } from "@/lib/inventory-types"
 import { cn } from "@/lib/utils"
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────

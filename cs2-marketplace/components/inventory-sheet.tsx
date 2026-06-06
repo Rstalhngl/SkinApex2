@@ -42,24 +42,7 @@ import { cn } from "@/lib/utils"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-/**
- * Shape of an item returned by /api/inventory.
- * Redeclared here so we don't import from route.ts (avoids server/client boundary issues).
- */
-export interface InventoryItem {
-  assetId: string
-  name: string
-  marketHashName: string
-  tradable: boolean
-  marketable: boolean
-  img: string
-  exterior: string
-  rarity: string
-  rarityColor: string
-  type: string
-  stattrak: boolean
-  souvenir: boolean
-}
+import type { InventoryItem } from "@/lib/inventory-types"
 
 type ApiResponse =
   | { items: InventoryItem[]; total: number; error?: undefined }
