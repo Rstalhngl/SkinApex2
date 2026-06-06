@@ -27,6 +27,11 @@ import {
   getOrders, subscribeOrders, openSupportTicket, escrowTimeLeft,
   STATUS_LABEL, STATUS_COLOR, type Order,
 } from "@/lib/orders"
+import {
+  deliveryTimeLeft, getSellerSales,
+  subscribeSellerSales, syncSellerSales,
+} from "@/lib/sales"
+import type { Sale } from "@/lib/sale-types"
 import type { InventoryItem } from "@/lib/inventory-types"
 import { cn } from "@/lib/utils"
 
@@ -128,12 +133,50 @@ function OrderRow({ order }: { order: Order }) {
   )
 }
 
+function SellerSaleRow({ sale }: { sale: Sale }) {
+  return (
+    <li className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+      <div className="flex h-12 w-14 shrink-0 items-center justify-center rounded-md bg-input">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={sale.itemImg || "/placeholder.svg"}
+          alt={sale.itemName}
+          className="max-h-10 max-w-[85%] object-contain"
+          referrerPolicy="no-referrer"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-semibold text-foreground">{sale.itemName}</p>
+        <p className="text-[10px] text-muted-foreground">{sale.exterior} · Alıcı: {sale.buyerName}</p>
+        <p className="text-xs font-bold text-success">{formatPrice(sale.netToSeller)}</p>
+        <p className="text-[10px] font-semibold text-yellow-400">
+          Teslimat: {deliveryTimeLeft(sale)} kaldı
+        </p>
+      </div>
+    </li>
+  )
+}
+
 function OrdersTab() {
   const { t } = useI18n()
+  const { steamProfile } = useMarket()
   const [orders, setOrders] = useState<Order[]>(() => getOrders())
+  const [sales, setSales] = useState<Sale[]>(() => getSellerSales())
+
   useEffect(() => subscribeOrders(() => setOrders([...getOrders()])), [])
 
-  if (orders.length === 0) return (
+  useEffect(() => {
+    const steamId = steamProfile?.steamId
+    if (!steamId) return
+    void syncSellerSales(steamId)
+    return subscribeSellerSales(() => setSales([...getSellerSales()]))
+  }, [steamProfile?.steamId])
+
+  const pendingSales = sales.filter(
+    (s) => s.status === "pending_delivery" && s.deliveryDeadline > Date.now(),
+  )
+
+  if (orders.length === 0 && pendingSales.length === 0) return (
     <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
       <PackageCheck className="h-10 w-10 opacity-30" />
       <p className="text-sm">{t("orders.empty")}</p>
@@ -141,9 +184,23 @@ function OrdersTab() {
   )
 
   return (
-    <ul>
-      {orders.map(o => <OrderRow key={o.id} order={o} />)}
-    </ul>
+    <div>
+      {pendingSales.length > 0 && (
+        <section className="border-b border-border">
+          <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-yellow-400">
+            Teslimat Bekleyen Satışlar ({pendingSales.length})
+          </p>
+          <ul>
+            {pendingSales.map((s) => <SellerSaleRow key={s.id} sale={s} />)}
+          </ul>
+        </section>
+      )}
+      {orders.length > 0 && (
+        <ul>
+          {orders.map((o) => <OrderRow key={o.id} order={o} />)}
+        </ul>
+      )}
+    </div>
   )
 }
 

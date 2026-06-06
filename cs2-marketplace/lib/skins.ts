@@ -42,6 +42,7 @@ export interface Skin {
   marketHashName?: string
   patternSeed?: number  // 0-999 kalıp şablonu numarası
   phase?: string        // Doppler phase (e.g. "Phase 1", "Ruby", "Sapphire")
+  listingId?: string    // real marketplace listing id
 }
 
 export const CURRENT_USER = {

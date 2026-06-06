@@ -8,6 +8,9 @@ import { formatPrice, skins as demoSkins } from "@/lib/skins"
 import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import { createOrder } from "@/lib/orders"
+import { purchaseListing } from "@/lib/listings"
+import { syncSellerSales } from "@/lib/sales"
+import { syncUserNotifications } from "@/lib/user-notifications"
 import { useI18n } from "@/lib/i18n"
 
 export interface SteamProfile {
@@ -32,7 +35,7 @@ interface MarketContextValue {
   isInCart: (id: number) => boolean
   isWished: (id: number) => boolean
   deposit: (amount: number) => void
-  checkout: () => void
+  checkout: () => Promise<void>
   // Auth
   isLoggedIn: boolean
   steamProfile: SteamProfile | null
@@ -165,6 +168,20 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── Sync seller notifications & deliveries when logged in ────────────────
+  useEffect(() => {
+    const steamId = steamProfile?.steamId
+    if (!isLoggedIn || !steamId) return
+
+    const sync = () => {
+      void syncUserNotifications(steamId)
+      void syncSellerSales(steamId)
+    }
+    sync()
+    const interval = setInterval(sync, 30_000)
+    return () => clearInterval(interval)
+  }, [isLoggedIn, steamProfile?.steamId])
+
   // ── Auth ─────────────────────────────────────────────────────────────────
   const login = useCallback((profile?: SteamProfile) => {
     setIsLoggedIn(true)
@@ -256,7 +273,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const cartTotal = useMemo(() => cart.reduce((sum, s) => sum + s.price, 0), [cart])
 
-  const checkout = useCallback(() => {
+  const checkout = useCallback(async () => {
+    if (!isLoggedIn || !steamProfile) {
+      toast.error(t("toast.login.title"), { description: t("toast.login.desc") })
+      return
+    }
     if (cart.length === 0) { toast.error(t("toast.cartEmpty")); return }
     if (cartTotal > wallet) {
       toast.error(t("toast.insufficientTitle"), {
@@ -264,11 +285,25 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       })
       return
     }
+
+    for (const skin of cart) {
+      if (!skin.listingId) continue
+      const ok = await purchaseListing(skin.listingId, {
+        steamId: steamProfile.steamId,
+        steamName: steamProfile.steamName,
+      })
+      if (!ok) {
+        toast.error("Satın alma başarısız", {
+          description: `${skin.type} | ${skin.title} artık satışta olmayabilir.`,
+        })
+        return
+      }
+    }
+
     setWallet((prev) => {
       const next = prev - cartTotal
       try {
-        const sid = steamProfile?.steamId
-        localStorage.setItem(walletKey(sid), String(next))
+        localStorage.setItem(walletKey(steamProfile.steamId), String(next))
       } catch {}
       return next
     })
@@ -280,7 +315,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       createOrder(skin, skin.price)
     })
     setCart([])
-  }, [cart, cartTotal, wallet, t])
+    void syncUserNotifications(steamProfile.steamId)
+    void syncSellerSales(steamProfile.steamId)
+  }, [cart, cartTotal, wallet, isLoggedIn, steamProfile, t])
 
   // ── Sell ──────────────────────────────────────────────────────────────────
   const listForSale = useCallback((skin: Skin, price: number) => {

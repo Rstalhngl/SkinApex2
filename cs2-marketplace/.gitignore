@@ -29,3 +29,5 @@ next-env.d.ts
 
 # runtime listing data
 /data/listings.json
+/data/sales.json
+/data/notifications.json

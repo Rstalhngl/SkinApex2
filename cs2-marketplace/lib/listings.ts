@@ -53,17 +53,30 @@ export async function createListing(
   }
 }
 
-export function markSold(listingId: string): Listing | null {
-  let sold: Listing | null = null
-  listings = listings.map((l) => {
-    if (l.id === listingId && l.status === "active") {
-      sold = { ...l, status: "sold", soldAt: Date.now() }
-      return sold
-    }
-    return l
-  })
-  if (sold) notify()
-  return sold
+export async function purchaseListing(
+  listingId: string,
+  buyer: { steamId: string; steamName: string | null },
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/listings/sell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId, buyer }),
+    })
+    if (!res.ok) return false
+
+    listings = listings
+      .map((l) =>
+        l.id === listingId && l.status === "active"
+          ? { ...l, status: "sold" as const, soldAt: Date.now() }
+          : l,
+      )
+      .filter((l) => l.status === "active")
+    notify()
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function cancelListing(listingId: string): void {
