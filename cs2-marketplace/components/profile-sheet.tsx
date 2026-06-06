@@ -149,7 +149,11 @@ function OrdersTab() {
 
 // ─── Inventory tab ────────────────────────────────────────────────────────────
 
-function InventoryTab() {
+function InventoryTab({
+  onListClick,
+}: {
+  onListClick: (item: InventoryItem, price: number | null) => void
+}) {
   const { t } = useI18n()
   const { steamProfile, items: marketItems } = useMarket()
   const [invItems, setInvItems] = useState<InventoryItem[]>([])
@@ -157,24 +161,29 @@ function InventoryTab() {
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   const fetched = useRef(false)
-  // Lifted listing state — dialog rendered outside ScrollArea/Sheet
-  const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
-  const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
-  const handleListClick = (item: InventoryItem, price: number | null) => {
-    setListingItem(item); setListingRefPrice(price)
-  }
 
   const fetchInv = async () => {
-    if (!steamProfile?.steamId) return
+    const steamId = steamProfile?.steamId
+    if (!steamId) return
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/inventory?steamId=${steamProfile.steamId}`)
+      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`)
+      if (!res.ok) throw new Error(`http_${res.status}`)
       const data = await res.json()
-      if (data.error === "private") { setError("private"); setInvItems([]) }
-      else if (data.error) { setError("error"); setInvItems([]) }
-      else { setInvItems(data.items || []); setTotal(data.total || 0) }
-    } catch { setError("error") }
+      if (data.error === "private") { setError("private"); setInvItems([]); setTotal(0) }
+      else if (data.error) { setError("error"); setInvItems([]); setTotal(0) }
+      else {
+        const safe = (data.items ?? []).filter(
+          (item: unknown): item is InventoryItem =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof (item as InventoryItem).assetId === "string",
+        )
+        setInvItems(safe)
+        setTotal(data.total ?? safe.length)
+      }
+    } catch { setError("error"); setInvItems([]); setTotal(0) }
     finally { setLoading(false) }
   }
 
@@ -231,68 +240,64 @@ function InventoryTab() {
   const locked = invItems.filter(i => !i.tradable)
 
   return (
-    <>
-      <div className="space-y-4 p-3">
-        <div className="flex items-center justify-between px-1">
-          <p className="text-xs text-muted-foreground">{total} item · {tradable.length} {t("inventory.tradable")}</p>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={fetchInv}>
-            <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
-          </Button>
-        </div>
-        {tradable.length > 0 && (
-          <section>
-            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-success">
-              {t("inventory.tradable")} ({tradable.length})
-            </p>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-              {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />)}
-            </div>
-          </section>
-        )}
-        {locked.length > 0 && (
-          <section className="opacity-60">
-            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              {t("inventory.locked")} ({locked.length})
-            </p>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-              {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={handleListClick} />)}
-            </div>
-          </section>
-        )}
+    <div className="space-y-4 p-3">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs text-muted-foreground">{total} item · {tradable.length} {t("inventory.tradable")}</p>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={fetchInv}>
+          <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
+        </Button>
       </div>
-      <ListingDialog
-        item={listingItem}
-        refPrice={listingRefPrice}
-        open={!!listingItem}
-        onClose={() => { setListingItem(null); setListingRefPrice(null) }}
-        onList={(priceTry) => {
-          if (!steamProfile || !listingItem) return
-          createListing(listingItem, priceTry, {
-            steamId: steamProfile.steamId,
-            steamName: steamProfile.steamName,
-            steamAvatar: steamProfile.steamAvatar,
-          })
-        }}
-      />
-    </>
+      {tradable.length > 0 && (
+        <section>
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-success">
+            {t("inventory.tradable")} ({tradable.length})
+          </p>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+            {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
+          </div>
+        </section>
+      )}
+      {locked.length > 0 && (
+        <section className="opacity-60">
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            {t("inventory.locked")} ({locked.length})
+          </p>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+            {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
+          </div>
+        </section>
+      )}
+    </div>
   )
 }
 
 function ListingDialog({
   item, refPrice, open, onClose, onList
 }: {
-  item: InventoryItem
+  item: InventoryItem | null
   refPrice: number | null
   open: boolean
   onClose: () => void
   onList?: (priceTry: number) => void
 }) {
-  const [price, setPrice] = useState(refPrice ? String(Math.round(refPrice)) : "")
+  const [price, setPrice] = useState("")
+
+  useEffect(() => {
+    if (open) {
+      setPrice(refPrice != null ? String(Math.round(refPrice)) : "")
+    } else {
+      setPrice("")
+    }
+  }, [open, refPrice])
+
+  if (!item) return null
+
   const priceNum = parseFloat(price) || 0
   const commission = Math.round(priceNum * COMMISSION_RATE)
   const netToSeller = Math.round(priceNum * (1 - COMMISSION_RATE))
   const fmt = (v: number) =>
     new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
+  const displayName = (item.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -303,15 +308,21 @@ function ListingDialog({
             İlanı Yayınla
           </DialogTitle>
           <DialogDescription className="sr-only">
-            {item.name} için satış fiyatı ve komisyon hesabı
+            {displayName || "Ürün"} için satış fiyatı ve komisyon hesabı
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.img} alt={item.name} className="h-14 w-16 object-contain" referrerPolicy="no-referrer" />
+          <img
+            src={item.img || "/placeholder.svg"}
+            alt={displayName}
+            className="h-14 w-16 object-contain"
+            referrerPolicy="no-referrer"
+            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
+          />
           <div>
-            <p className="text-xs font-semibold text-foreground">{item.name}</p>
+            <p className="text-xs font-semibold text-foreground">{displayName}</p>
             {item.exterior && <p className="text-[10px] text-muted-foreground">{item.exterior}</p>}
           </div>
         </div>
@@ -361,7 +372,7 @@ function ListingDialog({
             onClick={() => {
               if (onList) onList(priceNum)
               toast.success("İlan yayınlandı!", {
-                description: `${item.name} — ${fmt(priceNum)} (elinize geçecek: ${fmt(netToSeller)})`,
+                description: `${displayName || "Ürün"} — ${fmt(priceNum)} (elinize geçecek: ${fmt(netToSeller)})`,
               })
               onClose()
             }}
@@ -377,18 +388,25 @@ function ListingDialog({
 
 function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[]; onListClick: (item: InventoryItem, price: number | null) => void }) {
   const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price ?? null
+  const displayName = (item.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
-        <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor }} />
+        <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor ?? "#b0c3d9" }} />
         <div className="flex h-[70px] items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.img} alt={item.name} className="max-h-full max-w-[90%] object-contain"
-            referrerPolicy="no-referrer" loading="lazy" />
+          <img
+            src={item.img || "/placeholder.svg"}
+            alt={displayName}
+            className="max-h-full max-w-[90%] object-contain"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
+          />
         </div>
-        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type}</p>
+        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type ?? ""}</p>
         <p className="truncate text-[10px] font-semibold text-foreground leading-tight">
-          {item.name.replace("StatTrak™ ", "").replace("Souvenir ", "")}
+          {displayName}
         </p>
         {item.exterior && <p className="text-[9px] text-muted-foreground">{item.exterior}</p>}
         {price && <p className="text-[10px] font-bold text-success">{formatPrice(price)}</p>}
@@ -412,37 +430,74 @@ function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; mark
 
 export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
   const { t } = useI18n()
+  const { steamProfile } = useMarket()
+  const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
+  const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
+
+  const handleListClick = (item: InventoryItem, price: number | null) => {
+    setListingItem(item)
+    setListingRefPrice(price)
+  }
+
+  const handleListClose = () => {
+    setListingItem(null)
+    setListingRefPrice(null)
+  }
 
   return (
-    <Sheet>
-      {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-lg">
-        <SheetHeader className="border-b border-border px-5 py-4">
-          <SheetTitle className="flex items-center gap-2 text-foreground">
-            <User className="h-5 w-5 text-primary" />
-            {t("header.profile")}
-          </SheetTitle>
-          <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
-        </SheetHeader>
+    <>
+      <Sheet>
+        {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
+        <SheetContent
+          className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-lg"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <SheetHeader className="border-b border-border px-5 py-4">
+            <SheetTitle className="flex items-center gap-2 text-foreground">
+              <User className="h-5 w-5 text-primary" />
+              {t("header.profile")}
+            </SheetTitle>
+            <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
+          </SheetHeader>
 
-        <Tabs defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
-          <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-3 bg-input">
-            <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
-            <TabsTrigger value="orders" className="text-xs">{t("orders.title")}</TabsTrigger>
-            <TabsTrigger value="inventory" className="text-xs">{t("inventory.title")}</TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
+            <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-3 bg-input">
+              <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
+              <TabsTrigger value="orders" className="text-xs">{t("orders.title")}</TabsTrigger>
+              <TabsTrigger value="inventory" className="text-xs">{t("inventory.title")}</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="profile" className="flex-1 overflow-hidden mt-0">
-            <ScrollArea className="h-full"><ProfileTab /></ScrollArea>
-          </TabsContent>
-          <TabsContent value="orders" className="flex-1 overflow-hidden mt-0">
-            <ScrollArea className="h-full"><OrdersTab /></ScrollArea>
-          </TabsContent>
-          <TabsContent value="inventory" className="flex-1 overflow-hidden mt-0">
-            <ScrollArea className="h-full"><InventoryTab /></ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </SheetContent>
-    </Sheet>
+            <TabsContent value="profile" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full"><ProfileTab /></ScrollArea>
+            </TabsContent>
+            <TabsContent value="orders" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full"><OrdersTab /></ScrollArea>
+            </TabsContent>
+            <TabsContent value="inventory" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full">
+                <InventoryTab onListClick={handleListClick} />
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </SheetContent>
+      </Sheet>
+
+      {/* Render outside Sheet to avoid nested Radix modal conflicts */}
+      <ListingDialog
+        item={listingItem}
+        refPrice={listingRefPrice}
+        open={listingItem !== null}
+        onClose={handleListClose}
+        onList={(priceTry) => {
+          if (!steamProfile || !listingItem) return
+          createListing(listingItem, priceTry, {
+            steamId: steamProfile.steamId,
+            steamName: steamProfile.steamName,
+            steamAvatar: steamProfile.steamAvatar,
+          })
+        }}
+      />
+    </>
   )
 }
