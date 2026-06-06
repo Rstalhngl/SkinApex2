@@ -5,6 +5,7 @@ import {
   ExternalLink, Lock, Package, PackageCheck, RefreshCw, ShieldAlert, Tag, User,
 } from "lucide-react"
 import { toast } from "sonner"
+import { createListing } from "@/lib/listings"
 
 const COMMISSION_RATE = 0.07  // 7% platform commission
 import {
@@ -336,6 +337,7 @@ function ListingDialog({
           <Button
             disabled={priceNum <= 0}
             onClick={() => {
+              if (onList) onList(priceNum)
               toast.success("İlan yayınlandı!", {
                 description: `${item.name} — ${fmt(priceNum)} (elinize geçecek: ${fmt(netToSeller)})`,
               })
@@ -354,6 +356,7 @@ function ListingDialog({
 function InvCard({ item, marketItems }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[] }) {
   const [listOpen, setListOpen] = useState(false)
   const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price ?? null
+  const { steamProfile } = useMarket()
 
   return (
     <>
@@ -383,7 +386,20 @@ function InvCard({ item, marketItems }: { item: InventoryItem; marketItems: impo
           </div>
         )}
       </div>
-      <ListingDialog item={item} refPrice={price} open={listOpen} onClose={() => setListOpen(false)} />
+      <ListingDialog
+        item={item}
+        refPrice={price}
+        open={listOpen}
+        onClose={() => setListOpen(false)}
+        onList={(priceTry) => {
+          if (!steamProfile) return
+          createListing(item, priceTry, {
+            steamId: steamProfile.steamId,
+            steamName: steamProfile.steamName,
+            steamAvatar: steamProfile.steamAvatar,
+          })
+        }}
+      />
     </>
   )
 }

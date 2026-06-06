@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { SkinCard } from "@/components/skin-card"
 import { LifeBuoy, PackageOpen, Search, SlidersHorizontal, Tag } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -264,18 +265,14 @@ export function Marketplace() {
           ) : (
             <>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-5">
-                {displayed.map((skin) => {
-                  const { SkinCard } = require("@/components/skin-card")
-                  return (
-                    <SkinCard
-                      key={skin.id}
-                      skin={skin}
-                      onInspect={setInspecting}
-                      onSell={skin.owner === "me" ? setSelling : undefined}
-                      onOffer={skin.owner !== "me" ? setOffering : undefined}
-                    />
-                  )
-                })}
+                {displayed.map((skin) => (
+                  <SkinCard
+                    key={skin.id}
+                    skin={skin}
+                    onInspect={setInspecting}
+                    onOffer={setOffering}
+                  />
+                ))}
               </div>
               {hasMore && (
                 <div className="flex flex-col items-center gap-2 pt-4">
