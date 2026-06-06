@@ -8,7 +8,8 @@ import { formatPrice, isOwnListing, skins as demoSkins } from "@/lib/skins"
 import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import { createOrder } from "@/lib/orders"
-import { purchaseListing } from "@/lib/listings"
+import { purchaseListing, syncListings } from "@/lib/listings"
+import { LIVE_SYNC_MS } from "@/lib/live-sync"
 import { syncUserSales } from "@/lib/sales"
 import { syncOffers } from "@/lib/offers"
 import { syncUserNotifications } from "@/lib/user-notifications"
@@ -179,19 +180,33 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     })
   }, [steamProfile?.steamId])
 
-  // ── Sync seller notifications & deliveries when logged in ────────────────
+  // ── Live sync: listings, notifications, offers, sales ─────────────────
   useEffect(() => {
     const steamId = steamProfile?.steamId
-    if (!isLoggedIn || !steamId) return
 
-    const sync = () => {
-      void syncUserNotifications(steamId)
-      void syncUserSales(steamId)
-      void syncOffers(steamId)
+    const syncAll = () => {
+      void syncListings()
+      if (isLoggedIn && steamId) {
+        void syncUserNotifications(steamId)
+        void syncUserSales(steamId)
+        void syncOffers(steamId)
+      }
     }
-    sync()
-    const interval = setInterval(sync, 30_000)
-    return () => clearInterval(interval)
+
+    syncAll()
+    const interval = setInterval(syncAll, LIVE_SYNC_MS)
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") syncAll()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    window.addEventListener("focus", syncAll)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("focus", syncAll)
+    }
   }, [isLoggedIn, steamProfile?.steamId])
 
   // ── Auth ─────────────────────────────────────────────────────────────────

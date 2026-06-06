@@ -8,8 +8,9 @@ import {
 } from "@/lib/offers"
 import {
   getUserNotifications, getUserUnreadCount, markUserNotificationsRead,
-  subscribeUserNotifications,
+  subscribeUserNotifications, syncUserNotifications,
 } from "@/lib/user-notifications"
+import { syncOffers } from "@/lib/offers"
 import type { UserNotification } from "@/lib/notification-types"
 import { cn } from "@/lib/utils"
 import { useMarket } from "@/components/market-provider"
@@ -95,8 +96,14 @@ export function NotificationsBell() {
   }, [])
 
   const handleOpen = () => {
-    setOpen((o) => !o)
-    if (!open && unread > 0 && steamProfile?.steamId) {
+    const willOpen = !open
+    setOpen(willOpen)
+    if (willOpen && steamProfile?.steamId) {
+      void syncUserNotifications(steamProfile.steamId)
+      void syncOffers(steamProfile.steamId)
+      refresh()
+    }
+    if (willOpen && unread > 0 && steamProfile?.steamId) {
       setTimeout(() => {
         markAllRead()
         void markUserNotificationsRead(steamProfile.steamId)
