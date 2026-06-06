@@ -10,11 +10,36 @@ import pg from "pg"
 
 const { Pool } = pg
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const dataDir = path.join(__dirname, "..", "data")
+const rootDir = path.join(__dirname, "..")
+const dataDir = path.join(rootDir, "data")
 
-const url = process.env.DATABASE_URL
+async function loadEnvLocal() {
+  for (const name of [".env.local", ".env"]) {
+    try {
+      const raw = await readFile(path.join(rootDir, name), "utf-8")
+      for (const line of raw.split("\n")) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith("#")) continue
+        const eq = trimmed.indexOf("=")
+        if (eq <= 0) continue
+        const key = trimmed.slice(0, eq).trim()
+        let val = trimmed.slice(eq + 1).trim()
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1)
+        }
+        if (!process.env[key]) process.env[key] = val
+      }
+      return
+    } catch {}
+  }
+}
+
+await loadEnvLocal()
+
+const url = process.env.DATABASE_URL?.trim()
 if (!url) {
-  console.error("DATABASE_URL is required")
+  console.error("DATABASE_URL is required — .env.local dosyasına ekleyin:")
+  console.error("DATABASE_URL=postgres://skinapex:SIFREN@localhost:5432/skinapex")
   process.exit(1)
 }
 
