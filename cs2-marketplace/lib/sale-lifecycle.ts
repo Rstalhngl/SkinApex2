@@ -22,6 +22,36 @@ export async function processExpiredSales(): Promise<void> {
   if (changed) await writeSalesStore(store)
 }
 
+/** Called by trade bot when Steam reports offer accepted. */
+export async function markSaleDeliveredByBot(saleId: string): Promise<Sale | null> {
+  const store = await readSalesStore()
+  const idx = store.sales.findIndex((s) => s.id === saleId)
+  if (idx === -1) return null
+
+  const sale = store.sales[idx]
+  if (sale.status !== "pending_delivery") return null
+  if (sale.deliveryDeadline <= Date.now()) return null
+
+  const updated: Sale = {
+    ...sale,
+    status: "delivered",
+    deliveredAt: Date.now(),
+    tradeOfferState: "accepted",
+    tradeOfferUpdatedAt: Date.now(),
+  }
+  store.sales[idx] = updated
+  await writeSalesStore(store)
+
+  await payoutDeliveredSale(updated)
+  await addUserNotification(
+    sale.buyerId,
+    "item_sold",
+    `Teslimat tamamlandı (Steam takas): ${sale.itemName}`,
+    { saleId: sale.id },
+  )
+  return updated
+}
+
 export async function markSaleDelivered(saleId: string, sellerId: string): Promise<Sale | null> {
   const store = await readSalesStore()
   const idx = store.sales.findIndex((s) => s.id === saleId)

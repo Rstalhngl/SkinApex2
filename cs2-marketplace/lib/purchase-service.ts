@@ -8,6 +8,8 @@ import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
 import { debitWallet, creditWallet, getWalletBalance } from "@/lib/wallet-store"
 import { addUserNotification } from "@/lib/notifications-store"
 import { isValidTradeUrl } from "@/lib/trade-url"
+import { buildSaleTradeFields } from "@/lib/trade-delivery-service"
+import { isTradeBotEnabled } from "@/lib/trade-bot-config"
 
 export interface PurchaseBuyer {
   steamId: string
@@ -60,6 +62,7 @@ export async function completePurchase(
   const sale: Sale = {
     id: `sale-${salesStore.nextId++}`,
     listingId: listing.id,
+    ...buildSaleTradeFields(listing.assetId),
     sellerId: listing.sellerId,
     sellerName: listing.sellerName,
     buyerId: buyer.steamId,
@@ -80,10 +83,14 @@ export async function completePurchase(
   const fmt = (v: number) =>
     new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
 
+  const deliveryHint = isTradeBotEnabled()
+    ? "Teslimat bot tarafından otomatik gönderilecek."
+    : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
+
   await addUserNotification(
     listing.sellerId,
     "item_sold",
-    `Ürününüz satıldı: ${listing.name} — ${fmt(chargeAmount)}. 2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`,
+    `Ürününüz satıldı: ${listing.name} — ${fmt(chargeAmount)}. ${deliveryHint}`,
     { saleId: sale.id, listingId: listing.id },
   )
 
@@ -152,6 +159,7 @@ export async function completeBatchPurchase(
         const sale: Sale = {
           id: `sale-${salesStore.nextId++}`,
           listingId: listing.id,
+          ...buildSaleTradeFields(listing.assetId),
           sellerId: listing.sellerId,
           sellerName: listing.sellerName,
           buyerId: buyer.steamId,
@@ -172,10 +180,14 @@ export async function completeBatchPurchase(
         const fmt = (v: number) =>
           new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
 
+        const deliveryHint = isTradeBotEnabled()
+          ? "Teslimat bot tarafından otomatik gönderilecek."
+          : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
+
         await addUserNotification(
           listing.sellerId,
           "item_sold",
-          `Ürününüz satıldı: ${listing.name} — ${fmt(charge)}. 2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`,
+          `Ürününüz satıldı: ${listing.name} — ${fmt(charge)}. ${deliveryHint}`,
           { saleId: sale.id, listingId: listing.id },
         )
         await rejectPendingOffersForListing(listing.id)

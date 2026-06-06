@@ -1,9 +1,22 @@
 export type SaleStatus = "pending_delivery" | "delivered" | "expired" | "disputed" | "resolved"
 export type SaleResolution = "buyer_refund" | "seller_paid"
 
+/** Steam trade offer lifecycle tracked by the trade bot worker. */
+export type TradeOfferState =
+  | "queued"
+  | "sent"
+  | "active"
+  | "accepted"
+  | "declined"
+  | "canceled"
+  | "expired"
+  | "failed"
+
 export interface Sale {
   id: string
   listingId: string
+  /** CS2 asset ID at time of purchase (for bot delivery). */
+  assetId?: string
   sellerId: string
   sellerName: string
   buyerId: string
@@ -17,6 +30,10 @@ export interface Sale {
   deliveryDeadline: number
   status: SaleStatus
   buyerTradeUrl?: string
+  steamOfferId?: string
+  tradeOfferState?: TradeOfferState
+  tradeOfferError?: string
+  tradeOfferUpdatedAt?: number
   deliveredAt?: number
   confirmedAt?: number
   disputedAt?: number
