@@ -279,12 +279,13 @@ function InventoryTab() {
 }
 
 function ListingDialog({
-  item, refPrice, open, onClose
+  item, refPrice, open, onClose, onList
 }: {
   item: InventoryItem
   refPrice: number | null
   open: boolean
   onClose: () => void
+  onList?: (priceTry: number) => void
 }) {
   const [price, setPrice] = useState(refPrice ? String(Math.round(refPrice)) : "")
   const priceNum = parseFloat(price) || 0
