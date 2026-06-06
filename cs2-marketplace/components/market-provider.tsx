@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import type { Skin } from "@/lib/skins"
-import { formatPrice, skins as demoSkins } from "@/lib/skins"
+import { formatPrice, isOwnListing, skins as demoSkins } from "@/lib/skins"
 import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import { createOrder } from "@/lib/orders"
@@ -169,6 +169,16 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── Remove own listings from cart on login ────────────────────────────────
+  useEffect(() => {
+    const steamId = steamProfile?.steamId
+    if (!steamId) return
+    setCart((prev) => {
+      const filtered = prev.filter((s) => !isOwnListing(s, steamId))
+      return filtered.length === prev.length ? prev : filtered
+    })
+  }, [steamProfile?.steamId])
+
   // ── Sync seller notifications & deliveries when logged in ────────────────
   useEffect(() => {
     const steamId = steamProfile?.steamId
@@ -216,6 +226,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const isWished = useCallback((id: number) => wishlist.includes(id), [wishlist])
 
   const addToCart = useCallback((skin: Skin) => {
+    if (isOwnListing(skin, steamProfile?.steamId)) {
+      toast.error(t("toast.ownListing"))
+      return
+    }
     // Check current state first, then update — no side effects inside setter
     setCart((prev) => {
       if (prev.some((s) => s.id === skin.id)) return prev
@@ -238,7 +252,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       }
       return latest
     })
-  }, [t])
+  }, [t, steamProfile?.steamId])
 
   const removeFromCart = useCallback((id: number) => {
     setCart((prev) => prev.filter((s) => s.id !== id))
@@ -247,6 +261,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const clearCart = useCallback(() => setCart([]), [])
 
   const toggleWishlist = useCallback((skin: Skin) => {
+    if (isOwnListing(skin, steamProfile?.steamId)) {
+      toast.error(t("toast.ownListing"))
+      return
+    }
     setWishlist((prev) => {
       const removing = prev.includes(skin.id)
       if (!removing) {
@@ -257,7 +275,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       }
       return removing ? prev.filter((x) => x !== skin.id) : [...prev, skin.id]
     })
-  }, [t])
+  }, [t, steamProfile?.steamId])
 
   const deposit = useCallback((amount: number) => {
     setWallet((prev) => {
@@ -290,6 +308,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
     for (const skin of cart) {
       if (!skin.listingId) continue
+      if (isOwnListing(skin, steamProfile.steamId)) {
+        toast.error(t("toast.ownListing"))
+        return
+      }
       const ok = await purchaseListing(skin.listingId, {
         steamId: steamProfile.steamId,
         steamName: steamProfile.steamName,

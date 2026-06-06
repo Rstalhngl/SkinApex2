@@ -192,6 +192,18 @@ export const WEAPONS_BY_CATEGORY: Record<CategoryKey, string[]> = {
   agent: ["Agent"],
 }
 
+export function isOwnListing(
+  skin: Pick<Skin, "listingId" | "sellerId">,
+  steamId?: string | null,
+): boolean {
+  return !!(
+    skin.listingId &&
+    skin.sellerId &&
+    steamId &&
+    skin.sellerId === steamId
+  )
+}
+
 export function categoryOf(type: string): CategoryKey | null {
   if (CATEGORY_BY_WEAPON[type]) return CATEGORY_BY_WEAPON[type]
   const steamCat = STEAM_TYPE_TO_CATEGORY[type.toLowerCase()]

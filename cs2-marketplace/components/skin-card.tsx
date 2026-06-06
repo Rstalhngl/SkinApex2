@@ -3,7 +3,7 @@
 import { ExternalLink, Handshake, Heart, Tag, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
+import { type Skin, formatPrice, formatUSD, isOwnListing, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -26,12 +26,7 @@ export function SkinCard({
   const inCart = isInCart(skin.id)
   const isOwned = skin.owner === "me"
   const isListed = listedSkins.includes(skin.id)
-  const isMyListing = !!(
-    skin.listingId &&
-    skin.sellerId &&
-    steamProfile?.steamId &&
-    skin.sellerId === steamProfile.steamId
-  )
+  const isMyListing = isOwnListing(skin, steamProfile?.steamId)
 
   return (
     <div
@@ -126,7 +121,7 @@ export function SkinCard({
             </div>
           )}
           {/* Offer button — only for non-owned items */}
-          {!isOwned && onOffer && (
+          {!isOwned && !isMyListing && onOffer && (
             <button
               onClick={() => onOffer(skin)}
               className="flex w-full items-center justify-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20"

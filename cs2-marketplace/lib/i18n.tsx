@@ -199,6 +199,7 @@ const en: Dict = {
   "toast.insufficientDesc": "You need {amount} more. Deposit funds to continue.",
   "toast.purchaseTitle": "Purchase complete",
   "toast.purchaseDesc": "{n} item(s) delivered via secure P2P escrow.",
+  "toast.ownListing": "You cannot buy, offer, or add your own listing.",
 
   // Steam auth
   "toast.steam.loginSuccess": "Welcome, {name}! Signed in via Steam.",
@@ -492,6 +493,7 @@ const tr: Dict = {
   "toast.insufficientDesc": "{amount} daha gerekli. Devam etmek için bakiye yükleyin.",
   "toast.purchaseTitle": "Satın alma tamamlandı",
   "toast.purchaseDesc": "{n} eşya güvenli P2P emanet ile teslim edildi.",
+  "toast.ownListing": "Kendi ilanınıza teklif veremez, sepete veya favorilere ekleyemezsiniz.",
 
   // Steam auth
   "toast.steam.loginSuccess": "Hoş geldiniz, {name}! Steam ile giriş yapıldı.",
