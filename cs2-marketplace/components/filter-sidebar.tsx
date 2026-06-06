@@ -17,6 +17,7 @@ import { useI18n } from "@/lib/i18n"
 import { CATEGORIES, RARITIES, WEAPONS_BY_CATEGORY, type CategoryKey, type Rarity } from "@/lib/skins"
 
 export type SortKey =
+  | "all"
   | "popular"
   | "newest"
   | "discount-desc"
@@ -140,6 +141,7 @@ export function FilterSidebar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="border-border bg-card">
+            <SelectItem value="all">{t("filter.sort.all")}</SelectItem>
             <SelectItem value="popular">{t("filter.sort.popular")}</SelectItem>
             <SelectItem value="newest">{t("filter.sort.newest")}</SelectItem>
             <SelectItem value="discount-desc">{t("filter.sort.discount")}</SelectItem>

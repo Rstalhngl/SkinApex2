@@ -489,13 +489,16 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
         refPrice={listingRefPrice}
         open={listingItem !== null}
         onClose={handleListClose}
-        onList={(priceTry) => {
+        onList={async (priceTry) => {
           if (!steamProfile || !listingItem) return
-          createListing(listingItem, priceTry, {
+          const listing = await createListing(listingItem, priceTry, {
             steamId: steamProfile.steamId,
             steamName: steamProfile.steamName,
             steamAvatar: steamProfile.steamAvatar,
           })
+          if (!listing) {
+            toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
+          }
         }}
       />
     </>
