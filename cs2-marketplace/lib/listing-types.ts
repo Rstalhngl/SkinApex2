@@ -15,6 +15,9 @@ export interface Listing {
   type: string
   stattrak: boolean
   souvenir: boolean
+  float?: number
+  patternSeed?: number
+  phase?: string
   priceTry: number
   commissionRate: number
   netToSeller: number

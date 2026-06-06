@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import type { Listing } from "@/lib/listing-types"
+import { itemHasFloat } from "@/lib/item-wear"
 import { resolveItemType } from "@/lib/skins"
 import {
   getActiveListingsFromStore,
@@ -37,6 +38,10 @@ export async function POST(req: Request) {
         type?: string
         stattrak?: boolean
         souvenir?: boolean
+        float?: number
+        patternSeed?: number
+        phase?: string
+        hasFloat?: boolean
       }
       priceTry?: number
       seller?: {
@@ -52,6 +57,8 @@ export async function POST(req: Request) {
 
     const store = await readListingsStore()
     const net = Math.round(priceTry * (1 - COMMISSION))
+    const resolvedType = resolveItemType(item.type ?? "", item.name, item.marketHashName)
+    const hasFloat = item.hasFloat ?? itemHasFloat(resolvedType, item.name, item.marketHashName)
     const listing: Listing = {
       id: `listing-${store.nextId++}`,
       sellerId: seller.steamId,
@@ -64,9 +71,12 @@ export async function POST(req: Request) {
       exterior: item.exterior ?? "",
       rarity: item.rarity ?? "",
       rarityColor: item.rarityColor ?? "#b0c3d9",
-      type: resolveItemType(item.type ?? "", item.name, item.marketHashName),
+      type: resolvedType,
       stattrak: !!item.stattrak,
       souvenir: !!item.souvenir,
+      float: hasFloat && item.float != null ? item.float : undefined,
+      patternSeed: hasFloat && item.patternSeed != null ? item.patternSeed : undefined,
+      phase: hasFloat ? item.phase : undefined,
       priceTry,
       commissionRate: COMMISSION,
       netToSeller: net,
