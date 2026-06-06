@@ -6,6 +6,7 @@ const gunzip = promisify(zlib.gunzip)
 const inflate = promisify(zlib.inflate)
 
 const STEAM_IMG = "https://community.akamai.steamstatic.com/economy/image/"
+const PAGE_SIZE = 2000  // Steam's maximum per request
 
 interface SteamAsset {
   appid: number
@@ -67,6 +68,60 @@ const RARITY_ORDER = [
   "Distinguished", "Industrial Grade", "High Grade", "Consumer Grade", "Base Grade",
 ]
 
+async function fetchPage(steamId: string, startAssetId?: string): Promise<{
+  assets: SteamAsset[]
+  descriptions: SteamDescription[]
+  total: number
+  more: boolean
+  lastAssetId?: string
+}> {
+  const params = new URLSearchParams({
+    l: "english",
+    count: String(PAGE_SIZE),
+  })
+  if (startAssetId) params.set("start_assetid", startAssetId)
+
+  const url = `https://steamcommunity.com/inventory/${steamId}/730/2?${params}`
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Accept": "application/json",
+      "Referer": `https://steamcommunity.com/profiles/${steamId}/inventory/`,
+    },
+    cache: "no-store",
+  })
+
+  if (res.status === 403 || res.status === 401) throw new Error("private")
+  if (!res.ok) throw new Error(`steam_${res.status}`)
+
+  // Decompress if needed
+  const buffer = Buffer.from(await res.arrayBuffer())
+  const encoding = res.headers.get("content-encoding") || ""
+
+  let jsonStr: string
+  try {
+    if (encoding.includes("gzip")) jsonStr = (await gunzip(buffer)).toString("utf-8")
+    else if (encoding.includes("deflate")) jsonStr = (await inflate(buffer)).toString("utf-8")
+    else jsonStr = buffer.toString("utf-8")
+  } catch {
+    jsonStr = buffer.toString("utf-8")
+  }
+
+  if (!jsonStr || jsonStr.trim() === "null") throw new Error("private")
+
+  const data = JSON.parse(jsonStr)
+  if (!data || data.success === false) throw new Error("private")
+
+  return {
+    assets: data.assets || [],
+    descriptions: data.descriptions || [],
+    total: data.total_inventory_count || 0,
+    more: data.more === 1,
+    lastAssetId: data.last_assetid,
+  }
+}
+
 function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]): InventoryItem[] {
   const descMap = new Map<string, SteamDescription>()
   for (const d of descriptions) {
@@ -113,77 +168,35 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
 
 export async function GET(request: NextRequest) {
   const steamId = request.nextUrl.searchParams.get("steamId")
-  
-  // 📍 1. TAKİP LOGU: Sunucuya hangi Steam ID parametresi geliyor görelim
-  console.log("===> ENVANTERI CEKILEN STEAM ID:", steamId);
-
   if (!steamId) return NextResponse.json({ error: "steamId required" }, { status: 400 })
 
-  // 📍 2. API KEY ENTEGRASYONU: Steam API anahtarını .env dosyasından okuyoruz
-  const apiKey = process.env.STEAM_API_KEY
-  
-  // Eğer API anahtarı varsa URL'in sonuna güvenli şekilde ekliyoruz (Valve doğrulaması için)
-  const url = apiKey 
-    ? `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000&key=${apiKey}`
-    : `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`
-
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Referer": `https://steamcommunity.com/profiles/${steamId}/inventory/`,
-        "X-Requested-With": "XMLHttpRequest",
-        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124"',
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-      },
-      cache: "no-store",
-    })
+    // Fetch first page
+    const page1 = await fetchPage(steamId)
+    let allAssets = [...page1.assets]
+    let allDescriptions = [...page1.descriptions]
+    const total = page1.total
 
-    // 📍 3. DURUM LOGU: Steam sunucusunun sitemize verdiği gerçek cevabı görelim
-    console.log(`===> STEAM RESPONDED WITH STATUS: ${res.status}`);
+    // If inventory has more pages, fetch them (up to 3 pages = 6000 items max)
+    if (page1.more && page1.lastAssetId) {
+      const page2 = await fetchPage(steamId, page1.lastAssetId)
+      allAssets = [...allAssets, ...page2.assets]
+      allDescriptions = [...allDescriptions, ...page2.descriptions]
 
-    if (res.status === 403 || res.status === 401) {
-      return NextResponse.json({ error: "private", items: [] })
-    }
-    if (!res.ok) {
-      return NextResponse.json({ error: `steam_${res.status}`, items: [] })
-    }
-
-    const buffer = Buffer.from(await res.arrayBuffer())
-    const encoding = res.headers.get("content-encoding") || ""
-
-    let jsonStr: string
-    try {
-      if (encoding.includes("gzip")) {
-        jsonStr = (await gunzip(buffer)).toString("utf-8")
-      } else if (encoding.includes("deflate")) {
-        jsonStr = (await inflate(buffer)).toString("utf-8")
-      } else {
-        jsonStr = buffer.toString("utf-8")
+      if (page2.more && page2.lastAssetId) {
+        const page3 = await fetchPage(steamId, page2.lastAssetId)
+        allAssets = [...allAssets, ...page3.assets]
+        allDescriptions = [...allDescriptions, ...page3.descriptions]
       }
-    } catch {
-      jsonStr = buffer.toString("utf-8")
     }
 
-    if (!jsonStr || jsonStr.trim() === "null") {
-      console.log("===> STEAM RETURNED NULL RESPONSE");
-      return NextResponse.json({ error: "private", items: [] })
-    }
+    const items = parseInventory(allAssets, allDescriptions)
+    return NextResponse.json({ items, total })
 
-    const data = JSON.parse(jsonStr)
-    if (!data || data.success === false) {
-      return NextResponse.json({ error: "private", items: [] })
-    }
-
-    const items = parseInventory(data.assets || [], data.descriptions || [])
-    console.log(`===> SUCCESS: ${items.length} adet item basariyla listelendi.`);
-    return NextResponse.json({ items, total: data.total_inventory_count || items.length })
-
-  } catch (e) {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg === "private") return NextResponse.json({ error: "private", items: [] })
+    if (msg.startsWith("steam_")) return NextResponse.json({ error: msg, items: [] })
     console.error("Inventory fetch error:", e)
     return NextResponse.json({ error: "fetch_failed", items: [] })
   }

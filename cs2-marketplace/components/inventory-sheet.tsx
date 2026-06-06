@@ -283,8 +283,10 @@ export function InventorySheet({ trigger }: { trigger?: React.ReactNode }) {
     finally { setLoading(false) }
   }
 
+  // Fetch when sheet opens and we have a steamId
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (open && steamProfile?.steamId && inventoryItems.length === 0 && !loading) {
+    if (open && steamProfile?.steamId && !loading) {
       fetchInventory()
     }
   }, [open, steamProfile?.steamId])
