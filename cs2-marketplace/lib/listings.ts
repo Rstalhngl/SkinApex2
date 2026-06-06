@@ -1,6 +1,6 @@
 "use client"
 
-import type { InventoryItem } from "@/app/api/inventory/route"
+import type { InventoryItem } from "@/lib/inventory-types"
 
 export type ListingStatus = "active" | "sold" | "cancelled"
 

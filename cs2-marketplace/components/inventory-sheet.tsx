@@ -420,18 +420,19 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     }
   }
 
-  // Fetch once per open session; reset when sheet closes
+  // Fetch when sheet is open AND steamId is available.
+  // Include steamProfile?.steamId in deps so it re-runs after login completes.
   useEffect(() => {
-    if (open && !hasFetched.current) {
+    const steamId = steamProfile?.steamId
+    if (open && steamId && !hasFetched.current) {
       hasFetched.current = true
       fetchInventory()
     }
     if (!open) {
       hasFetched.current = false
     }
-    // fetchInventory is stable — it reads steamProfile via closure, not as dep
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, steamProfile?.steamId])
 
   // Handlers
   const handleListClick = (item: InventoryItem, refPrice: number | null) => {
