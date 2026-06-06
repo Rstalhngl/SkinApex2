@@ -1,56 +1,133 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { liveSalesPool } from "@/lib/skins"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { getActivity, subscribeActivity, type ActivityEvent } from "@/lib/activity-feed"
+import { LIVE_SYNC_MS } from "@/lib/live-sync"
 import { useI18n } from "@/lib/i18n"
+import { cn } from "@/lib/utils"
 
-// Build display items from real activity + fallback pool
-function buildTickerItems(events: ActivityEvent[], t: (k: string) => string) {
-  if (events.length >= 5) {
-    // Enough real events — show only them (most recent first)
-    return events.slice(0, 20).map((e) => ({
-      key: `e-${e.id}`,
-      item: e.item,
-      action: t(`live.${e.action}`),
-      price: e.price,
-    }))
+type TickerItem = {
+  key: string
+  item: string
+  action: string
+  price: string
+}
+
+type ApiActivity = {
+  id: string
+  item: string
+  action: "bought" | "listed"
+  price: string
+  ts: number
+}
+
+const SHOW_MS = 5000
+const ANIM_MS = 400
+
+function toTickerItem(
+  id: string | number,
+  item: string,
+  action: "bought" | "listed",
+  price: string,
+  t: (k: string) => string,
+  prefix: string,
+): TickerItem {
+  return {
+    key: `${prefix}-${id}`,
+    item,
+    action: t(`live.${action}`),
+    price,
   }
-
-  // Not enough real events yet — pad with pool items
-  const poolItems = [...liveSalesPool, ...liveSalesPool].map((s, i) => ({
-    key: `p-${i}`,
-    item: s.item,
-    action: t(`live.${s.action}`),
-    price: s.price,
-  }))
-
-  const realItems = events.map((e) => ({
-    key: `e-${e.id}`,
-    item: e.item,
-    action: t(`live.${e.action}`),
-    price: e.price,
-  }))
-
-  return [...realItems, ...poolItems]
 }
 
 export function LiveTicker() {
   const { t } = useI18n()
-  const [events, setEvents] = useState<ActivityEvent[]>(() => getActivity())
+  const [display, setDisplay] = useState<TickerItem | null>(null)
+  const [entered, setEntered] = useState(false)
+  const [exiting, setExiting] = useState(false)
 
-  useEffect(() => {
-    const unsub = subscribeActivity(() => setEvents([...getActivity()]))
-    return unsub
+  const seenKeys = useRef(new Set<string>())
+  const queue = useRef<TickerItem[]>([])
+  const processing = useRef(false)
+
+  const runQueue = useCallback(async () => {
+    if (processing.current) return
+    processing.current = true
+
+    while (queue.current.length > 0) {
+      const item = queue.current.shift()!
+      setExiting(false)
+      setEntered(false)
+      setDisplay(item)
+
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      setEntered(true)
+
+      await new Promise((r) => setTimeout(r, SHOW_MS))
+
+      setExiting(true)
+      await new Promise((r) => setTimeout(r, ANIM_MS))
+
+      setEntered(false)
+      setDisplay(null)
+      await new Promise((r) => setTimeout(r, 80))
+    }
+
+    processing.current = false
   }, [])
 
-  const items = buildTickerItems(events, t)
+  const enqueue = useCallback((item: TickerItem) => {
+    if (seenKeys.current.has(item.key)) return
+    seenKeys.current.add(item.key)
+    queue.current.push(item)
+    void runQueue()
+  }, [runQueue])
 
-  // Double items for seamless loop
-  const display = [...items, ...items]
+  const markSeen = useCallback((item: TickerItem) => {
+    seenKeys.current.add(item.key)
+  }, [])
+
+  useEffect(() => {
+    let lastLocalId = 0
+    return subscribeActivity(() => {
+      const latest = getActivity().find(
+        (e) => e.action === "bought" || e.action === "listed",
+      )
+      if (!latest || latest.id <= lastLocalId) return
+      lastLocalId = latest.id
+      enqueue(toTickerItem(latest.id, latest.item, latest.action, latest.price, t, "local"))
+    })
+  }, [enqueue, t])
+
+  useEffect(() => {
+    const load = async (initial: boolean) => {
+      try {
+        const res = await fetch("/api/activity", { cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json()
+        const events = (Array.isArray(data.events) ? data.events : []) as ApiActivity[]
+
+        for (const e of [...events].reverse()) {
+          if (e.action !== "bought" && e.action !== "listed") continue
+          const item = toTickerItem(e.id, e.item, e.action, e.price, t, "api")
+          if (initial) {
+            markSeen(item)
+          } else {
+            enqueue(item)
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    void load(true)
+    const interval = setInterval(() => void load(false), LIVE_SYNC_MS)
+    return () => clearInterval(interval)
+  }, [enqueue, markSeen, t])
 
   return (
-    <div className="flex items-center gap-4 border-b border-border bg-[#030712] px-4 py-2 md:px-[4%]">
+    <div className="relative flex min-h-[36px] items-center gap-4 overflow-hidden border-b border-border bg-[#030712] px-4 py-2 md:px-[4%]">
       <div className="flex shrink-0 items-center gap-1.5 rounded bg-success/15 px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-success">
         <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
@@ -58,16 +135,27 @@ export function LiveTicker() {
         </span>
         {t("live.title")}
       </div>
-      <div className="relative flex-1 overflow-hidden">
-        <div className="flex w-max animate-ticker gap-10">
-          {display.map((item, i) => (
-            <span key={`${item.key}-${i}`} className="whitespace-nowrap text-xs text-foreground">
-              <strong className="font-semibold text-primary">{item.item}</strong>{" "}
-              <span className="text-muted-foreground">{item.action}</span>{" "}
-              <span className="font-bold text-success">{item.price}</span>
+
+      <div className="relative h-6 min-w-0 flex-1">
+        {display && (
+          <div
+            className={cn(
+              "absolute left-0 top-0 max-w-full transition-all ease-out",
+              entered && !exiting
+                ? "translate-y-0 opacity-100"
+                : exiting
+                  ? "translate-y-6 opacity-0"
+                  : "-translate-y-6 opacity-0",
+            )}
+            style={{ transitionDuration: `${ANIM_MS}ms` }}
+          >
+            <span className="block truncate text-xs text-foreground">
+              <strong className="font-semibold text-primary">{display.item}</strong>{" "}
+              <span className="text-muted-foreground">{display.action}</span>{" "}
+              <span className="font-bold text-success">{display.price}</span>
             </span>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )
