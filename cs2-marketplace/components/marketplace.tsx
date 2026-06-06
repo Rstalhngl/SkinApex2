@@ -12,9 +12,8 @@ import { SkinCard } from "@/components/skin-card"
 import { InspectDialog } from "@/components/inspect-dialog"
 import { SellDialog } from "@/components/sell-dialog"
 import { OfferDialog } from "@/components/offer-dialog"
-import { computeMarketDiscount } from "@/lib/cs2-api"
-import { itemHasFloat, resolveListingFloat } from "@/lib/item-wear"
-import { categoryOf, resolveItemType, type Exterior, type Skin } from "@/lib/skins"
+import { listingToSkin } from "@/lib/listing-to-skin"
+import { categoryOf, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
 import { useMarket } from "@/components/market-provider"
@@ -34,72 +33,6 @@ const DEFAULT_FILTERS: Filters = {
 
 const PAGE_SIZE = 48
 const SUPPORT_EMAIL = "support@skinapex.net"
-
-const EXTERIOR_MAP: Record<string, Exterior> = {
-  FN: "FN", MW: "MW", FT: "FT", WW: "WW", BS: "BS",
-  "Factory New": "FN",
-  "Minimal Wear": "MW",
-  "Field-Tested": "FT",
-  "Well-Worn": "WW",
-  "Battle-Scarred": "BS",
-}
-
-function normalizeExterior(raw: string): Exterior {
-  return EXTERIOR_MAP[raw] ?? EXTERIOR_MAP[raw.trim()] ?? "FT"
-}
-
-function listingToSkin(listing: Listing): Skin & { listingId: string } {
-  const exterior = normalizeExterior(listing.exterior)
-  const rarityKey = listing.rarity.toLowerCase().replace(/ /g, "_").replace(/-/g, "_")
-  const rarityMap: Record<string, Skin["rarity"]> = {
-    covert: "covert", classified: "classified", restricted: "restricted",
-    mil_spec_grade: "milspec", industrial_grade: "industrial",
-    contraband: "contraband", consumer_grade: "industrial",
-    extraordinary: "covert", master: "covert", superior: "classified",
-    exceptional: "restricted", high_grade: "milspec", remarkable: "restricted",
-    distinguished: "milspec", base_grade: "industrial",
-  }
-  const rarity = rarityMap[rarityKey] ?? "milspec"
-
-  const type = resolveItemType(listing.type, listing.name, listing.marketHashName)
-  const nameParts = (listing.name ?? "")
-    .replace("StatTrak™ ", "").replace("Souvenir ", "").split(" | ")
-  const title = nameParts.slice(1).join(" | ").replace(/\s*\([^)]+\)\s*$/, "").trim()
-    || (listing.name ?? "").replace(/\s*\([^)]+\)\s*$/, "")
-
-  const numericId = parseInt(listing.id.replace("listing-", ""), 10)
-  const hasFloat = itemHasFloat(type, listing.name, listing.marketHashName)
-  const { discount, priceUsd, refPriceTry } = computeMarketDiscount(
-    listing.priceTry,
-    listing.marketHashName,
-  )
-
-  return {
-    id: (Number.isFinite(numericId) ? numericId : Date.now()) + 100000,
-    listingId: listing.id,
-    sellerId: listing.sellerId,
-    owner: "other",
-    type,
-    title: title || type,
-    exterior,
-    rarity,
-    float: resolveListingFloat(exterior, listing.float, hasFloat),
-    oldPrice: refPriceTry ?? Math.round(listing.priceTry * 1.1),
-    price: listing.priceTry,
-    priceUsd,
-    discount,
-    isST: listing.stattrak,
-    isSV: listing.souvenir,
-    popularity: 50,
-    listedAt: listing.listedAt,
-    img: listing.img || "/placeholder.svg",
-    stickers: [],
-    hasFloat,
-    patternSeed: hasFloat ? listing.patternSeed : undefined,
-    phase: hasFloat ? listing.phase : undefined,
-    marketHashName: listing.marketHashName,
-  }
-}
 
 function EmptyMarketplace({ onReset, hasFilters }: { onReset: () => void; hasFilters: boolean }) {
   const { t } = useI18n()

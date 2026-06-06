@@ -34,14 +34,31 @@ export async function patchUserData(patch: Partial<UserData>): Promise<UserData 
   }
 }
 
+export interface WalletTransaction {
+  id: string
+  type: string
+  amount: number
+  balanceAfter: number
+  note?: string
+  createdAt: number
+}
+
 export async function fetchWalletBalance(): Promise<number> {
+  const data = await fetchWalletData()
+  return data?.balance ?? 0
+}
+
+export async function fetchWalletData(): Promise<{ balance: number; transactions: WalletTransaction[] } | null> {
   try {
     const res = await apiFetch("/api/wallet")
-    if (!res.ok) return 0
+    if (!res.ok) return null
     const data = await res.json()
-    return typeof data.balance === "number" ? data.balance : 0
+    return {
+      balance: typeof data.balance === "number" ? data.balance : 0,
+      transactions: Array.isArray(data.transactions) ? data.transactions : [],
+    }
   } catch {
-    return 0
+    return null
   }
 }
 

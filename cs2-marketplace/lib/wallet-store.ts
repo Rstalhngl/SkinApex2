@@ -1,5 +1,6 @@
 import { promises as fs } from "fs"
 import path from "path"
+import { withStoreLock } from "@/lib/data-lock"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const DATA_PATH = path.join(DATA_DIR, "wallets.json")
@@ -35,7 +36,7 @@ interface WalletStore {
 
 const EMPTY: WalletStore = { wallets: {}, transactions: [], nextTxId: 1 }
 
-async function readStore(): Promise<WalletStore> {
+async function readStoreUnsafe(): Promise<WalletStore> {
   try {
     const raw = await fs.readFile(DATA_PATH, "utf-8")
     const parsed = JSON.parse(raw) as WalletStore
@@ -49,9 +50,15 @@ async function readStore(): Promise<WalletStore> {
   }
 }
 
+async function readStore(): Promise<WalletStore> {
+  return withStoreLock("wallets", readStoreUnsafe)
+}
+
 async function writeStore(store: WalletStore): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true })
-  await fs.writeFile(DATA_PATH, JSON.stringify(store, null, 2), "utf-8")
+  await withStoreLock("wallets", async () => {
+    await fs.mkdir(DATA_DIR, { recursive: true })
+    await fs.writeFile(DATA_PATH, JSON.stringify(store, null, 2), "utf-8")
+  })
 }
 
 function ensureWallet(store: WalletStore, steamId: string): WalletEntry {

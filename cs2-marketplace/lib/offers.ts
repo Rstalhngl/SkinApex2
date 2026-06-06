@@ -89,39 +89,41 @@ export async function sendOffer(
   }
 }
 
-async function updateServerOffer(offerId: string, status: OfferStatus): Promise<boolean> {
+export async function updateOfferStatus(
+  offerId: string,
+  status: OfferStatus,
+  steamId?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const offer = offers.find((o) => o.id === offerId)
+  if (!offer?.listingId) return { ok: false, error: "offer_not_found" }
+
   try {
     const res = await apiFetch("/api/offers", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ offerId, status }),
     })
-    return res.ok
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      return { ok: false, error: (data as { error?: string }).error ?? "request_failed" }
+    }
+    if (steamId) await syncOffers(steamId)
+    return { ok: true }
   } catch {
-    return false
+    return { ok: false, error: "network_error" }
   }
 }
 
-export async function updateOfferStatus(offerId: string, status: OfferStatus, steamId?: string) {
-  const offer = offers.find((o) => o.id === offerId)
-  if (offer?.listingId) {
-    const ok = await updateServerOffer(offerId, status)
-    if (ok && steamId) void syncOffers(steamId)
-    return ok
-  }
-  return false
+export async function acceptOffer(offerId: string, steamId?: string) {
+  return updateOfferStatus(offerId, "accepted", steamId)
 }
 
-export function acceptOffer(offerId: string, steamId?: string) {
-  void updateOfferStatus(offerId, "accepted", steamId)
+export async function rejectOffer(offerId: string, steamId?: string) {
+  return updateOfferStatus(offerId, "rejected", steamId)
 }
 
-export function rejectOffer(offerId: string, steamId?: string) {
-  void updateOfferStatus(offerId, "rejected", steamId)
-}
-
-export function withdrawOffer(offerId: string, steamId?: string) {
-  void updateOfferStatus(offerId, "withdrawn", steamId)
+export async function withdrawOffer(offerId: string, steamId?: string) {
+  return updateOfferStatus(offerId, "withdrawn", steamId)
 }
 
 export function getOffers(): Offer[] { return offers }

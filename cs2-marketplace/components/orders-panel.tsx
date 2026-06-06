@@ -14,12 +14,16 @@ import {
   subscribeUserSales,
   syncUserSales,
 } from "@/lib/sales"
-import { SALE_STATUS_COLOR, SALE_STATUS_LABEL, type Sale } from "@/lib/sale-types"
+import { SALE_STATUS_COLOR, type Sale, type SaleStatus } from "@/lib/sale-types"
 import { formatPrice } from "@/lib/skins"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+
+function saleStatusLabel(status: SaleStatus, t: (k: string) => string) {
+  return t(`sale.status.${status}`)
+}
 
 function useCountdown(deadline: number, active: boolean) {
   const [msLeft, setMsLeft] = useState(() => deadline - Date.now())
@@ -84,7 +88,7 @@ function PurchaseRow({ sale }: { sale: Sale }) {
         </p>
         <p className="text-xs font-bold text-primary">{formatPrice(sale.priceTry)}</p>
         <p className={cn("text-[10px] font-semibold", SALE_STATUS_COLOR[sale.status])}>
-          {SALE_STATUS_LABEL[sale.status]}
+          {saleStatusLabel(sale.status, t)}
         </p>
         <DeliveryCountdown sale={sale} />
         {(canConfirm || canDispute) && (
@@ -136,7 +140,7 @@ function SellerSaleRow({ sale }: { sale: Sale }) {
         </p>
         <p className="text-xs font-bold text-success">{formatPrice(sale.netToSeller)}</p>
         <p className={cn("text-[10px] font-semibold", SALE_STATUS_COLOR[sale.status])}>
-          {SALE_STATUS_LABEL[sale.status]}
+          {saleStatusLabel(sale.status, t)}
         </p>
         {active && (
           <p className="text-[10px] font-semibold text-yellow-400">

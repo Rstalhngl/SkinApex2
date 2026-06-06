@@ -27,7 +27,7 @@ export function OfferDialog({
   skin: Skin | null
   onClose: () => void
 }) {
-  const { steamProfile, isLoggedIn } = useMarket()
+  const { steamProfile, isLoggedIn, tradeUrl, setTradeUrl } = useMarket()
   const { t } = useI18n()
   const [sending, setSending] = useState(false)
 
@@ -61,6 +61,10 @@ export function OfferDialog({
     if (!skin || sending) return
     if (!isLoggedIn || !steamProfile?.steamId) {
       toast.error(t("offer.loginRequired"))
+      return
+    }
+    if (!tradeUrl?.trim()) {
+      toast.error(t("offer.tradeUrlRequired"), { description: t("offer.tradeUrlRequiredDesc") })
       return
     }
 

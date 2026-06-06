@@ -17,6 +17,7 @@ import { formatPrice } from "@/lib/skins"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 const STATUS_CLASS: Record<string, string> = {
   pending:   "text-yellow-400",
@@ -25,8 +26,15 @@ const STATUS_CLASS: Record<string, string> = {
   withdrawn: "text-muted-foreground",
 }
 
+function offerErrorMessage(error: string | undefined, t: (k: string) => string) {
+  if (error === "buyer_no_trade_url") return t("offer.buyerNoTradeUrl")
+  if (error === "insufficient_balance") return t("offer.insufficientBalance")
+  return t("offer.actionFailed")
+}
+
 function OfferRow({ offer, steamId }: { offer: Offer; steamId?: string }) {
   const { t } = useI18n()
+  const [busy, setBusy] = useState(false)
   const ratio = offer.listingPrice > 0
     ? Math.round((offer.offerPrice / offer.listingPrice) * 100)
     : 0
@@ -52,18 +60,36 @@ function OfferRow({ offer, steamId }: { offer: Offer; steamId?: string }) {
         <div className="flex flex-col gap-1">
           {offer.direction === "incoming" ? (
             <>
-              <Button size="sm" className="h-7 bg-success px-2 text-[11px] text-white hover:bg-success/90"
-                onClick={() => acceptOffer(offer.id, steamId)}>
+              <Button size="sm" disabled={busy} className="h-7 bg-success px-2 text-[11px] text-white hover:bg-success/90"
+                onClick={async () => {
+                  setBusy(true)
+                  const res = await acceptOffer(offer.id, steamId)
+                  setBusy(false)
+                  if (res.ok) toast.success(t("offer.accepted"))
+                  else toast.error(offerErrorMessage(res.error, t))
+                }}>
                 <Check className="h-3.5 w-3.5" />
               </Button>
-              <Button size="sm" variant="destructive" className="h-7 px-2 text-[11px]"
-                onClick={() => rejectOffer(offer.id, steamId)}>
+              <Button size="sm" disabled={busy} variant="destructive" className="h-7 px-2 text-[11px]"
+                onClick={async () => {
+                  setBusy(true)
+                  const res = await rejectOffer(offer.id, steamId)
+                  setBusy(false)
+                  if (res.ok) toast.success(t("offer.rejected"))
+                  else toast.error(offerErrorMessage(res.error, t))
+                }}>
                 <X className="h-3.5 w-3.5" />
               </Button>
             </>
           ) : (
-            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] border-border"
-              onClick={() => withdrawOffer(offer.id, steamId)}>
+            <Button size="sm" disabled={busy} variant="outline" className="h-7 px-2 text-[11px] border-border"
+              onClick={async () => {
+                setBusy(true)
+                const res = await withdrawOffer(offer.id, steamId)
+                setBusy(false)
+                if (res.ok) toast.success(t("offer.withdrawn"))
+                else toast.error(offerErrorMessage(res.error, t))
+              }}>
               <X className="h-3.5 w-3.5" />
             </Button>
           )}

@@ -53,6 +53,55 @@ export async function createListing(
   }
 }
 
+export async function purchaseBatch(
+  listingIds: string[],
+  tradeUrl: string,
+): Promise<boolean> {
+  try {
+    const res = await apiFetch("/api/listings/batch-sell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingIds, tradeUrl }),
+    })
+    if (!res.ok) return false
+
+    const soldSet = new Set(listingIds)
+    listings = listings
+      .map((l) =>
+        soldSet.has(l.id) && l.status === "active"
+          ? { ...l, status: "sold" as const, soldAt: Date.now() }
+          : l,
+      )
+      .filter((l) => l.status === "active")
+    notify()
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function updateListingPrice(
+  listingId: string,
+  priceTry: number,
+): Promise<Listing | null> {
+  try {
+    const res = await apiFetch("/api/listings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId, priceTry }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const listing = data.listing as Listing
+    if (!listing?.id) return null
+    listings = listings.map((l) => (l.id === listing.id ? listing : l))
+    notify()
+    return listing
+  } catch {
+    return null
+  }
+}
+
 export async function purchaseListing(
   listingId: string,
   tradeUrl: string,

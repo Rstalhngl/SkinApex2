@@ -8,12 +8,14 @@ import {
   readListingsStore,
   writeListingsStore,
 } from "@/lib/listings-store"
+import { processExpiredSales } from "@/lib/sale-lifecycle"
 import { userOwnsAsset } from "@/lib/steam-inventory"
 
 const COMMISSION = 0.07
 
 export async function GET() {
   try {
+    await processExpiredSales()
     const listings = await getActiveListingsFromStore()
     return NextResponse.json({ listings })
   } catch {

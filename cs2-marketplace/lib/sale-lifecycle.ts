@@ -1,6 +1,6 @@
 import type { Sale } from "@/lib/sale-types"
 import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
-import { refundExpiredSale, payoutDeliveredSale } from "@/lib/purchase-service"
+import { refundDisputedSale, refundExpiredSale, payoutDeliveredSale } from "@/lib/purchase-service"
 
 /** Auto-expire pending deliveries past deadline; returns updated sales. */
 export async function processExpiredSales(): Promise<void> {
@@ -75,5 +75,6 @@ export async function disputeSale(saleId: string, buyerId: string): Promise<Sale
   const updated: Sale = { ...sale, status: "disputed", disputedAt: Date.now() }
   store.sales[idx] = updated
   await writeSalesStore(store)
+  await refundDisputedSale(updated)
   return updated
 }

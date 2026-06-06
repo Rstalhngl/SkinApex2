@@ -7,7 +7,13 @@ import type { Skin } from "@/lib/skins"
 import { formatPrice, isOwnListing, setUsdToTry, skins as demoSkins } from "@/lib/skins"
 import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
-import { purchaseListing, syncListings } from "@/lib/listings"
+import { listingToSkin } from "@/lib/listing-to-skin"
+import {
+  getActiveListings,
+  purchaseBatch,
+  subscribeListings,
+  syncListings,
+} from "@/lib/listings"
 import { LIVE_SYNC_MS } from "@/lib/live-sync"
 import { syncUserSales } from "@/lib/sales"
 import { syncOffers } from "@/lib/offers"
@@ -58,6 +64,16 @@ interface MarketContextValue {
 
 const MarketContext = createContext<MarketContextValue | null>(null)
 
+function buildCartSkins(ids: string[], steamId?: string): Skin[] {
+  const active = getActiveListings()
+  const byId = new Map(active.map((l) => [l.id, l]))
+  return ids
+    .map((id) => byId.get(id))
+    .filter((l): l is NonNullable<typeof l> => !!l)
+    .map(listingToSkin)
+    .filter((s) => !isOwnListing(s, steamId))
+}
+
 export function MarketProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n()
   const router = useRouter()
@@ -74,40 +90,33 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [tradeUrl, setTradeUrlState] = useState("")
   const [listedSkins, setListedSkins] = useState<number[]>([])
 
+  const hydrateCart = useCallback((ids: string[], steamId?: string) => {
+    const skins = buildCartSkins(ids, steamId)
+    const validIds = skins.map((s) => s.listingId!).filter(Boolean)
+    setCartListingIds(validIds)
+    setCartSkins(skins)
+    if (isLoggedIn && validIds.length !== ids.length) {
+      void patchUserData({ cartListingIds: validIds })
+    }
+  }, [isLoggedIn])
+
   const refreshWallet = useCallback(async () => {
     if (!isLoggedIn) return
     const balance = await fetchWalletBalance()
     setWallet(balance)
   }, [isLoggedIn])
 
-  const loadUserData = useCallback(async () => {
+  const loadUserData = useCallback(async (steamId?: string) => {
     const [data, balance] = await Promise.all([fetchUserData(), fetchWalletBalance()])
     if (data) {
-      setCartListingIds(data.cartListingIds ?? [])
+      const ids = data.cartListingIds ?? []
       setWishlist(data.wishlistListingIds ?? [])
       if (data.tradeUrl) setTradeUrlState(data.tradeUrl)
+      await syncListings()
+      hydrateCart(ids, steamId)
     }
     setWallet(balance)
-  }, [])
-
-  const restoreSession = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/auth/session")
-      const data = await res.json()
-      if (data.loggedIn && data.steamId) {
-        const profile: SteamProfile = {
-          steamId: data.steamId,
-          steamName: data.steamName ?? null,
-          steamAvatar: data.steamAvatar ?? null,
-        }
-        setSteamProfile(profile)
-        setIsLoggedIn(true)
-        await loadUserData()
-        return true
-      }
-    } catch {}
-    return false
-  }, [loadUserData])
+  }, [hydrateCart])
 
   useEffect(() => {
     const fetchRate = async () => {
@@ -154,7 +163,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
           steamAvatar: sessionData.steamAvatar ?? null,
         })
         setIsLoggedIn(true)
-        await loadUserData()
+        await loadUserData(sessionData.steamId)
       }
       if (authSuccess && ok) {
         toast.success(t("toast.login.title"), {
@@ -164,7 +173,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
         })
       }
       if (authError) {
-        toast.error(t("toast.login.title"), { description: "Steam girişi başarısız." })
+        toast.error(t("toast.login.title"), { description: t("toast.authFailed") })
       }
       if (authSuccess || authError) router.replace("/", { scroll: false })
     }
@@ -175,16 +184,16 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const steamId = steamProfile?.steamId
     if (!steamId) return
-    setCartSkins((prev) => {
-      const filtered = prev.filter((s) => !isOwnListing(s, steamId))
-      return filtered.length === prev.length ? prev : filtered
-    })
-  }, [steamProfile?.steamId])
+    const unsub = subscribeListings(() => hydrateCart(cartListingIds, steamId))
+    return unsub
+  }, [steamProfile?.steamId, cartListingIds, hydrateCart])
 
   useEffect(() => {
     const steamId = steamProfile?.steamId
     const syncAll = () => {
-      void syncListings()
+      void syncListings().then(() => {
+        if (cartListingIds.length > 0) hydrateCart(cartListingIds, steamId)
+      })
       if (isLoggedIn && steamId) {
         void syncUserNotifications()
         void syncUserSales()
@@ -202,12 +211,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", onVisible)
       window.removeEventListener("focus", syncAll)
     }
-  }, [isLoggedIn, steamProfile?.steamId, refreshWallet])
+  }, [isLoggedIn, steamProfile?.steamId, refreshWallet, cartListingIds, hydrateCart])
 
   const login = useCallback((profile?: SteamProfile) => {
     setIsLoggedIn(true)
     if (profile) setSteamProfile(profile)
-    void loadUserData()
+    void loadUserData(profile?.steamId)
     toast.success(t("toast.login.title"), { description: t("toast.login.desc") })
   }, [t, loadUserData])
 
@@ -238,6 +247,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [isLoggedIn])
 
   const addToCart = useCallback((skin: Skin) => {
+    if (!isLoggedIn) {
+      toast.error(t("gate.title"), { description: t("gate.desc") })
+      return
+    }
     if (!skin.listingId) return
     if (isOwnListing(skin, steamProfile?.steamId)) {
       toast.error(t("toast.ownListing"))
@@ -254,7 +267,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       description: `${skin.type} | ${skin.title} — ${formatPrice(skin.price)}`,
     })
     pushActivity(`${skin.type} | ${skin.title}`, "carted", formatPrice(skin.price))
-  }, [cartListingIds, persistCart, t, steamProfile?.steamId])
+  }, [cartListingIds, persistCart, t, steamProfile?.steamId, isLoggedIn])
 
   const removeFromCart = useCallback((listingId: string) => {
     const next = cartListingIds.filter((id) => id !== listingId)
@@ -278,6 +291,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   )
 
   const toggleWishlist = useCallback((skin: Skin) => {
+    if (!isLoggedIn) {
+      toast.error(t("gate.title"), { description: t("gate.desc") })
+      return
+    }
     if (!skin.listingId) return
     if (isOwnListing(skin, steamProfile?.steamId)) {
       toast.error(t("toast.ownListing"))
@@ -292,13 +309,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       toast.success(t("toast.addedToWishlist"), { description: `${skin.type} | ${skin.title}` })
       pushActivity(`${skin.type} | ${skin.title}`, "wishlisted", formatPrice(skin.price))
     }
-  }, [wishlist, persistWishlist, t, steamProfile?.steamId])
+  }, [wishlist, persistWishlist, t, steamProfile?.steamId, isLoggedIn])
 
   const deposit = useCallback(async (amount: number) => {
     if (!isLoggedIn) return
     const balance = await walletDeposit(amount)
     if (balance == null) {
-      toast.error("Yatırma başarısız")
+      toast.error(t("deposit.failed"))
       return
     }
     setWallet(balance)
@@ -315,7 +332,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     return true
   }, [isLoggedIn])
 
-  const cartTotal = useMemo(() => cartSkins.reduce((sum, s) => sum + s.price, 0), [cartSkins])
+  const cartTotal = useMemo(
+    () => cartSkins.reduce((sum, s) => sum + s.price, 0),
+    [cartSkins],
+  )
 
   const checkout = useCallback(async (tradeUrlValue: string) => {
     if (!isLoggedIn || !steamProfile) {
@@ -330,20 +350,16 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    for (const skin of cartSkins) {
-      if (!skin.listingId) continue
-      if (isOwnListing(skin, steamProfile.steamId)) {
-        toast.error(t("toast.ownListing"))
-        return
-      }
-      const ok = await purchaseListing(skin.listingId, tradeUrlValue)
-      if (!ok) {
-        toast.error("Satın alma başarısız", {
-          description: `${skin.type} | ${skin.title} artık satışta olmayabilir veya bakiye yetersiz.`,
-        })
-        await refreshWallet()
-        return
-      }
+    const listingIds = cartSkins.map((s) => s.listingId).filter((id): id is string => !!id)
+    if (listingIds.length === 0) { toast.error(t("toast.cartEmpty")); return }
+
+    const ok = await purchaseBatch(listingIds, tradeUrlValue)
+    if (!ok) {
+      toast.error(t("checkout.failed"), {
+        description: t("checkout.failedDesc"),
+      })
+      await refreshWallet()
+      return
     }
 
     await refreshWallet()

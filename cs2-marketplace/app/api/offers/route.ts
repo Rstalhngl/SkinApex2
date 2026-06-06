@@ -121,6 +121,12 @@ export async function PATCH(req: Request) {
     if (status === "accepted" && offer.sellerId !== session.steamId) {
       return NextResponse.json({ error: "only_seller_can_accept" }, { status: 403 })
     }
+    if (status === "rejected" && offer.sellerId !== session.steamId) {
+      return NextResponse.json({ error: "only_seller_can_reject" }, { status: 403 })
+    }
+    if (status === "withdrawn" && offer.buyerId !== session.steamId) {
+      return NextResponse.json({ error: "only_buyer_can_withdraw" }, { status: 403 })
+    }
 
     if (status === "accepted" && offer.status === "pending") {
       const buyerTradeUrl = await getUserTradeUrl(offer.buyerId)

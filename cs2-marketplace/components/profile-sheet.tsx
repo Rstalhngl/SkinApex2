@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import {
-  ExternalLink, Lock, Package, RefreshCw, Tag, User, XCircle,
+  ExternalLink, Lock, Package, Pencil, RefreshCw, Tag, User, XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
   cancelListing, createListing, getActiveListings,
-  subscribeListings, syncListings, type Listing,
+  subscribeListings, syncListings, updateListingPrice, type Listing,
 } from "@/lib/listings"
 
 const COMMISSION_RATE = 0.07  // 7% platform commission
@@ -27,6 +27,7 @@ import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { OrdersPanel } from "@/components/orders-panel"
 import { formatPrice, steamProfileUrl } from "@/lib/skins"
+import { fetchWalletData, type WalletTransaction } from "@/lib/user-data-client"
 import type { InventoryItem } from "@/lib/inventory-types"
 import { cn } from "@/lib/utils"
 
@@ -35,6 +36,14 @@ import { cn } from "@/lib/utils"
 function ProfileTab() {
   const { t } = useI18n()
   const { steamProfile, wallet, isLoggedIn } = useMarket()
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([])
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    void fetchWalletData().then((data) => {
+      if (data) setTransactions(data.transactions.slice(0, 5))
+    })
+  }, [isLoggedIn, wallet])
 
   if (!isLoggedIn || !steamProfile) return null
 
@@ -71,6 +80,24 @@ function ProfileTab() {
         </div>
       </div>
 
+      <div className="w-full rounded-xl border border-border bg-input p-4 text-left text-sm">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("wallet.recentTx")}</p>
+        {transactions.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{t("wallet.noTx")}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {transactions.map((tx) => (
+              <li key={tx.id} className="flex items-center justify-between text-xs">
+                <span className="truncate text-muted-foreground">{tx.type}</span>
+                <span className={cn("font-semibold", tx.amount >= 0 ? "text-success" : "text-destructive")}>
+                  {tx.amount >= 0 ? "+" : ""}{formatPrice(Math.abs(tx.amount))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {steamProfile.steamId && (
         <a
           href={steamProfileUrl(steamProfile.steamId)}
@@ -94,12 +121,31 @@ function ProfileTab() {
 function ListingCard({
   listing,
   onDelist,
+  onPriceUpdated,
 }: {
   listing: Listing
   onDelist: (listing: Listing) => void
+  onPriceUpdated: () => void
 }) {
   const { t } = useI18n()
   const displayName = (listing.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
+
+  const handleEditPrice = async () => {
+    const next = window.prompt(t("listings.editPricePrompt"), String(listing.priceTry))
+    if (!next) return
+    const priceTry = Math.round(parseFloat(next))
+    if (!Number.isFinite(priceTry) || priceTry <= 0) {
+      toast.error(t("listings.invalidPrice"))
+      return
+    }
+    const updated = await updateListingPrice(listing.id, priceTry)
+    if (updated) {
+      toast.success(t("listings.priceUpdated"))
+      onPriceUpdated()
+    } else {
+      toast.error(t("listings.priceUpdateFailed"))
+    }
+  }
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
@@ -120,10 +166,17 @@ function ListingCard({
       {listing.exterior && <p className="text-[9px] text-muted-foreground">{listing.exterior}</p>}
       <p className="text-[10px] font-bold text-success">{formatPrice(listing.priceTry)}</p>
 
-      <div className="absolute inset-0 flex items-center justify-center bg-card/90 px-2 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/90 px-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          onClick={handleEditPrice}
+          className="flex h-7 w-full items-center justify-center gap-1 rounded-md bg-primary px-2 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Pencil className="h-3 w-3 shrink-0" />
+          <span className="truncate">{t("listings.editPrice")}</span>
+        </button>
         <button
           onClick={() => onDelist(listing)}
-          className="flex h-8 w-full min-w-0 max-w-full items-center justify-center gap-1 rounded-md bg-destructive px-2 text-[10px] font-semibold text-destructive-foreground hover:bg-destructive/90"
+          className="flex h-7 w-full min-w-0 max-w-full items-center justify-center gap-1 rounded-md bg-destructive px-2 text-[10px] font-semibold text-destructive-foreground hover:bg-destructive/90"
         >
           <XCircle className="h-3 w-3 shrink-0" />
           <span className="truncate">{t("sell.unpublish")}</span>
@@ -202,7 +255,7 @@ function MyListingsTab() {
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
         {listings.map((listing) => (
-          <ListingCard key={listing.id} listing={listing} onDelist={handleDelist} />
+          <ListingCard key={listing.id} listing={listing} onDelist={handleDelist} onPriceUpdated={refresh} />
         ))}
       </div>
     </div>

@@ -32,3 +32,5 @@ next-env.d.ts
 /data/sales.json
 /data/notifications.json
 /data/offers.json
+/data/wallets.json
+/data/users.json
