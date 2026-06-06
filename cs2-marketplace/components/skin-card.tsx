@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink, Handshake, Heart, Tag } from "lucide-react"
+import { ExternalLink, Handshake, Heart, Tag, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
@@ -12,18 +12,26 @@ export function SkinCard({
   onInspect,
   onSell,
   onOffer,
+  onDelist,
 }: {
   skin: Skin
   onInspect: (skin: Skin) => void
   onSell?: (skin: Skin) => void
   onOffer?: (skin: Skin) => void
+  onDelist?: (skin: Skin) => void
 }) {
-  const { addToCart, toggleWishlist, isWished, isInCart, listedSkins } = useMarket()
+  const { addToCart, toggleWishlist, isWished, isInCart, listedSkins, steamProfile } = useMarket()
   const { t } = useI18n()
   const wished = isWished(skin.id)
   const inCart = isInCart(skin.id)
   const isOwned = skin.owner === "me"
   const isListed = listedSkins.includes(skin.id)
+  const isMyListing = !!(
+    skin.listingId &&
+    skin.sellerId &&
+    steamProfile?.steamId &&
+    skin.sellerId === steamProfile.steamId
+  )
 
   return (
     <div
@@ -67,7 +75,15 @@ export function SkinCard({
         />
         {/* Hover action buttons */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
-          {isOwned ? (
+          {isMyListing ? (
+            <Button
+              onClick={() => onDelist?.(skin)}
+              className="h-9 w-full bg-destructive text-xs font-bold uppercase tracking-wide text-destructive-foreground hover:bg-destructive/90"
+            >
+              <XCircle className="mr-1.5 h-3.5 w-3.5" />
+              {t("sell.unpublish")}
+            </Button>
+          ) : isOwned ? (
             <div className="flex w-full gap-1.5">
               <Button
                 onClick={() => onSell?.(skin)}

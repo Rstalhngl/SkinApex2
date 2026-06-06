@@ -14,7 +14,9 @@ import { SellDialog } from "@/components/sell-dialog"
 import { OfferDialog } from "@/components/offer-dialog"
 import { categoryOf, type Exterior, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
-import { getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
+import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
+import { useMarket } from "@/components/market-provider"
+import { toast } from "sonner"
 
 const DEFAULT_FILTERS: Filters = {
   sort: "all",
@@ -68,6 +70,7 @@ function listingToSkin(listing: Listing): Skin & { listingId: string } {
   return {
     id: (Number.isFinite(numericId) ? numericId : Date.now()) + 100000,
     listingId: listing.id,
+    sellerId: listing.sellerId,
     owner: "other",
     type,
     title: title || type,
@@ -115,6 +118,7 @@ function EmptyMarketplace({ onReset, hasFilters }: { onReset: () => void; hasFil
 
 export function Marketplace() {
   const { t } = useI18n()
+  const { steamProfile } = useMarket()
 
   const [listings, setListings] = useState<Listing[]>(() => getActiveListings())
   const [loading, setLoading] = useState(true)
@@ -181,6 +185,16 @@ export function Marketplace() {
     setFilters(DEFAULT_FILTERS)
     setSearch("")
     setVisibleCount(PAGE_SIZE)
+  }
+
+  const handleDelist = async (skin: Skin) => {
+    if (!skin.listingId || !steamProfile?.steamId) return
+    const ok = await cancelListing(skin.listingId, steamProfile.steamId)
+    if (ok) {
+      toast.success(t("sell.unpublished"))
+    } else {
+      toast.error(t("sell.unpublishFailed"))
+    }
   }
 
   return (
@@ -277,6 +291,7 @@ export function Marketplace() {
                     skin={skin}
                     onInspect={setInspecting}
                     onOffer={setOffering}
+                    onDelist={handleDelist}
                   />
                 ))}
               </div>

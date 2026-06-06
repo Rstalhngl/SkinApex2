@@ -79,11 +79,30 @@ export async function purchaseListing(
   }
 }
 
-export function cancelListing(listingId: string): void {
-  listings = listings.map((l) =>
-    l.id === listingId && l.status === "active" ? { ...l, status: "cancelled" } : l,
-  )
-  notify()
+export async function cancelListing(
+  listingId: string,
+  sellerId: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/listings/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId, sellerId }),
+    })
+    if (!res.ok) return false
+
+    listings = listings
+      .map((l) =>
+        l.id === listingId && l.status === "active"
+          ? { ...l, status: "cancelled" as const }
+          : l,
+      )
+      .filter((l) => l.status === "active")
+    notify()
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function getListings(): Listing[] { return listings }

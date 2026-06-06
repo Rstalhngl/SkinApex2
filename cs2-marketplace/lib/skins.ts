@@ -43,6 +43,7 @@ export interface Skin {
   patternSeed?: number  // 0-999 kalıp şablonu numarası
   phase?: string        // Doppler phase (e.g. "Phase 1", "Ruby", "Sapphire")
   listingId?: string    // real marketplace listing id
+  sellerId?: string     // Steam ID of listing owner
 }
 
 export const CURRENT_USER = {

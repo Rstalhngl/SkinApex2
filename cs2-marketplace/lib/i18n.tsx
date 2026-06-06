@@ -233,6 +233,9 @@ const en: Dict = {
   "sell.listed": "Item listed",
   "sell.listedDesc": "{item} listed for {price}",
   "sell.delisted": "Listing removed",
+  "sell.unpublish": "Remove from Marketplace",
+  "sell.unpublished": "Listing removed from marketplace",
+  "sell.unpublishFailed": "Could not remove listing. Please try again.",
   "sell.ownedBadge": "Owned",
   "sell.listedBadge": "Listed",
 
@@ -501,6 +504,9 @@ const tr: Dict = {
   "sell.listed": "Eşya listelendi",
   "sell.listedDesc": "{item} — {price} fiyatıyla listelendi",
   "sell.delisted": "İlan kaldırıldı",
+  "sell.unpublish": "İlanı Yayından Kaldır",
+  "sell.unpublished": "İlan yayından kaldırıldı",
+  "sell.unpublishFailed": "İlan kaldırılamadı. Lütfen tekrar deneyin.",
   "sell.ownedBadge": "Sahip",
   "sell.listedBadge": "Listelendi",
 
