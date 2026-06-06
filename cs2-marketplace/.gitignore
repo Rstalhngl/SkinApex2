@@ -31,3 +31,4 @@ next-env.d.ts
 /data/listings.json
 /data/sales.json
 /data/notifications.json
+/data/offers.json

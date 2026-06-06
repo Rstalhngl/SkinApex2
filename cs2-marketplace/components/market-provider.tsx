@@ -10,6 +10,7 @@ import { pushActivity } from "@/lib/activity-feed"
 import { createOrder } from "@/lib/orders"
 import { purchaseListing } from "@/lib/listings"
 import { syncSellerSales } from "@/lib/sales"
+import { syncOffers } from "@/lib/offers"
 import { syncUserNotifications } from "@/lib/user-notifications"
 import { useI18n } from "@/lib/i18n"
 
@@ -176,6 +177,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     const sync = () => {
       void syncUserNotifications(steamId)
       void syncSellerSales(steamId)
+      void syncOffers(steamId)
     }
     sync()
     const interval = setInterval(sync, 30_000)

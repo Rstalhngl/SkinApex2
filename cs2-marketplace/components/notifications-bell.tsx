@@ -170,7 +170,9 @@ export function NotificationsBell() {
                 >
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-input">
                     {n.source === "sale"
-                      ? <PackageCheck className="h-3.5 w-3.5 text-success" />
+                      ? (n.message.includes("teklif") || n.message.includes("Teklif")
+                        ? <Handshake className="h-3.5 w-3.5 text-primary" />
+                        : <PackageCheck className="h-3.5 w-3.5 text-success" />)
                       : OFFER_ICON[n.offerType ?? "offer_received"]}
                   </span>
                   <div className="min-w-0 flex-1">

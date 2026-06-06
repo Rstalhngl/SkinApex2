@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  getOffers, subscribeOffers, acceptOffer, rejectOffer, withdrawOffer,
+  getOffers, subscribeOffers, syncOffers, acceptOffer, rejectOffer, withdrawOffer,
   type Offer,
 } from "@/lib/offers"
-import { formatUSD } from "@/lib/skins"
+import { formatPrice } from "@/lib/skins"
+import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
@@ -24,9 +25,11 @@ const STATUS_CLASS: Record<string, string> = {
   withdrawn: "text-muted-foreground",
 }
 
-function OfferRow({ offer }: { offer: Offer }) {
+function OfferRow({ offer, steamId }: { offer: Offer; steamId?: string }) {
   const { t } = useI18n()
-  const ratio = Math.round((offer.offerPrice / offer.listingPrice) * 100)
+  const ratio = offer.listingPrice > 0
+    ? Math.round((offer.offerPrice / offer.listingPrice) * 100)
+    : 0
   return (
     <li className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0">
       <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-md bg-input">
@@ -38,7 +41,7 @@ function OfferRow({ offer }: { offer: Offer }) {
         <p className="truncate text-xs font-semibold text-foreground">{offer.skinName}</p>
         <p className="text-[11px] text-muted-foreground">{offer.fromName}</p>
         <p className="text-[10px] font-semibold text-primary">
-          {formatUSD(offer.offerPrice)}
+          {formatPrice(offer.offerPrice)}
           <span className="ml-1 text-muted-foreground/60">({ratio}%)</span>
         </p>
         <p className={cn("text-[10px] font-bold", STATUS_CLASS[offer.status])}>
@@ -50,17 +53,17 @@ function OfferRow({ offer }: { offer: Offer }) {
           {offer.direction === "incoming" ? (
             <>
               <Button size="sm" className="h-7 bg-success px-2 text-[11px] text-white hover:bg-success/90"
-                onClick={() => acceptOffer(offer.id)}>
+                onClick={() => acceptOffer(offer.id, steamId)}>
                 <Check className="h-3.5 w-3.5" />
               </Button>
               <Button size="sm" variant="destructive" className="h-7 px-2 text-[11px]"
-                onClick={() => rejectOffer(offer.id)}>
+                onClick={() => rejectOffer(offer.id, steamId)}>
                 <X className="h-3.5 w-3.5" />
               </Button>
             </>
           ) : (
             <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] border-border"
-              onClick={() => withdrawOffer(offer.id)}>
+              onClick={() => withdrawOffer(offer.id, steamId)}>
               <X className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -72,11 +75,14 @@ function OfferRow({ offer }: { offer: Offer }) {
 
 export function OffersSheet({ trigger }: { trigger?: React.ReactNode }) {
   const { t } = useI18n()
+  const { steamProfile } = useMarket()
   const [offers, setOffers] = useState<Offer[]>(() => getOffers())
 
   useEffect(() => {
+    const steamId = steamProfile?.steamId
+    if (steamId) void syncOffers(steamId)
     return subscribeOffers(() => setOffers([...getOffers()]))
-  }, [])
+  }, [steamProfile?.steamId])
 
   const incoming = offers.filter(o => o.direction === "incoming")
   const outgoing = offers.filter(o => o.direction === "outgoing")
@@ -116,7 +122,7 @@ export function OffersSheet({ trigger }: { trigger?: React.ReactNode }) {
               </div>
             ) : (
               <ScrollArea className="h-full">
-                <ul>{incoming.map(o => <OfferRow key={o.id} offer={o} />)}</ul>
+                <ul>{incoming.map(o => <OfferRow key={o.id} offer={o} steamId={steamProfile?.steamId} />)}</ul>
               </ScrollArea>
             )}
           </TabsContent>
@@ -129,7 +135,7 @@ export function OffersSheet({ trigger }: { trigger?: React.ReactNode }) {
               </div>
             ) : (
               <ScrollArea className="h-full">
-                <ul>{outgoing.map(o => <OfferRow key={o.id} offer={o} />)}</ul>
+                <ul>{outgoing.map(o => <OfferRow key={o.id} offer={o} steamId={steamProfile?.steamId} />)}</ul>
               </ScrollArea>
             )}
           </TabsContent>

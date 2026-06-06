@@ -1,5 +1,7 @@
 "use client"
 
+import type { StoredOffer } from "@/lib/offer-types"
+
 export type OfferStatus = "pending" | "accepted" | "rejected" | "withdrawn"
 export type OfferDirection = "incoming" | "outgoing"
 
@@ -8,13 +10,14 @@ export interface Offer {
   skinId: number
   skinName: string
   skinImg: string
-  offerPrice: number   // USD
-  listingPrice: number // USD
+  offerPrice: number   // TRY
+  listingPrice: number // TRY
   status: OfferStatus
   direction: OfferDirection
   createdAt: number
   fromName: string
   fromAvatar?: string
+  listingId?: string
 }
 
 export interface Notification {
@@ -26,7 +29,6 @@ export interface Notification {
   read: boolean
 }
 
-// ─── In-memory stores ─────────────────────────────────────────────────────────
 let offers: Offer[] = []
 let notifications: Notification[] = []
 let nextOfferId = 1
@@ -35,23 +37,90 @@ let nextNotifId = 1
 const offerListeners = new Set<() => void>()
 const notifListeners = new Set<() => void>()
 
-function notifyOfferListeners() { offerListeners.forEach(cb => cb()) }
-function notifyNotifListeners() { notifListeners.forEach(cb => cb()) }
+function notifyOfferListeners() { offerListeners.forEach((cb) => cb()) }
+function notifyNotifListeners() { notifListeners.forEach((cb) => cb()) }
 
-// ─── Offer actions ────────────────────────────────────────────────────────────
+function fmtTry(v: number) {
+  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
+}
 
-export function sendOffer(
-  skin: { id: number; type: string; title: string; img: string; price: number },
-  offerPrice: number,
+function storedToOffer(stored: StoredOffer, viewerSteamId: string): Offer {
+  const isSeller = stored.sellerId === viewerSteamId
+  return {
+    id: stored.id,
+    skinId: 0,
+    skinName: stored.itemName,
+    skinImg: stored.itemImg,
+    offerPrice: stored.offerTry,
+    listingPrice: stored.listingTry,
+    status: stored.status,
+    direction: isSeller ? "incoming" : "outgoing",
+    createdAt: stored.createdAt,
+    fromName: isSeller ? stored.buyerName : stored.sellerName,
+    fromAvatar: isSeller ? stored.buyerAvatar : undefined,
+    listingId: stored.listingId,
+  }
+}
+
+export async function syncOffers(steamId: string): Promise<void> {
+  try {
+    const res = await fetch(`/api/offers?steamId=${encodeURIComponent(steamId)}`)
+    if (!res.ok) return
+    const data = await res.json()
+    const stored = Array.isArray(data.offers) ? (data.offers as StoredOffer[]) : []
+    const serverOffers = stored.map((o) => storedToOffer(o, steamId))
+    const localOnly = offers.filter((o) => !o.listingId)
+    offers = [...serverOffers, ...localOnly]
+    notifyOfferListeners()
+  } catch {
+    // keep cache
+  }
+}
+
+export async function sendOffer(
+  skin: {
+    id: number
+    type: string
+    title: string
+    img: string
+    price: number
+    listingId?: string
+  },
+  offerTry: number,
   userName: string,
-  userAvatar?: string,
-): Offer {
+  userAvatar: string | null | undefined,
+  buyerSteamId: string,
+): Promise<Offer | null> {
+  if (skin.listingId) {
+    try {
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: skin.listingId,
+          offerTry,
+          buyer: { steamId: buyerSteamId, steamName: userName, steamAvatar: userAvatar },
+        }),
+      })
+      if (!res.ok) return null
+
+      const data = await res.json()
+      const stored = data.offer as StoredOffer
+      const offer = storedToOffer(stored, buyerSteamId)
+      offers = [offer, ...offers.filter((o) => o.id !== offer.id)]
+      notifyOfferListeners()
+      return offer
+    } catch {
+      return null
+    }
+  }
+
   const offer: Offer = {
     id: `offer-${nextOfferId++}`,
     skinId: skin.id,
     skinName: `${skin.type} | ${skin.title}`,
     skinImg: skin.img,
-    offerPrice,
+    offerPrice: offerTry,
     listingPrice: skin.price,
     status: "pending",
     direction: "outgoing",
@@ -62,7 +131,6 @@ export function sendOffer(
   offers = [offer, ...offers]
   notifyOfferListeners()
 
-  // Create a mirrored incoming offer (visible to listing owner / demo)
   const incomingMirror: Offer = {
     ...offer,
     id: `offer-${nextOfferId++}`,
@@ -71,14 +139,12 @@ export function sendOffer(
   offers = [incomingMirror, ...offers]
   notifyOfferListeners()
 
-  // Notify listing owner of incoming offer
   addNotification({
     type: "offer_received",
-    message: `${userName} teklif verdi: ${offer.skinName} — ${fmtUsd(offerPrice)}`,
+    message: `${userName} teklif verdi: ${offer.skinName} — ${fmtTry(offerTry)}`,
     offerId: incomingMirror.id,
   })
 
-  // Simulate seller response after 3-8 seconds (demo)
   const delay = 3000 + Math.random() * 5000
   setTimeout(() => simulateResponse(offer.id), delay)
 
@@ -86,103 +152,89 @@ export function sendOffer(
 }
 
 function simulateResponse(offerId: string) {
-  const offer = offers.find(o => o.id === offerId)
+  const offer = offers.find((o) => o.id === offerId)
   if (!offer || offer.status !== "pending") return
 
-  // 60% accept if offer ≥ 75% of listing price, else 30% accept
   const ratio = offer.offerPrice / offer.listingPrice
   const acceptChance = ratio >= 0.75 ? 0.6 : 0.3
   const accepted = Math.random() < acceptChance
   const newStatus = accepted ? "accepted" : "rejected"
 
-  offers = offers.map(o => o.id === offerId ? { ...o, status: newStatus } : o)
+  offers = offers.map((o) => (o.id === offerId ? { ...o, status: newStatus } : o))
   notifyOfferListeners()
 
-  // Notify the offerer
   addNotification({
     type: accepted ? "offer_accepted" : "offer_rejected",
     message: accepted
-      ? `Teklifiniz kabul edildi: ${offer.skinName} — ${fmtUsd(offer.offerPrice)}`
+      ? `Teklifiniz kabul edildi: ${offer.skinName} — ${fmtTry(offer.offerPrice)}`
       : `Teklifiniz reddedildi: ${offer.skinName}`,
     offerId,
   })
 }
 
-export function updateOfferStatus(offerId: string, status: OfferStatus) {
-  offers = offers.map(o => o.id === offerId ? { ...o, status } : o)
+async function updateServerOffer(
+  offerId: string,
+  status: OfferStatus,
+  steamId: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/offers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId, status, steamId }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+export async function updateOfferStatus(offerId: string, status: OfferStatus, steamId?: string) {
+  const offer = offers.find((o) => o.id === offerId)
+  if (offer?.listingId && steamId) {
+    const ok = await updateServerOffer(offerId, status, steamId)
+    if (ok) void syncOffers(steamId)
+    return
+  }
+
+  offers = offers.map((o) => (o.id === offerId ? { ...o, status } : o))
   notifyOfferListeners()
 
-  const offer = offers.find(o => o.id === offerId)
-  if (!offer) return
+  const updated = offers.find((o) => o.id === offerId)
+  if (!updated) return
 
-  // For incoming offers accepted/rejected by the listing owner:
-  // notify the person who made the offer
   if (status === "accepted") {
     addNotification({
       type: "offer_accepted",
-      message: `Teklifiniz kabul edildi: ${offer.skinName} — ${fmtUsd(offer.offerPrice)}`,
+      message: `Teklifiniz kabul edildi: ${updated.skinName} — ${fmtTry(updated.offerPrice)}`,
       offerId,
     })
   } else if (status === "rejected") {
     addNotification({
       type: "offer_rejected",
-      message: `Teklifiniz reddedildi: ${offer.skinName}`,
+      message: `Teklifiniz reddedildi: ${updated.skinName}`,
       offerId,
     })
   } else if (status === "withdrawn") {
     addNotification({
       type: "offer_withdrawn",
-      message: `Teklifiniz geri çekildi: ${offer.skinName}`,
+      message: `Teklifiniz geri çekildi: ${updated.skinName}`,
       offerId,
     })
   }
 }
 
-// Incoming offer simulation — can be triggered externally
-export function receiveOffer(
-  skin: { id: number; type: string; title: string; img: string; price: number },
-  offerPrice: number,
-  fromName: string,
-  fromAvatar?: string,
-): Offer {
-  const offer: Offer = {
-    id: `offer-${nextOfferId++}`,
-    skinId: skin.id,
-    skinName: `${skin.type} | ${skin.title}`,
-    skinImg: skin.img,
-    offerPrice,
-    listingPrice: skin.price,
-    status: "pending",
-    direction: "incoming",
-    createdAt: Date.now(),
-    fromName,
-    fromAvatar,
-  }
-  offers = [offer, ...offers]
-  notifyOfferListeners()
-
-  addNotification({
-    type: "offer_received",
-    message: `${fromName} teklifte bulundu: ${offer.skinName} — ${fmtUsd(offerPrice)}`,
-    offerId: offer.id,
-  })
-
-  return offer
+export function acceptOffer(offerId: string, steamId?: string) {
+  void updateOfferStatus(offerId, "accepted", steamId)
 }
 
-export function acceptOffer(offerId: string) {
-  updateOfferStatus(offerId, "accepted")
+export function rejectOffer(offerId: string, steamId?: string) {
+  void updateOfferStatus(offerId, "rejected", steamId)
 }
 
-export function rejectOffer(offerId: string) {
-  updateOfferStatus(offerId, "rejected")
+export function withdrawOffer(offerId: string, steamId?: string) {
+  void updateOfferStatus(offerId, "withdrawn", steamId)
 }
-
-export function withdrawOffer(offerId: string) {
-  updateOfferStatus(offerId, "withdrawn")
-}
-
-// ─── Notification actions ──────────────────────────────────────────────────────
 
 function addNotification(n: Omit<Notification, "id" | "createdAt" | "read">) {
   notifications = [{
@@ -195,32 +247,25 @@ function addNotification(n: Omit<Notification, "id" | "createdAt" | "read">) {
 }
 
 export function markAllRead() {
-  notifications = notifications.map(n => ({ ...n, read: true }))
+  notifications = notifications.map((n) => ({ ...n, read: true }))
   notifyNotifListeners()
 }
 
 export function markRead(id: string) {
-  notifications = notifications.map(n => n.id === id ? { ...n, read: true } : n)
+  notifications = notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
   notifyNotifListeners()
 }
 
-// ─── Getters / subscriptions ───────────────────────────────────────────────────
-
 export function getOffers(): Offer[] { return offers }
 export function getNotifications(): Notification[] { return notifications }
-export function getUnreadCount(): number { return notifications.filter(n => !n.read).length }
+export function getUnreadCount(): number { return notifications.filter((n) => !n.read).length }
 
 export function subscribeOffers(cb: () => void): () => void {
   offerListeners.add(cb)
   return () => offerListeners.delete(cb)
 }
+
 export function subscribeNotifications(cb: () => void): () => void {
   notifListeners.add(cb)
   return () => notifListeners.delete(cb)
-}
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-function fmtUsd(v: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v)
 }
