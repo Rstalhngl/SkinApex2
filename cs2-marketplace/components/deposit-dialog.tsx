@@ -29,10 +29,10 @@ export function DepositDialog({
   const { t } = useI18n()
   const [amount, setAmount] = useState("1000")
 
-  const handleDeposit = () => {
+  const handleDeposit = async () => {
     const value = Number.parseFloat(amount)
     if (!Number.isNaN(value) && value > 0) {
-      deposit(value)   // value is TRY, wallet is TRY — direct add
+      await deposit(value)
       onOpenChange(false)
       setAmount("1000")
     }
@@ -40,7 +40,7 @@ export function DepositDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-border bg-card sm:max-w-sm" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent className="border-border bg-card sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Wallet className="h-5 w-5 text-success" />

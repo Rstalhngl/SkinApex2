@@ -1,4 +1,8 @@
 import type { InventoryItem } from "@/lib/inventory-types"
+import {
+  itemHasFloat, parseAssetWear, resolveItemPhase,
+} from "@/lib/item-wear"
+import { resolveItemType } from "@/lib/skins"
 import { NextRequest, NextResponse } from "next/server"
 import zlib from "zlib"
 import { promisify } from "util"
@@ -15,6 +19,7 @@ interface SteamAsset {
   instanceid: string
   assetid: string
   amount: string
+  asset_properties?: { propertyid: number; int_value?: string; float_value?: string }[]
 }
 
 interface SteamDescription {
@@ -128,7 +133,14 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
 
     const rarity = tags["Rarity"] || tags["Quality"] || ""
     const exterior = tags["Exterior"] || ""
-    const type = tags["Type"] || desc.type || ""
+    const type = resolveItemType(
+      tags["Type"] || desc.type || "",
+      desc.name,
+      desc.market_hash_name,
+    )
+    const hasFloat = itemHasFloat(type, desc.name, desc.market_hash_name)
+    const wear = parseAssetWear(asset.asset_properties)
+    const phase = resolveItemPhase(desc.tags, desc.name, desc.market_hash_name)
 
     items.push({
       assetId: asset.assetid,
@@ -143,6 +155,10 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
       type,
       stattrak: desc.name.includes("StatTrak™"),
       souvenir: desc.name.includes("Souvenir"),
+      hasFloat,
+      float: hasFloat ? wear.float : undefined,
+      patternSeed: hasFloat ? wear.patternSeed : undefined,
+      phase: hasFloat ? phase : undefined,
     })
   }
 

@@ -1,22 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Bell, Check, Handshake, X } from "lucide-react"
+import { Bell, Handshake, PackageCheck } from "lucide-react"
 import {
-  getNotifications, getUnreadCount, markAllRead, markRead,
-  subscribeNotifications, type Notification,
-} from "@/lib/offers"
+  getUserNotifications, getUserUnreadCount, markUserNotificationsRead,
+  subscribeUserNotifications, syncUserNotifications,
+} from "@/lib/user-notifications"
 import { cn } from "@/lib/utils"
 import { useMarket } from "@/components/market-provider"
 import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
-
-const TYPE_ICON: Record<Notification["type"], React.ReactNode> = {
-  offer_received:  <Handshake className="h-3.5 w-3.5 text-primary" />,
-  offer_accepted:  <Check className="h-3.5 w-3.5 text-success" />,
-  offer_rejected:  <X className="h-3.5 w-3.5 text-destructive" />,
-  offer_withdrawn: <X className="h-3.5 w-3.5 text-muted-foreground" />,
-}
 
 function timeAgo(ts: number, t: (k: string, v?: Record<string, string|number>) => string): string {
   const diff = Date.now() - ts
@@ -26,21 +19,20 @@ function timeAgo(ts: number, t: (k: string, v?: Record<string, string|number>) =
 }
 
 export function NotificationsBell() {
-  const { isLoggedIn } = useMarket()
+  const { isLoggedIn, steamProfile } = useMarket()
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState<Notification[]>(() => getNotifications())
-  const [unread, setUnread] = useState(() => getUnreadCount())
+  const [notifications, setNotifications] = useState(() => getUserNotifications())
+  const [unread, setUnread] = useState(() => getUserUnreadCount())
   const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    return subscribeNotifications(() => {
-      setNotifications([...getNotifications()])
-      setUnread(getUnreadCount())
-    })
-  }, [])
+  const refresh = () => {
+    setNotifications([...getUserNotifications()])
+    setUnread(getUserUnreadCount())
+  }
 
-  // Close on outside click
+  useEffect(() => subscribeUserNotifications(refresh), [])
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -50,10 +42,25 @@ export function NotificationsBell() {
   }, [])
 
   const handleOpen = () => {
-    setOpen(o => !o)
-    if (!open && unread > 0) {
-      setTimeout(markAllRead, 1500)
+    const willOpen = !open
+    setOpen(willOpen)
+    if (willOpen && steamProfile?.steamId) {
+      void syncUserNotifications(steamProfile.steamId)
+      refresh()
     }
+    if (willOpen && unread > 0 && steamProfile?.steamId) {
+      setTimeout(() => {
+        void markUserNotificationsRead(steamProfile.steamId)
+        refresh()
+      }, 1500)
+    }
+  }
+
+  const handleRead = (id: string) => {
+    if (steamProfile?.steamId) {
+      void markUserNotificationsRead(steamProfile.steamId, [id])
+    }
+    refresh()
   }
 
   return (
@@ -77,7 +84,13 @@ export function NotificationsBell() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <span className="text-sm font-bold text-foreground">{t("notif.title")}</span>
             {notifications.length > 0 && (
-              <button onClick={markAllRead} className="text-[11px] text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => {
+                  if (steamProfile?.steamId) void markUserNotificationsRead(steamProfile.steamId)
+                  refresh()
+                }}
+                className="text-[11px] text-muted-foreground hover:text-foreground"
+              >
                 {t("notif.markAll")}
               </button>
             )}
@@ -94,17 +107,19 @@ export function NotificationsBell() {
             </div>
           ) : (
             <ul className="max-h-72 overflow-y-auto divide-y divide-border">
-              {notifications.map(n => (
+              {notifications.map((n) => (
                 <li
                   key={n.id}
-                  onClick={() => markRead(n.id)}
+                  onClick={() => handleRead(n.id)}
                   className={cn(
                     "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-input",
                     !n.read && "bg-primary/5",
                   )}
                 >
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-input">
-                    {TYPE_ICON[n.type]}
+                    {n.message.includes("teklif") || n.message.includes("Teklif")
+                      ? <Handshake className="h-3.5 w-3.5 text-primary" />
+                      : <PackageCheck className="h-3.5 w-3.5 text-success" />}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className={cn("text-xs leading-snug", !n.read ? "text-foreground font-semibold" : "text-muted-foreground")}>
