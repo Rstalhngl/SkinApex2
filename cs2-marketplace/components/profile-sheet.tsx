@@ -603,8 +603,8 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
     <>
       <Sheet>
         {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-        <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-lg">
-          <SheetHeader className="border-b border-border px-5 py-4">
+        <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-lg">
+          <SheetHeader className="shrink-0 border-b border-border px-5 py-4">
             <SheetTitle className="flex items-center gap-2 text-foreground">
               <User className="h-5 w-5 text-primary" />
               {t("header.profile")}
@@ -612,7 +612,7 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
           </SheetHeader>
 
-          <Tabs value={tab} onValueChange={setTab} defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
+          <Tabs value={tab} onValueChange={setTab} defaultValue="profile" className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-2 gap-1 bg-input sm:grid-cols-4">
               <TabsTrigger value="profile" className="text-[10px] sm:text-xs">Profil</TabsTrigger>
               <TabsTrigger value="orders" className="text-[10px] sm:text-xs">{t("orders.title")}</TabsTrigger>
@@ -629,10 +629,8 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             <TabsContent value="listings" className="flex-1 overflow-hidden mt-0">
               <ScrollArea className="h-full"><MyListingsTab /></ScrollArea>
             </TabsContent>
-            <TabsContent value="inventory" className="flex min-h-0 flex-1 flex-col overflow-hidden mt-0">
-              <ScrollArea className="min-h-[320px] flex-1">
+            <TabsContent value="inventory" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
                 <InventoryTab active={tab === "inventory"} onListClick={handleListClick} />
-              </ScrollArea>
             </TabsContent>
           </Tabs>
         </SheetContent>

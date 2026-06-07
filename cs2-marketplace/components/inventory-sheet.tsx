@@ -32,7 +32,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { formatPrice } from "@/lib/skins"
@@ -493,10 +492,10 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
         {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
 
         <SheetContent
-          className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-2xl"
+          className="flex h-full w-full flex-col gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl"
         >
           {/* Header */}
-          <SheetHeader className="border-b border-border px-5 py-4">
+          <SheetHeader className="shrink-0 border-b border-border px-5 py-4">
             <SheetTitle className="flex items-center gap-2 text-foreground">
               <Package className="h-5 w-5 text-primary" />
               {t("inventory.title")}
@@ -521,7 +520,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
           </SheetHeader>
 
           {/* Body */}
-          <ScrollArea className="flex-1">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
             {/* Loading spinner */}
             {loading && (
               <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -619,7 +618,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                 )}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </SheetContent>
       </Sheet>
 
