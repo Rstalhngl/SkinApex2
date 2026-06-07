@@ -27,6 +27,7 @@ import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { OrdersPanel } from "@/components/orders-panel"
 import { formatPrice, steamProfileUrl } from "@/lib/skins"
+import { listingErrorMessage } from "@/lib/listing-errors"
 import { fetchWalletData, type WalletTransaction } from "@/lib/user-data-client"
 import type { InventoryItem } from "@/lib/inventory-types"
 import { cn } from "@/lib/utils"
@@ -419,15 +420,16 @@ function InventoryTab({
 }
 
 function ListingDialog({
-  item, refPrice, open, onClose, onList
+  item, refPrice, open, onClose, onConfirm
 }: {
   item: InventoryItem | null
   refPrice: number | null
   open: boolean
   onClose: () => void
-  onList?: (priceTry: number) => void
+  onConfirm?: (priceTry: number) => Promise<boolean>
 }) {
   const [price, setPrice] = useState("")
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -445,6 +447,17 @@ function ListingDialog({
   const fmt = (v: number) =>
     new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
   const displayName = (item.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
+
+  const handleConfirm = async () => {
+    if (!onConfirm || priceNum <= 0 || saving) return
+    setSaving(true)
+    try {
+      const ok = await onConfirm(priceNum)
+      if (ok) onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -515,17 +528,11 @@ function ListingDialog({
             İptal
           </Button>
           <Button
-            disabled={priceNum <= 0}
-            onClick={() => {
-              if (onList) onList(priceNum)
-              toast.success("İlan yayınlandı!", {
-                description: `${displayName || "Ürün"} — ${fmt(priceNum)} (elinize geçecek: ${fmt(netToSeller)})`,
-              })
-              onClose()
-            }}
+            disabled={priceNum <= 0 || saving}
+            onClick={() => { void handleConfirm() }}
             className="bg-primary font-bold uppercase text-primary-foreground hover:bg-primary/90"
           >
-            Yayınla
+            {saving ? "..." : "Yayınla"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -637,16 +644,23 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
         refPrice={listingRefPrice}
         open={listingItem !== null}
         onClose={handleListClose}
-        onList={async (priceTry) => {
-          if (!steamProfile || !listingItem) return
+        onConfirm={async (priceTry) => {
+          if (!steamProfile || !listingItem) return false
           const result = await createListingWithError(listingItem, priceTry)
           if (result.error === "listing_banned") {
             toast.error(t("listings.banned"))
-            return
+            return false
           }
           if (!result.listing) {
-            toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
+            const msg = listingErrorMessage(result.error, t)
+            toast.error(msg.title)
+            return false
           }
+          const displayName = (listingItem.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
+          toast.success(t("listings.listedSuccess"), {
+            description: `${displayName || "Ürün"} — ${formatPrice(priceTry)}`,
+          })
+          return true
         }}
       />
     </>

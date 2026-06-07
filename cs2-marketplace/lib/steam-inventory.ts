@@ -4,12 +4,21 @@ import { promisify } from "util"
 const gunzip = promisify(zlib.gunzip)
 const inflate = promisify(zlib.inflate)
 const PAGE_SIZE = 2000
+const STEAM_FETCH_MS = 20_000
+const CACHE_MS = 90_000
 
 interface SteamAsset {
   assetid: string
   classid: string
   instanceid: string
 }
+
+type AssetCacheEntry = { ids: Set<string>; at: number }
+const assetCache = new Map<string, AssetCacheEntry>()
+
+export type AssetOwnershipResult =
+  | { ok: true }
+  | { ok: false; error: "private" | "not_found" | "steam_unavailable" }
 
 async function fetchPage(steamId: string, startAssetId?: string): Promise<{
   assets: SteamAsset[]
@@ -22,11 +31,12 @@ async function fetchPage(steamId: string, startAssetId?: string): Promise<{
   const url = `https://steamcommunity.com/inventory/${steamId}/730/2?${params}`
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
       Accept: "application/json",
       Referer: `https://steamcommunity.com/profiles/${steamId}/inventory/`,
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(STEAM_FETCH_MS),
   })
 
   if (res.status === 403 || res.status === 401) throw new Error("private")
@@ -56,8 +66,22 @@ async function fetchPage(steamId: string, startAssetId?: string): Promise<{
   }
 }
 
+/** Cache asset IDs after a successful inventory fetch (e.g. from /api/inventory). */
+export function cacheUserAssetIds(steamId: string, assetIds: Iterable<string>): void {
+  assetCache.set(steamId, { ids: new Set(assetIds), at: Date.now() })
+}
+
+function getCachedAssetIds(steamId: string): Set<string> | null {
+  const hit = assetCache.get(steamId)
+  if (!hit || Date.now() - hit.at > CACHE_MS) return null
+  return hit.ids
+}
+
 /** Returns all asset IDs in a user's CS2 inventory (up to 6000 items). */
 export async function fetchUserAssetIds(steamId: string): Promise<Set<string>> {
+  const cached = getCachedAssetIds(steamId)
+  if (cached) return cached
+
   const page1 = await fetchPage(steamId)
   let assets = [...page1.assets]
 
@@ -70,16 +94,28 @@ export async function fetchUserAssetIds(steamId: string): Promise<Set<string>> {
     }
   }
 
-  return new Set(assets.map((a) => a.assetid))
+  const ids = new Set(assets.map((a) => a.assetid))
+  assetCache.set(steamId, { ids, at: Date.now() })
+  return ids
 }
 
-export async function userOwnsAsset(steamId: string, assetId: string): Promise<boolean> {
+export async function verifyAssetOwnership(
+  steamId: string,
+  assetId: string,
+): Promise<AssetOwnershipResult> {
   try {
     const ids = await fetchUserAssetIds(steamId)
-    return ids.has(assetId)
+    if (ids.has(assetId)) return { ok: true }
+    return { ok: false, error: "not_found" }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (msg === "private") return false
-    throw e
+    if (msg === "private") return { ok: false, error: "private" }
+    return { ok: false, error: "steam_unavailable" }
   }
+}
+
+/** @deprecated Use verifyAssetOwnership for structured errors. */
+export async function userOwnsAsset(steamId: string, assetId: string): Promise<boolean> {
+  const result = await verifyAssetOwnership(steamId, assetId)
+  return result.ok
 }

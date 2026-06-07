@@ -4,12 +4,13 @@ import { itemHasFloat } from "@/lib/item-wear"
 import { resolveItemType } from "@/lib/skins"
 import { isSession, requireSession } from "@/lib/api-auth"
 import {
+  appendListingToStore,
   getActiveListingsFromStore,
   readListingsStore,
   writeListingsStore,
 } from "@/lib/listings-store"
 import { processExpiredSales } from "@/lib/sale-lifecycle"
-import { userOwnsAsset } from "@/lib/steam-inventory"
+import { verifyAssetOwnership } from "@/lib/steam-inventory"
 import { isListingBanned } from "@/lib/moderation-store"
 import { publishListingCreated, publishListingsChanged } from "@/lib/ws-publish"
 
@@ -59,9 +60,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "listing_banned" }, { status: 403 })
     }
 
-    const owns = await userOwnsAsset(session.steamId, item.assetId)
-    if (!owns) {
-      return NextResponse.json({ error: "asset_not_owned" }, { status: 403 })
+    const ownership = await verifyAssetOwnership(session.steamId, item.assetId)
+    if (!ownership.ok) {
+      const error =
+        ownership.error === "private" ? "inventory_private"
+          : ownership.error === "steam_unavailable" ? "steam_unavailable"
+            : "asset_not_owned"
+      return NextResponse.json({ error }, { status: 403 })
     }
 
     const store = await readListingsStore()
@@ -101,7 +106,7 @@ export async function POST(req: Request) {
     }
 
     store.listings = [listing, ...store.listings]
-    await writeListingsStore(store)
+    await appendListingToStore(listing, store.nextId)
 
     publishListingCreated({
       listingId: listing.id,
@@ -111,7 +116,8 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ listing })
-  } catch {
+  } catch (e) {
+    console.error("Listing create error:", e)
     return NextResponse.json({ error: "server_error" }, { status: 500 })
   }
 }

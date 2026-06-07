@@ -60,6 +60,24 @@ export async function writeListingsStore(store: ListingsStore): Promise<void> {
   return withStoreLock("listings", async () => writeListingsStoreJson(store))
 }
 
+export async function appendListingToStore(listing: Listing, nextId: number): Promise<void> {
+  if (isDbEnabled()) {
+    await setCounter("listing_id", nextId)
+    await query(
+      `INSERT INTO listings (id, payload) VALUES ($1, $2::jsonb)
+       ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload`,
+      [listing.id, JSON.stringify(listing)],
+    )
+    return
+  }
+  return withStoreLock("listings", async () => {
+    const store = await readListingsStoreJson()
+    store.listings = [listing, ...store.listings.filter((l) => l.id !== listing.id)]
+    store.nextId = nextId
+    await writeListingsStoreJson(store)
+  })
+}
+
 export async function getActiveListingsFromStore(): Promise<Listing[]> {
   if (isDbEnabled()) {
     const res = await query<{ payload: Listing }>(

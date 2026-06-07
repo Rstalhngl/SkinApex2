@@ -6,6 +6,7 @@ import { resolveItemType } from "@/lib/skins"
 import { NextRequest, NextResponse } from "next/server"
 import zlib from "zlib"
 import { promisify } from "util"
+import { cacheUserAssetIds } from "@/lib/steam-inventory"
 
 const gunzip = promisify(zlib.gunzip)
 const inflate = promisify(zlib.inflate)
@@ -197,6 +198,7 @@ export async function GET(request: NextRequest) {
     }
 
     const items = parseInventory(allAssets, allDescriptions)
+    cacheUserAssetIds(steamId, items.map((item) => item.assetId))
     return NextResponse.json({ items, total })
 
   } catch (e: unknown) {

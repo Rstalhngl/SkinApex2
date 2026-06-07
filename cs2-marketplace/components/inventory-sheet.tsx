@@ -37,6 +37,7 @@ import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { formatPrice } from "@/lib/skins"
 import { createListingWithError } from "@/lib/listings"
+import { listingErrorMessage } from "@/lib/listing-errors"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -87,7 +88,7 @@ interface ListingDialogProps {
   refPrice: number | null
   open: boolean
   onClose: () => void
-  onConfirm: (priceTry: number) => void
+  onConfirm: (priceTry: number) => Promise<boolean>
 }
 
 function ListingDialog({
@@ -98,6 +99,7 @@ function ListingDialog({
   onConfirm,
 }: ListingDialogProps) {
   const [price, setPrice] = useState<string>("")
+  const [saving, setSaving] = useState(false)
 
   // Sync price input when dialog opens/closes or refPrice changes
   useEffect(() => {
@@ -116,13 +118,15 @@ function ListingDialog({
   const netToSeller = Math.round(priceNum * (1 - COMMISSION))
   const isValid = priceNum > 0
 
-  const handleConfirm = () => {
-    if (!isValid) return
-    onConfirm(priceNum)
-    toast.success("İlan yayınlandı!", {
-      description: `${item.name ?? "Ürün"} — ${formatTry(priceNum)} · elinize geçecek: ${formatTry(netToSeller)}`,
-    })
-    onClose()
+  const handleConfirm = async () => {
+    if (!isValid || saving) return
+    setSaving(true)
+    try {
+      const ok = await onConfirm(priceNum)
+      if (ok) onClose()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -229,8 +233,8 @@ function ListingDialog({
             İptal
           </Button>
           <Button
-            disabled={!isValid}
-            onClick={handleConfirm}
+            disabled={!isValid || saving}
+            onClick={() => { void handleConfirm() }}
             className="bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             <Tag className="mr-2 h-4 w-4" />
@@ -455,16 +459,22 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     setListingRefPrice(null)
   }
 
-  const handleConfirm = async (priceTry: number) => {
-    if (!steamProfile || !listingItem) return
+  const handleConfirm = async (priceTry: number): Promise<boolean> => {
+    if (!steamProfile || !listingItem) return false
     const result = await createListingWithError(listingItem, priceTry)
     if (result.error === "listing_banned") {
       toast.error(t("listings.banned"))
-      return
+      return false
     }
     if (!result.listing) {
-      toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
+      const msg = listingErrorMessage(result.error, t)
+      toast.error(msg.title)
+      return false
     }
+    toast.success(t("listings.listedSuccess"), {
+      description: `${listingItem.name ?? "Ürün"} — ${formatTry(priceTry)}`,
+    })
+    return true
   }
 
   const handleRefresh = () => {
