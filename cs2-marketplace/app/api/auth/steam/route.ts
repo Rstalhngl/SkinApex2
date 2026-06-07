@@ -1,32 +1,43 @@
 import { NextResponse } from "next/server"
+import { isAllowedAuthOrigin } from "@/lib/app-config"
+
+function resolveBaseUrl(request: Request): string | null {
+  const reqUrl = new URL(request.url)
+  const clientOrigin = reqUrl.searchParams.get("origin")?.trim()
+
+  if (clientOrigin) {
+    const normalized = clientOrigin.replace(/\/$/, "")
+    return isAllowedAuthOrigin(normalized) ? normalized : null
+  }
+
+  const envBase = process.env.NEXT_PUBLIC_BASE_URL?.trim().replace(/\/$/, "")
+  if (envBase && isAllowedAuthOrigin(envBase)) return envBase
+
+  if (process.env.NODE_ENV !== "production") {
+    const fwdHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim()
+    const fwdProto = request.headers.get("x-forwarded-proto") ?? "http"
+    if (fwdHost) return `${fwdProto}://${fwdHost}`.replace(/\/$/, "")
+    return new URL(request.url).origin
+  }
+
+  return null
+}
 
 export function GET(request: Request) {
   const reqUrl = new URL(request.url)
-
-  // Client passes its own origin so we always get the correct public URL.
-  // e.g. /api/auth/steam?origin=https://pod-xxx.cursorvm.com&_ingress_token=...
-  const clientOrigin = reqUrl.searchParams.get("origin")
   const ingressToken = reqUrl.searchParams.get("_ingress_token")
+  const baseUrl = resolveBaseUrl(request)
 
-  // Fallback chain if client didn't send origin
-  let baseUrl = clientOrigin ?? process.env.NEXT_PUBLIC_BASE_URL ?? ""
   if (!baseUrl) {
-    const fwdHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim()
-    const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
-    if (fwdHost && !fwdHost.startsWith("localhost")) {
-      baseUrl = `${fwdProto}://${fwdHost}`
-    } else {
-      baseUrl = new URL(request.url).origin
-    }
+    return NextResponse.json({ error: "invalid_origin" }, { status: 400 })
   }
-  baseUrl = baseUrl.replace(/\/$/, "")
 
-  const callbackUrl = `${baseUrl}/api/auth/steam/callback`
+  const originParam = encodeURIComponent(baseUrl)
+  const callbackUrl = `${baseUrl}/api/auth/steam/callback?origin=${originParam}`
   const returnTo = ingressToken
-    ? `${callbackUrl}?_ingress_token=${encodeURIComponent(ingressToken)}`
+    ? `${callbackUrl}&_ingress_token=${encodeURIComponent(ingressToken)}`
     : callbackUrl
 
-  // realm and return_to MUST share the same domain (Steam OpenID requirement).
   const params = new URLSearchParams({
     "openid.ns": "http://specs.openid.net/auth/2.0",
     "openid.mode": "checkid_setup",

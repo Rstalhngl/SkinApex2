@@ -16,4 +16,8 @@ export interface InventoryItem {
   type: string
   stattrak: boolean
   souvenir: boolean
+  float?: number
+  patternSeed?: number
+  phase?: string
+  hasFloat?: boolean
 }

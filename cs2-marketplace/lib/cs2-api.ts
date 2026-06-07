@@ -124,6 +124,55 @@ const WEAR_SUFFIXES = [
   " (Factory New)", " (Minimal Wear)", " (Field-Tested)", " (Well-Worn)", " (Battle-Scarred)"
 ]
 
+/** Steam / Skinport reference price in USD for a market_hash_name. */
+export function getMarketReferencePriceUsd(marketHashName?: string): number | undefined {
+  if (!marketHashName) return undefined
+
+  const exact = priceMap[marketHashName]
+  if (exact) return exact
+
+  let baseName = marketHashName
+  for (const suffix of WEAR_SUFFIXES) {
+    if (marketHashName.endsWith(suffix)) {
+      baseName = marketHashName.slice(0, -suffix.length)
+      break
+    }
+  }
+
+  const found: number[] = []
+  for (const suffix of WEAR_SUFFIXES) {
+    const p = priceMap[baseName + suffix]
+    if (p) found.push(p)
+  }
+  if (found.length > 0) {
+    found.sort((a, b) => a - b)
+    return found[Math.floor(found.length / 2)]
+  }
+
+  return undefined
+}
+
+/** Compare listing TRY price to Steam reference. Positive discount = cheaper, negative = premium. */
+export function computeMarketDiscount(
+  listingPriceTry: number,
+  marketHashName?: string,
+): { discount: number; priceUsd?: number; refPriceTry?: number } {
+  const priceUsd = getMarketReferencePriceUsd(marketHashName)
+  if (!priceUsd || listingPriceTry <= 0) return { discount: 0, priceUsd }
+
+  const refPriceTry = Math.round(priceUsd * getUsdToTry())
+  if (refPriceTry <= 0) return { discount: 0, priceUsd, refPriceTry }
+
+  const ratio = listingPriceTry / refPriceTry
+  if (ratio < 1) {
+    return { discount: Math.round((1 - ratio) * 100), priceUsd, refPriceTry }
+  }
+  if (ratio > 1) {
+    return { discount: -Math.round((ratio - 1) * 100), priceUsd, refPriceTry }
+  }
+  return { discount: 0, priceUsd, refPriceTry }
+}
+
 /**
  * Tries to resolve a real market price:
  * 1. Exact market_hash_name match
