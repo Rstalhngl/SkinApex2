@@ -352,6 +352,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const deposit = useCallback(async (amount: number) => {
     if (!isLoggedIn) return
     const balance = await walletDeposit(amount)
+    if (balance === "deposits_disabled") {
+      toast.error(t("deposit.disabled"))
+      return
+    }
     if (balance == null) {
       toast.error(t("deposit.failed"))
       return
@@ -391,11 +395,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     const listingIds = cartSkins.map((s) => s.listingId).filter((id): id is string => !!id)
     if (listingIds.length === 0) { toast.error(t("toast.cartEmpty")); return }
 
-    const ok = await purchaseBatch(listingIds, tradeUrlValue)
-    if (!ok) {
-      toast.error(t("checkout.failed"), {
-        description: t("checkout.failedDesc"),
-      })
+    const result = await purchaseBatch(listingIds, tradeUrlValue)
+    if (!result.ok) {
+      const msg =
+        result.error === "trade_url_mismatch" ? t("checkout.tradeUrlMismatch")
+        : result.error === "asset_unavailable" ? t("checkout.assetUnavailable")
+        : t("checkout.failedDesc")
+      toast.error(t("checkout.failed"), { description: msg })
       await refreshWallet()
       return
     }
@@ -412,11 +418,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     void syncUserSales()
   }, [cartSkins, cartTotal, wallet, isLoggedIn, steamProfile, t, clearCart, refreshWallet])
 
-  const listForSale = useCallback((skin: Skin, price: number) => {
-    setListedSkins((prev) => prev.includes(skin.id) ? prev : [...prev, skin.id])
-    pushActivity(`${skin.type} | ${skin.title}`, "listed", formatPrice(price))
-    toast.success(t("sell.listed"), {
-      description: t("sell.listedDesc", { item: `${skin.type} | ${skin.title}`, price: formatPrice(price) }),
+  const listForSale = useCallback((_skin: Skin, _price: number) => {
+    toast.info(t("sell.useInventory"), {
+      description: t("sell.useInventoryDesc"),
     })
   }, [t])
 

@@ -7,7 +7,8 @@ import { readListingsStore, writeListingsStore } from "@/lib/listings-store"
 import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
 import { debitWallet, creditWallet, getWalletBalance } from "@/lib/wallet-store"
 import { addUserNotification } from "@/lib/notifications-store"
-import { isValidTradeUrl } from "@/lib/trade-url"
+import { isValidTradeUrl, tradeUrlMatchesSteamId } from "@/lib/trade-url"
+import { userOwnsAsset } from "@/lib/steam-inventory"
 import { buildSaleTradeFields } from "@/lib/trade-delivery-service"
 import { isTradeBotEnabled } from "@/lib/trade-bot-config"
 import { publishPurchaseEvents, publishUserChannel } from "@/lib/ws-publish"
@@ -26,96 +27,119 @@ export type BatchPurchaseResult =
   | { ok: true; sales: Sale[]; listings: Listing[] }
   | { ok: false; error: string; minBalance?: number }
 
+function validateBuyerTradeUrl(
+  buyer: PurchaseBuyer,
+): { ok: false; error: string } | null {
+  if (!isValidTradeUrl(buyer.tradeUrl)) {
+    return { ok: false, error: "invalid_trade_url" }
+  }
+  if (!tradeUrlMatchesSteamId(buyer.tradeUrl, buyer.steamId)) {
+    return { ok: false, error: "trade_url_mismatch" }
+  }
+  return null
+}
+
 export async function completePurchase(
   listingId: string,
   buyer: PurchaseBuyer,
   priceTry?: number,
   txType: "purchase" | "offer_purchase" = "purchase",
 ): Promise<PurchaseResult> {
-  if (!isValidTradeUrl(buyer.tradeUrl)) {
-    return { ok: false, error: "invalid_trade_url" }
-  }
+  const tradeErr = validateBuyerTradeUrl(buyer)
+  if (tradeErr) return tradeErr
 
-  const listingsStore = await readListingsStore()
-  const idx = listingsStore.listings.findIndex(
-    (l) => l.id === listingId && l.status === "active",
-  )
-  if (idx === -1) return { ok: false, error: "listing_not_found" }
+  return withStoreLock("purchase", async () => {
+    const listingsStore = await readListingsStore()
+    const idx = listingsStore.listings.findIndex(
+      (l) => l.id === listingId && l.status === "active",
+    )
+    if (idx === -1) return { ok: false, error: "listing_not_found" }
 
-  const listing = listingsStore.listings[idx]
-  if (listing.sellerId === buyer.steamId) {
-    return { ok: false, error: "cannot_buy_own_listing" }
-  }
+    const listing = listingsStore.listings[idx]
+    if (listing.sellerId === buyer.steamId) {
+      return { ok: false, error: "cannot_buy_own_listing" }
+    }
 
-  const chargeAmount = priceTry ?? listing.priceTry
-  const debit = await debitWallet(buyer.steamId, chargeAmount, txType, listingId)
-  if (!debit.ok) {
-    return { ok: false, error: debit.error, minBalance: chargeAmount }
-  }
+    const owns = await userOwnsAsset(listing.sellerId, listing.assetId)
+    if (!owns) return { ok: false, error: "asset_unavailable" }
 
-  const soldAt = Date.now()
-  const netToSeller = Math.round(chargeAmount * (1 - listing.commissionRate))
-  const updatedListing: Listing = { ...listing, status: "sold", soldAt, priceTry: chargeAmount, netToSeller }
-  listingsStore.listings[idx] = updatedListing
-  await writeListingsStore(listingsStore)
+    const chargeAmount = priceTry ?? listing.priceTry
+    const debit = await debitWallet(buyer.steamId, chargeAmount, txType, listingId)
+    if (!debit.ok) {
+      return { ok: false, error: debit.error, minBalance: chargeAmount }
+    }
 
-  const salesStore = await readSalesStore()
-  const sale: Sale = {
-    id: `sale-${salesStore.nextId++}`,
-    listingId: listing.id,
-    ...buildSaleTradeFields(listing.assetId),
-    sellerId: listing.sellerId,
-    sellerName: listing.sellerName,
-    buyerId: buyer.steamId,
-    buyerName: buyer.steamName ?? buyer.steamId,
-    itemName: listing.name,
-    itemImg: listing.img,
-    exterior: listing.exterior,
-    priceTry: chargeAmount,
-    netToSeller,
-    soldAt,
-    deliveryDeadline: soldAt + DELIVERY_MS,
-    status: "pending_delivery",
-    buyerTradeUrl: buyer.tradeUrl.trim(),
-  }
-  salesStore.sales = [sale, ...salesStore.sales]
-  await writeSalesStore(salesStore)
+    const soldAt = Date.now()
+    const netToSeller = Math.round(chargeAmount * (1 - listing.commissionRate))
+    const updatedListing: Listing = {
+      ...listing,
+      status: "sold",
+      soldAt,
+      priceTry: chargeAmount,
+      netToSeller,
+    }
+    listingsStore.listings[idx] = updatedListing
 
-  const fmt = (v: number) =>
-    new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
+    const salesStore = await readSalesStore()
+    const sale: Sale = {
+      id: `sale-${salesStore.nextId++}`,
+      listingId: listing.id,
+      ...buildSaleTradeFields(listing.assetId),
+      sellerId: listing.sellerId,
+      sellerName: listing.sellerName,
+      buyerId: buyer.steamId,
+      buyerName: buyer.steamName ?? buyer.steamId,
+      itemName: listing.name,
+      itemImg: listing.img,
+      exterior: listing.exterior,
+      priceTry: chargeAmount,
+      netToSeller,
+      soldAt,
+      deliveryDeadline: soldAt + DELIVERY_MS,
+      status: "pending_delivery",
+      buyerTradeUrl: buyer.tradeUrl.trim(),
+    }
+    salesStore.sales = [sale, ...salesStore.sales]
 
-  const deliveryHint = isTradeBotEnabled()
-    ? "Teslimat bot tarafından otomatik gönderilecek."
-    : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
+    await writeListingsStore(listingsStore)
+    await writeSalesStore(salesStore)
 
-  await addUserNotification(
-    listing.sellerId,
-    "item_sold",
-    `Ürününüz satıldı: ${listing.name} — ${fmt(chargeAmount)}. ${deliveryHint}`,
-    { saleId: sale.id, listingId: listing.id },
-  )
+    const fmt = (v: number) =>
+      new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
 
-  await rejectPendingOffersForListing(listing.id)
+    const deliveryHint = isTradeBotEnabled()
+      ? "Teslimat bot tarafından otomatik gönderilecek."
+      : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
 
-  publishPurchaseEvents({
-    buyerId: buyer.steamId,
-    sellerId: listing.sellerId,
-    itemName: listing.name,
-    priceTry: chargeAmount,
-    saleId: sale.id,
-    listingId: listing.id,
+    await addUserNotification(
+      listing.sellerId,
+      "item_sold",
+      `Ürününüz satıldı: ${listing.name} — ${fmt(chargeAmount)}. ${deliveryHint}`,
+      { saleId: sale.id, listingId: listing.id },
+    )
+
+    await rejectPendingOffersForListing(listing.id)
+
+    publishPurchaseEvents({
+      buyerId: buyer.steamId,
+      sellerId: listing.sellerId,
+      itemName: listing.name,
+      priceTry: chargeAmount,
+      saleId: sale.id,
+      listingId: listing.id,
+    })
+
+    return { ok: true, sale, listing: updatedListing }
   })
-
-  return { ok: true, sale, listing: updatedListing }
 }
 
 export async function completeBatchPurchase(
   listingIds: string[],
   buyer: PurchaseBuyer,
 ): Promise<BatchPurchaseResult> {
-  if (!isValidTradeUrl(buyer.tradeUrl)) {
-    return { ok: false, error: "invalid_trade_url" }
-  }
+  const tradeErr = validateBuyerTradeUrl(buyer)
+  if (tradeErr) return tradeErr
+
   if (listingIds.length === 0) {
     return { ok: false, error: "empty_cart" }
   }
@@ -134,6 +158,8 @@ export async function completeBatchPurchase(
       if (listing.sellerId === buyer.steamId) {
         return { ok: false, error: "cannot_buy_own_listing" }
       }
+      const owns = await userOwnsAsset(listing.sellerId, listing.assetId)
+      if (!owns) return { ok: false, error: "asset_unavailable" }
       resolved.push({ idx, listing, charge: listing.priceTry })
     }
 

@@ -6,6 +6,8 @@ import { payoutDeliveredSale } from "@/lib/purchase-service"
 import { getDisputedSales, patchSale } from "@/lib/sales-store"
 import { readSalesStore } from "@/lib/sales-store"
 import { publishUserChannel } from "@/lib/ws-publish"
+import { LISTING_BAN_MS } from "@/lib/app-config"
+import { setListingBan } from "@/lib/moderation-store"
 
 export async function notifyAdmins(message: string, extra?: { saleId?: string }): Promise<void> {
   for (const steamId of getAdminSteamIds()) {
@@ -50,6 +52,7 @@ export async function resolveDispute(
 
   if (action === "buyer_refund") {
     await creditWallet(sale.buyerId, sale.priceTry, "refund", sale.id, "Admin: destek iadesi")
+    await setListingBan(sale.sellerId, Date.now() + LISTING_BAN_MS)
     await addUserNotification(
       sale.buyerId,
       "item_sold",
@@ -59,7 +62,7 @@ export async function resolveDispute(
     await addUserNotification(
       sale.sellerId,
       "item_sold",
-      `Destek talebi alıcı lehine sonuçlandı: ${sale.itemName}`,
+      `Destek talebi alıcı lehine sonuçlandı: ${sale.itemName}. 1 hafta ilan açamazsınız.`,
       { saleId: sale.id },
     )
   } else {

@@ -1,8 +1,12 @@
 import { createHmac, timingSafeEqual } from "crypto"
+import { getSessionSecret } from "@/lib/app-config"
 
 export const SESSION_COOKIE = "skx_session"
-const SECRET = process.env.SESSION_SECRET || "skx-dev-secret-change-in-production"
 const MAX_AGE_SEC = 30 * 24 * 60 * 60
+
+function secret(): string {
+  return getSessionSecret()
+}
 
 export interface SessionPayload {
   steamId: string
@@ -14,7 +18,7 @@ export interface SessionPayload {
 export function signSession(payload: Omit<SessionPayload, "exp">): string {
   const data: SessionPayload = { ...payload, exp: Date.now() + MAX_AGE_SEC * 1000 }
   const json = JSON.stringify(data)
-  const sig = createHmac("sha256", SECRET).update(json).digest("base64url")
+  const sig = createHmac("sha256", secret()).update(json).digest("base64url")
   return `${Buffer.from(json).toString("base64url")}.${sig}`
 }
 
@@ -32,7 +36,7 @@ export function verifySession(token: string): SessionPayload | null {
     return null
   }
 
-  const expected = createHmac("sha256", SECRET).update(json).digest("base64url")
+  const expected = createHmac("sha256", secret()).update(json).digest("base64url")
   try {
     const a = Buffer.from(sig)
     const b = Buffer.from(expected)

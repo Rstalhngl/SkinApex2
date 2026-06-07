@@ -6,7 +6,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import {
-  cancelListing, createListing, getActiveListings,
+  cancelListing, createListingWithError, getActiveListings,
   subscribeListings, syncListings, updateListingPrice, type Listing,
 } from "@/lib/listings"
 
@@ -606,8 +606,12 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
         onClose={handleListClose}
         onList={async (priceTry) => {
           if (!steamProfile || !listingItem) return
-          const listing = await createListing(listingItem, priceTry)
-          if (!listing) {
+          const result = await createListingWithError(listingItem, priceTry)
+          if (result.error === "listing_banned") {
+            toast.error(t("listings.banned"))
+            return
+          }
+          if (!result.listing) {
             toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
           }
         }}

@@ -53,17 +53,46 @@ export async function createListing(
   }
 }
 
+export async function createListingWithError(
+  item: InventoryItem,
+  priceTry: number,
+): Promise<{ listing?: Listing; error?: string }> {
+  try {
+    const res = await apiFetch("/api/listings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item, priceTry }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: data.error ?? "failed" }
+
+    const listing = data.listing as Listing
+    if (!listing?.id) return { error: "failed" }
+
+    listings = [listing, ...listings.filter((l) => l.id !== listing.id)]
+    notify()
+    const label = `${listing.type} | ${listing.name}`
+    pushActivity(label, "listed", formatPrice(priceTry))
+    return { listing }
+  } catch {
+    return { error: "failed" }
+  }
+}
+
 export async function purchaseBatch(
   listingIds: string[],
   tradeUrl: string,
-): Promise<boolean> {
+): Promise<{ ok: true } | { ok: false; error?: string }> {
   try {
     const res = await apiFetch("/api/listings/batch-sell", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ listingIds, tradeUrl }),
     })
-    if (!res.ok) return false
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      return { ok: false, error: data.error as string | undefined }
+    }
 
     const soldSet = new Set(listingIds)
     listings = listings
@@ -74,9 +103,9 @@ export async function purchaseBatch(
       )
       .filter((l) => l.status === "active")
     notify()
-    return true
+    return { ok: true }
   } catch {
-    return false
+    return { ok: false }
   }
 }
 

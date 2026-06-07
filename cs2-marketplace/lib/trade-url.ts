@@ -4,6 +4,13 @@ export function isValidTradeUrl(url: string): boolean {
   return parseTradeUrl(url) !== null
 }
 
+/** Trade URL partner must match the logged-in buyer's Steam ID. */
+export function tradeUrlMatchesSteamId(url: string, steamId: string): boolean {
+  const parsed = parseTradeUrl(url)
+  if (!parsed) return false
+  return parsed.partnerSteamId === steamId
+}
+
 /** Parse buyer trade URL into partner account id, token, and SteamID64. */
 export function parseTradeUrl(url: string): {
   partnerAccountId: string

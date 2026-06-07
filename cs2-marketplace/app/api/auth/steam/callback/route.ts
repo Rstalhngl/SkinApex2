@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
+import { isAllowedAuthOrigin } from "@/lib/app-config"
 import { sessionCookieOptions, signSession, SESSION_COOKIE } from "@/lib/session"
 
 const STEAM_OPENID = "https://steamcommunity.com/openid/login"
 const STEAM_ID_REGEX = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/
 
-function getBaseUrl(request: NextRequest): string {
+function getBaseUrl(request: NextRequest): string | null {
   const clientOrigin = request.nextUrl.searchParams.get("origin")
-  if (clientOrigin) return clientOrigin.replace(/\/$/, "")
-  if (process.env.NEXT_PUBLIC_BASE_URL)
-    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "")
-  const fwdHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim()
-  const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
-  if (fwdHost && !fwdHost.startsWith("localhost"))
-    return `${fwdProto}://${fwdHost}`
-  return new URL(request.url).origin
+  if (clientOrigin) {
+    const normalized = clientOrigin.replace(/\/$/, "")
+    return isAllowedAuthOrigin(normalized) ? normalized : null
+  }
+  const envBase = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "")
+  if (envBase && isAllowedAuthOrigin(envBase)) return envBase
+  if (process.env.NODE_ENV !== "production") {
+    const fwdHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim()
+    const fwdProto = request.headers.get("x-forwarded-proto") ?? "https"
+    if (fwdHost && !fwdHost.startsWith("localhost"))
+      return `${fwdProto}://${fwdHost}`
+    return new URL(request.url).origin
+  }
+  return null
 }
 
 async function fetchSteamProfile(steamId: string): Promise<{ name: string | null; avatar: string | null }> {
@@ -48,6 +55,9 @@ async function fetchSteamProfile(steamId: string): Promise<{ name: string | null
 
 export async function GET(request: NextRequest) {
   const baseUrl = getBaseUrl(request)
+  if (!baseUrl) {
+    return NextResponse.redirect(new URL("/", request.url))
+  }
   const searchParams = request.nextUrl.searchParams
   const ingressToken = searchParams.get("_ingress_token")
   const params = Object.fromEntries(searchParams.entries())

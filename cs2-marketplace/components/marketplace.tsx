@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { SiteHeader } from "@/components/site-header"
 import { LiveTicker } from "@/components/live-ticker"
+import { SiteFooter } from "@/components/site-footer"
 import { FilterSidebar, type Filters, PRICE_FILTER_MAX } from "@/components/filter-sidebar"
 import { SkinCard } from "@/components/skin-card"
 import { InspectDialog } from "@/components/inspect-dialog"
@@ -290,6 +291,8 @@ export function Marketplace() {
         <LifeBuoy className="h-3.5 w-3.5" />
         {t("support.text")}
       </a>
+
+      <SiteFooter />
     </div>
   )
 }

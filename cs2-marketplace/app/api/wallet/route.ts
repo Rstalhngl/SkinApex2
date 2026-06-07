@@ -6,6 +6,7 @@ import {
   getWalletBalance,
   getWalletTransactions,
 } from "@/lib/wallet-store"
+import { isDemoDepositEnabled } from "@/lib/app-config"
 import { publishUserChannel } from "@/lib/ws-publish"
 
 export async function GET() {
@@ -33,6 +34,9 @@ export async function POST(req: Request) {
     }
 
     if (action === "deposit") {
+      if (!isDemoDepositEnabled()) {
+        return NextResponse.json({ error: "deposits_disabled" }, { status: 403 })
+      }
       const result = await creditWallet(session.steamId, amount, "deposit")
       if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
       publishUserChannel("wallet", session.steamId)

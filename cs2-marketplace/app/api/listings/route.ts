@@ -10,6 +10,7 @@ import {
 } from "@/lib/listings-store"
 import { processExpiredSales } from "@/lib/sale-lifecycle"
 import { userOwnsAsset } from "@/lib/steam-inventory"
+import { isListingBanned } from "@/lib/moderation-store"
 import { publishListingCreated, publishListingsChanged } from "@/lib/ws-publish"
 
 const COMMISSION = 0.07
@@ -52,6 +53,10 @@ export async function POST(req: Request) {
 
     if (!item?.assetId || !priceTry || priceTry <= 0) {
       return NextResponse.json({ error: "invalid_request" }, { status: 400 })
+    }
+
+    if (await isListingBanned(session.steamId)) {
+      return NextResponse.json({ error: "listing_banned" }, { status: 403 })
     }
 
     const owns = await userOwnsAsset(session.steamId, item.assetId)

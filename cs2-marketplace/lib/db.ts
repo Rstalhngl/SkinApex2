@@ -82,8 +82,11 @@ async function initSchema(): Promise<void> {
       steam_id TEXT PRIMARY KEY,
       trade_url TEXT,
       cart_listing_ids JSONB NOT NULL DEFAULT '[]',
-      wishlist_listing_ids JSONB NOT NULL DEFAULT '[]'
+      wishlist_listing_ids JSONB NOT NULL DEFAULT '[]',
+      listing_banned_until BIGINT
     );
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS listing_banned_until BIGINT;
 
     CREATE INDEX IF NOT EXISTS idx_listings_status ON listings ((payload->>'status'));
     CREATE INDEX IF NOT EXISTS idx_listings_seller ON listings ((payload->>'sellerId'));
