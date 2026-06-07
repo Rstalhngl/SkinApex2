@@ -494,8 +494,6 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
 
         <SheetContent
           className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-2xl"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
         >
           {/* Header */}
           <SheetHeader className="border-b border-border px-5 py-4">
