@@ -26,3 +26,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# runtime listing data
+/data/listings.json
+/data/sales.json
+/data/notifications.json
+/data/offers.json
+/data/wallets.json
+/data/users.json

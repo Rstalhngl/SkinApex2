@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
+import { isValidTradeUrl } from "@/lib/trade-url"
 import { toast } from "sonner"
 
 export function TradeUrlDialog({
@@ -28,10 +29,7 @@ export function TradeUrlDialog({
   const { t } = useI18n()
   const [value, setValue] = useState(tradeUrl)
 
-  const isValid =
-    value.trim().startsWith("https://steamcommunity.com/tradeoffer/new/") &&
-    value.includes("partner=") &&
-    value.includes("token=")
+  const isValid = isValidTradeUrl(value)
 
   const handleSave = () => {
     if (!isValid) {
@@ -51,7 +49,7 @@ export function TradeUrlDialog({
         onOpenChange(o)
       }}
     >
-      <DialogContent className="border-border bg-card sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent className="border-border bg-card sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Link className="h-5 w-5 text-primary" />

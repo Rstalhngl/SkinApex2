@@ -14,9 +14,13 @@ import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
-import { CATEGORIES, RARITIES, WEAPONS_BY_CATEGORY, type CategoryKey, type Rarity } from "@/lib/skins"
+import {
+  CATEGORIES, getListedWeaponsInCategory, RARITIES,
+  type CategoryKey, type Rarity, type Skin,
+} from "@/lib/skins"
 
 export type SortKey =
+  | "all"
   | "popular"
   | "newest"
   | "discount-desc"
@@ -42,15 +46,20 @@ export const PRICE_FILTER_MAX = 200000 // TRY
 
 export function FilterSidebar({
   filters,
+  listedItems = [],
   onChange,
   onReset,
 }: {
   filters: Filters
+  listedItems?: Pick<Skin, "type" | "title" | "marketHashName">[]
   onChange: (filters: Filters) => void
   onReset?: () => void
 }) {
   const { t } = useI18n()
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch })
+  const listedWeapons = filters.category
+    ? getListedWeaponsInCategory(filters.category, listedItems)
+    : []
 
   return (
     <div className="space-y-6">
@@ -106,9 +115,9 @@ export function FilterSidebar({
           })}
         </div>
 
-        {filters.category && WEAPONS_BY_CATEGORY[filters.category].length > 1 && (
+        {filters.category && listedWeapons.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {WEAPONS_BY_CATEGORY[filters.category].map((w) => {
+            {listedWeapons.map((w) => {
               const active = filters.weapon === w
               return (
                 <button
@@ -140,6 +149,7 @@ export function FilterSidebar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="border-border bg-card">
+            <SelectItem value="all">{t("filter.sort.all")}</SelectItem>
             <SelectItem value="popular">{t("filter.sort.popular")}</SelectItem>
             <SelectItem value="newest">{t("filter.sort.newest")}</SelectItem>
             <SelectItem value="discount-desc">{t("filter.sort.discount")}</SelectItem>
