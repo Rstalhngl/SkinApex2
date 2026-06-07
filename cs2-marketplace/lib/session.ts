@@ -56,9 +56,20 @@ export function verifySession(token: string): SessionPayload | null {
 }
 
 export function sessionCookieOptions() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim() ?? ""
+  const secureFlag = process.env.COOKIE_SECURE?.trim().toLowerCase()
+  const secure =
+    secureFlag === "true"
+      ? true
+      : secureFlag === "false"
+        ? false
+        : process.env.NODE_ENV === "production"
+          ? baseUrl.startsWith("https://")
+          : false
+
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax" as const,
     path: "/",
     maxAge: MAX_AGE_SEC,

@@ -30,6 +30,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
+  // User-initiated Steam inventory pulls; avoid false 429 during retries.
+  if (req.nextUrl.pathname === "/api/inventory") {
+    return NextResponse.next()
+  }
+
   if (isRateLimited(clientIp(req))) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 })
   }

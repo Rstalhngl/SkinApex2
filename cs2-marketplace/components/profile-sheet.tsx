@@ -265,8 +265,10 @@ function MyListingsTab() {
 // ─── Inventory tab ────────────────────────────────────────────────────────────
 
 function InventoryTab({
+  active,
   onListClick,
 }: {
+  active: boolean
   onListClick: (item: InventoryItem, price: number | null) => void
 }) {
   const { t } = useI18n()
@@ -275,7 +277,7 @@ function InventoryTab({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
-  const fetched = useRef(false)
+  const loadedFor = useRef<string | null>(null)
 
   const fetchInv = async () => {
     const steamId = steamProfile?.steamId
@@ -283,10 +285,17 @@ function InventoryTab({
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 25_000)
+      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      if (res.status === 429) throw new Error("rate_limited")
       if (!res.ok) throw new Error(`http_${res.status}`)
       const data = await res.json()
       if (data.error === "private") { setError("private"); setInvItems([]); setTotal(0) }
+      else if (data.error === "timeout") { setError("timeout"); setInvItems([]); setTotal(0) }
       else if (data.error) { setError("error"); setInvItems([]); setTotal(0) }
       else {
         const safe = (data.items ?? []).filter(
@@ -298,16 +307,37 @@ function InventoryTab({
         setInvItems(safe)
         setTotal(data.total ?? safe.length)
       }
-    } catch { setError("error"); setInvItems([]); setTotal(0) }
-    finally { setLoading(false) }
+      loadedFor.current = steamId
+    } catch (e) {
+      setError(e instanceof Error && e.name === "AbortError" ? "timeout" : "error")
+      setInvItems([])
+      setTotal(0)
+    } finally { setLoading(false) }
   }
 
   useEffect(() => {
-    if (!fetched.current && steamProfile?.steamId) {
-      fetched.current = true
-      fetchInv()
-    }
+    const steamId = steamProfile?.steamId
+    if (!active || !steamId) return
+    if (loadedFor.current === steamId) return
+    void fetchInv()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, steamProfile?.steamId])
+
+  useEffect(() => {
+    loadedFor.current = null
+    setInvItems([])
+    setTotal(0)
+    setError(null)
   }, [steamProfile?.steamId])
+
+  if (!steamProfile?.steamId) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+        <Package className="h-10 w-10 opacity-30" />
+        <p className="text-sm">{t("inventory.error")}</p>
+      </div>
+    )
+  }
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -328,7 +358,7 @@ function InventoryTab({
         <ExternalLink className="h-3.5 w-3.5" />
         {t("inventory.makePublic")}
       </a>
-      <Button variant="outline" size="sm" onClick={fetchInv} className="border-border text-xs">
+      <Button variant="outline" size="sm" onClick={() => { loadedFor.current = null; void fetchInv() }} className="border-border text-xs">
         <RefreshCw className="mr-1.5 h-3.5 w-3.5" />{t("inventory.retry")}
       </Button>
     </div>
@@ -337,8 +367,10 @@ function InventoryTab({
   if (error) return (
     <div className="flex flex-col items-center justify-center gap-3 py-16">
       <Package className="h-10 w-10 text-muted-foreground" />
-      <p className="text-xs text-muted-foreground">{t("inventory.error")}</p>
-      <Button variant="outline" size="sm" onClick={fetchInv} className="border-border">
+      <p className="text-xs text-muted-foreground">
+        {error === "timeout" ? t("inventory.timeout") : t("inventory.error")}
+      </p>
+      <Button variant="outline" size="sm" onClick={() => { loadedFor.current = null; void fetchInv() }} className="border-border">
         <RefreshCw className="mr-1.5 h-3 w-3" />{t("inventory.retry")}
       </Button>
     </div>
@@ -358,7 +390,7 @@ function InventoryTab({
     <div className="space-y-4 p-3">
       <div className="flex items-center justify-between px-1">
         <p className="text-xs text-muted-foreground">{total} item · {tradable.length} {t("inventory.tradable")}</p>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={fetchInv}>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => { loadedFor.current = null; void fetchInv() }}>
           <RefreshCw className="mr-1 h-3 w-3" />{t("inventory.retry")}
         </Button>
       </div>
@@ -546,6 +578,7 @@ function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; mark
 export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
   const { t } = useI18n()
   const { steamProfile } = useMarket()
+  const [tab, setTab] = useState("profile")
   const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
   const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
 
@@ -572,7 +605,7 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             <SheetDescription className="sr-only">Sayfa içeriği</SheetDescription>
           </SheetHeader>
 
-          <Tabs defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
+          <Tabs value={tab} onValueChange={setTab} defaultValue="profile" className="flex flex-1 flex-col overflow-hidden">
             <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-2 gap-1 bg-input sm:grid-cols-4">
               <TabsTrigger value="profile" className="text-[10px] sm:text-xs">Profil</TabsTrigger>
               <TabsTrigger value="orders" className="text-[10px] sm:text-xs">{t("orders.title")}</TabsTrigger>
@@ -589,9 +622,9 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             <TabsContent value="listings" className="flex-1 overflow-hidden mt-0">
               <ScrollArea className="h-full"><MyListingsTab /></ScrollArea>
             </TabsContent>
-            <TabsContent value="inventory" className="flex-1 overflow-hidden mt-0">
-              <ScrollArea className="h-full">
-                <InventoryTab onListClick={handleListClick} />
+            <TabsContent value="inventory" className="flex min-h-0 flex-1 flex-col overflow-hidden mt-0">
+              <ScrollArea className="min-h-[320px] flex-1">
+                <InventoryTab active={tab === "inventory"} onListClick={handleListClick} />
               </ScrollArea>
             </TabsContent>
           </Tabs>

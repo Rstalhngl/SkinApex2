@@ -12,6 +12,7 @@ const inflate = promisify(zlib.inflate)
 
 const STEAM_IMG = "https://community.akamai.steamstatic.com/economy/image/"
 const PAGE_SIZE = 2000  // Steam's maximum per request
+const STEAM_FETCH_MS = 20_000
 
 interface SteamAsset {
   appid: number
@@ -83,6 +84,7 @@ async function fetchPage(steamId: string, startAssetId?: string): Promise<{
       "Referer": `https://steamcommunity.com/profiles/${steamId}/inventory/`,
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(STEAM_FETCH_MS),
   })
 
   if (res.status === 403 || res.status === 401) throw new Error("private")
@@ -201,6 +203,9 @@ export async function GET(request: NextRequest) {
     const msg = e instanceof Error ? e.message : String(e)
     if (msg === "private") return NextResponse.json({ error: "private", items: [] })
     if (msg.startsWith("steam_")) return NextResponse.json({ error: msg, items: [] })
+    if (msg.includes("TimeoutError") || msg.includes("aborted")) {
+      return NextResponse.json({ error: "timeout", items: [] })
+    }
     console.error("Inventory fetch error:", e)
     return NextResponse.json({ error: "fetch_failed", items: [] })
   }

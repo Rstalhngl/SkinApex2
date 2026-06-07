@@ -373,7 +373,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   // Inventory data
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [fetchError, setFetchError] = useState<"private" | "error" | null>(null)
+  const [fetchError, setFetchError] = useState<"private" | "timeout" | "error" | null>(null)
   const [total, setTotal] = useState(0)
 
   // Listing dialog state — lifted here so dialog renders OUTSIDE SheetContent
@@ -391,13 +391,23 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     setFetchError(null)
 
     try {
-      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 25_000)
+      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      if (res.status === 429) throw new Error("rate_limited")
       if (!res.ok) throw new Error(`http_${res.status}`)
 
       const data: ApiResponse = await res.json()
 
       if ("error" in data && data.error) {
-        setFetchError(data.error === "private" ? "private" : "error")
+        setFetchError(
+          data.error === "private" ? "private"
+            : data.error === "timeout" ? "timeout"
+              : "error",
+        )
         setInventoryItems([])
         setTotal(0)
       } else {
@@ -411,8 +421,8 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
         setInventoryItems(safe)
         setTotal(data.total ?? safe.length)
       }
-    } catch {
-      setFetchError("error")
+    } catch (e) {
+      setFetchError(e instanceof Error && e.name === "AbortError" ? "timeout" : "error")
       setInventoryItems([])
       setTotal(0)
     } finally {
@@ -535,10 +545,12 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
             )}
 
             {/* General fetch error */}
-            {!loading && fetchError === "error" && (
+            {!loading && (fetchError === "error" || fetchError === "timeout") && (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                 <Package className="h-10 w-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{t("inventory.error")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {fetchError === "timeout" ? t("inventory.timeout") : t("inventory.error")}
+                </p>
                 <Button
                   variant="outline"
                   size="sm"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
-import { Banknote, ChevronDown, ExternalLink, Gavel, Globe, Handshake, LogOut, Moon, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
+import { Banknote, ChevronDown, ExternalLink, Gavel, Globe, Handshake, LogOut, Moon, Package, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ import { NotificationsBell } from "@/components/notifications-bell"
 import { OffersSheet } from "@/components/offers-sheet"
 import { OrdersSheet } from "@/components/orders-sheet"
 import { ProfileSheet } from "@/components/profile-sheet"
+import { InventorySheet } from "@/components/inventory-sheet"
 import { useMarket } from "@/components/market-provider"
 import { CURRENT_USER, formatPrice, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
 import { LANGS, useI18n } from "@/lib/i18n"
@@ -196,6 +197,15 @@ export function SiteHeader({
                 >
                   <User className="h-4 w-4" />
                   {t("header.profile")}
+                </DropdownMenuItem>
+              } />
+              <InventorySheet trigger={
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
+                >
+                  <Package className="h-4 w-4" />
+                  {t("inventory.title")}
                 </DropdownMenuItem>
               } />
               <OffersSheet trigger={
