@@ -36,7 +36,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { formatPrice } from "@/lib/skins"
-import { createListing } from "@/lib/listings"
+import { createListingWithError } from "@/lib/listings"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -445,13 +445,16 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     setListingRefPrice(null)
   }
 
-  const handleConfirm = (priceTry: number) => {
+  const handleConfirm = async (priceTry: number) => {
     if (!steamProfile || !listingItem) return
-    createListing(listingItem, priceTry, {
-      steamId: steamProfile.steamId,
-      steamName: steamProfile.steamName,
-      steamAvatar: steamProfile.steamAvatar,
-    })
+    const result = await createListingWithError(listingItem, priceTry)
+    if (result.error === "listing_banned") {
+      toast.error(t("listings.banned"))
+      return
+    }
+    if (!result.listing) {
+      toast.error("İlan kaydedilemedi", { description: "Lütfen tekrar deneyin." })
+    }
   }
 
   const handleRefresh = () => {
