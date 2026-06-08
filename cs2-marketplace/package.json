@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "db:migrate": "node scripts/migrate-json-to-pg.mjs",
     "trade-bot": "node scripts/trade-bot.cjs",
-    "ws-server": "node scripts/ws-server.cjs"
+    "ws-server": "node scripts/ws-server.cjs",
+    "favicons": "node scripts/generate-favicons.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -74,7 +75,9 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/ws": "^8.18.1",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.5",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3"

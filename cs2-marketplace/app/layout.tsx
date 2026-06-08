@@ -12,16 +12,35 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'https://skinapex.net'),
   title: 'SkinApex — Global CS2 Skin Marketplace',
   description:
     'Buy, sell and trade CS2 skins instantly with secure P2P escrow. Live market prices, float inspection, StatTrak™ and Souvenir items.',
+  applicationName: 'SkinApex',
   generator: 'SkinApex',
+  manifest: '/site.webmanifest',
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: '32x32' },
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/icon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon.svg', type: 'image/svg+xml' },
     ],
-    apple: '/apple-icon.png',
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: '/favicon.ico',
+  },
+  openGraph: {
+    title: 'SkinApex — Global CS2 Skin Marketplace',
+    description:
+      'Buy, sell and trade CS2 skins instantly with secure P2P escrow.',
+    siteName: 'SkinApex',
+    type: 'website',
+    images: [{ url: '/icon-512.png', width: 512, height: 512, alt: 'SkinApex' }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'SkinApex — Global CS2 Skin Marketplace',
+    images: ['/icon-512.png'],
   },
 }
 
