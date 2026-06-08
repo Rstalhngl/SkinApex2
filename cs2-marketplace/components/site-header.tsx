@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import { Banknote, ChevronDown, ExternalLink, Globe, Handshake, LogOut, Moon, Package, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
+import Link from "next/link"
+import { Banknote, ChevronDown, ExternalLink, Gavel, Globe, Handshake, LogOut, Moon, Package, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +20,11 @@ import { NotificationsBell } from "@/components/notifications-bell"
 import { OffersSheet } from "@/components/offers-sheet"
 import { OrdersSheet } from "@/components/orders-sheet"
 import { ProfileSheet } from "@/components/profile-sheet"
+import { InventorySheet } from "@/components/inventory-sheet"
 import { useMarket } from "@/components/market-provider"
 import { CURRENT_USER, formatPrice, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
 import { LANGS, useI18n } from "@/lib/i18n"
+import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 
 const SNOWFLAKES = [
@@ -48,9 +51,21 @@ export function SiteHeader({
   const [tradeUrlOpen, setTradeUrlOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const currentLang = LANGS.find((l) => l.code === lang) ?? LANGS[0]
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setIsAdmin(false)
+      return
+    }
+    void apiFetch("/api/admin/me")
+      .then((res) => res.json())
+      .then((data: { isAdmin?: boolean }) => setIsAdmin(Boolean(data.isAdmin)))
+      .catch(() => setIsAdmin(false))
+  }, [isLoggedIn])
   const isDark = !mounted || resolvedTheme === "dark"
 
   const displayName = steamProfile?.steamName ?? steamProfile?.steamId ?? t("header.guestName")
@@ -184,6 +199,15 @@ export function SiteHeader({
                   {t("header.profile")}
                 </DropdownMenuItem>
               } />
+              <InventorySheet trigger={
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
+                >
+                  <Package className="h-4 w-4" />
+                  {t("inventory.title")}
+                </DropdownMenuItem>
+              } />
               <OffersSheet trigger={
                 <DropdownMenuItem
                   onSelect={(e) => e.preventDefault()}
@@ -202,6 +226,14 @@ export function SiteHeader({
                   {t("header.myOrders")}
                 </DropdownMenuItem>
               } />
+              {isAdmin && (
+                <DropdownMenuItem asChild className="cursor-pointer text-primary focus:bg-input focus:text-primary">
+                  <Link href="/admin">
+                    <Gavel className="h-4 w-4" />
+                    {t("header.admin")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
               {steamProfile?.steamId && (
                 <>
 

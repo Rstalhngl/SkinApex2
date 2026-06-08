@@ -5,7 +5,7 @@
  * Defensive rewrite — null-safe, no infinite loops, no nested Radix modals.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ExternalLink,
   Lock,
@@ -32,13 +32,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { formatPrice } from "@/lib/skins"
-import { createListing } from "@/lib/listings"
+import { createListingWithError } from "@/lib/listings"
+import { listingErrorMessage } from "@/lib/listing-errors"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { InventoryGrid } from "@/components/inventory-grid"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,15 +62,6 @@ function formatTry(value: number): string {
   }).format(value)
 }
 
-/** Safely get market price for an item. Never throws. */
-function getMarketPrice(
-  marketHashName: string | undefined,
-  skins: import("@/lib/skins").Skin[],
-): number | null {
-  if (!marketHashName) return null
-  return skins.find((s) => s.marketHashName === marketHashName)?.price ?? null
-}
-
 /** Safely build Steam CDN image URL */
 function safeImg(iconUrl: string | undefined): string {
   if (!iconUrl) return "/placeholder.svg"
@@ -87,7 +79,7 @@ interface ListingDialogProps {
   refPrice: number | null
   open: boolean
   onClose: () => void
-  onConfirm: (priceTry: number) => void
+  onConfirm: (priceTry: number) => Promise<boolean>
 }
 
 function ListingDialog({
@@ -98,6 +90,7 @@ function ListingDialog({
   onConfirm,
 }: ListingDialogProps) {
   const [price, setPrice] = useState<string>("")
+  const [saving, setSaving] = useState(false)
 
   // Sync price input when dialog opens/closes or refPrice changes
   useEffect(() => {
@@ -116,13 +109,15 @@ function ListingDialog({
   const netToSeller = Math.round(priceNum * (1 - COMMISSION))
   const isValid = priceNum > 0
 
-  const handleConfirm = () => {
-    if (!isValid) return
-    onConfirm(priceNum)
-    toast.success("İlan yayınlandı!", {
-      description: `${item.name ?? "Ürün"} — ${formatTry(priceNum)} · elinize geçecek: ${formatTry(netToSeller)}`,
-    })
-    onClose()
+  const handleConfirm = async () => {
+    if (!isValid || saving) return
+    setSaving(true)
+    try {
+      const ok = await onConfirm(priceNum)
+      if (ok) onClose()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -229,8 +224,8 @@ function ListingDialog({
             İptal
           </Button>
           <Button
-            disabled={!isValid}
-            onClick={handleConfirm}
+            disabled={!isValid || saving}
+            onClick={() => { void handleConfirm() }}
             className="bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             <Tag className="mr-2 h-4 w-4" />
@@ -239,121 +234,6 @@ function ListingDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-
-// ─── InventoryCard ─────────────────────────────────────────────────────────────
-
-interface InventoryCardProps {
-  item: InventoryItem
-  marketItems: import("@/lib/skins").Skin[]
-  onListClick: (item: InventoryItem, refPrice: number | null) => void
-}
-
-function InventoryCard({ item, marketItems, onListClick }: InventoryCardProps) {
-  const { t } = useI18n()
-  const price = getMarketPrice(item.marketHashName, marketItems)
-  const displayName = (item.name ?? "")
-    .replace("StatTrak™ ", "")
-    .replace("Souvenir ", "")
-
-  return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-3 transition-colors hover:border-[#243146]">
-      {/* Rarity colour bar */}
-      <div
-        className="absolute inset-x-0 top-0 h-1 rounded-t-xl"
-        style={{ backgroundColor: item.rarityColor ?? "#b0c3d9" }}
-      />
-
-      {/* Badges */}
-      <div className="mb-1.5 mt-0.5 flex items-center justify-between text-[9px]">
-        <span
-          className="font-semibold"
-          style={{ color: item.rarityColor ?? "#b0c3d9" }}
-        >
-          {item.exterior || "—"}
-        </span>
-        <div className="flex gap-1">
-          {item.stattrak && (
-            <span className="rounded bg-[#cf6a32]/20 px-1 py-px font-extrabold text-[#cf6a32]">
-              ST™
-            </span>
-          )}
-          {item.souvenir && (
-            <span className="rounded bg-[#ffe400]/20 px-1 py-px font-extrabold text-[#ffe400]">
-              SV
-            </span>
-          )}
-          {!item.tradable && (
-            <span className="rounded bg-destructive/15 px-1 py-px font-bold text-destructive">
-              Kilit
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Item image */}
-      <div className="flex h-[90px] items-center justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={safeImg(item.img)}
-          alt={displayName}
-          className="max-h-full max-w-[90%] object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]"
-          referrerPolicy="no-referrer"
-          loading="lazy"
-          onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
-        />
-      </div>
-
-      {/* Item info */}
-      <div className="mt-2 min-w-0">
-        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">
-          {item.type ?? ""}
-        </p>
-        <p className="truncate text-[11px] font-semibold leading-tight text-foreground">
-          {displayName}
-        </p>
-        {item.rarity && (
-          <p
-            className="text-[9px] font-semibold"
-            style={{ color: item.rarityColor ?? "#b0c3d9" }}
-          >
-            {item.rarity}
-          </p>
-        )}
-        {price != null && (
-          <p className="mt-0.5 text-[11px] font-bold text-success">{formatPrice(price)}</p>
-        )}
-      </div>
-
-      {/* Hover overlay — only appears on hover */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-xl bg-card/96 px-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-        {item.tradable && (
-          <Button
-            size="sm"
-            onClick={() => onListClick(item, price)}
-            className="h-8 w-full bg-primary text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
-          >
-            <Tag className="mr-1.5 h-3.5 w-3.5" />
-            {t("sell.list")}
-          </Button>
-        )}
-        {item.marketHashName && (
-          <a
-            href={`https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.marketHashName)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input text-[10px] font-semibold text-muted-foreground hover:border-[#66c0f4] hover:text-[#66c0f4]"
-          >
-            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
-              <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
-            </svg>
-            Steam
-            <ExternalLink className="h-2.5 w-2.5" />
-          </a>
-        )}
-      </div>
-    </div>
   )
 }
 
@@ -373,7 +253,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   // Inventory data
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [fetchError, setFetchError] = useState<"private" | "error" | null>(null)
+  const [fetchError, setFetchError] = useState<"private" | "timeout" | "error" | null>(null)
   const [total, setTotal] = useState(0)
 
   // Listing dialog state — lifted here so dialog renders OUTSIDE SheetContent
@@ -391,13 +271,23 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     setFetchError(null)
 
     try {
-      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 25_000)
+      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      if (res.status === 429) throw new Error("rate_limited")
       if (!res.ok) throw new Error(`http_${res.status}`)
 
       const data: ApiResponse = await res.json()
 
       if ("error" in data && data.error) {
-        setFetchError(data.error === "private" ? "private" : "error")
+        setFetchError(
+          data.error === "private" ? "private"
+            : data.error === "timeout" ? "timeout"
+              : "error",
+        )
         setInventoryItems([])
         setTotal(0)
       } else {
@@ -411,8 +301,8 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
         setInventoryItems(safe)
         setTotal(data.total ?? safe.length)
       }
-    } catch {
-      setFetchError("error")
+    } catch (e) {
+      setFetchError(e instanceof Error && e.name === "AbortError" ? "timeout" : "error")
       setInventoryItems([])
       setTotal(0)
     } finally {
@@ -435,23 +325,32 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   }, [open, steamProfile?.steamId])
 
   // Handlers
-  const handleListClick = (item: InventoryItem, refPrice: number | null) => {
+  const handleListClick = useCallback((item: InventoryItem, refPrice: number | null) => {
     setListingItem(item)
     setListingRefPrice(refPrice)
-  }
+  }, [])
 
   const handleListClose = () => {
     setListingItem(null)
     setListingRefPrice(null)
   }
 
-  const handleConfirm = (priceTry: number) => {
-    if (!steamProfile || !listingItem) return
-    createListing(listingItem, priceTry, {
-      steamId: steamProfile.steamId,
-      steamName: steamProfile.steamName,
-      steamAvatar: steamProfile.steamAvatar,
+  const handleConfirm = async (priceTry: number): Promise<boolean> => {
+    if (!steamProfile || !listingItem) return false
+    const result = await createListingWithError(listingItem, priceTry)
+    if (result.error === "listing_banned") {
+      toast.error(t("listings.banned"))
+      return false
+    }
+    if (!result.listing) {
+      const msg = listingErrorMessage(result.error, t)
+      toast.error(msg.title)
+      return false
+    }
+    toast.success(t("listings.listedSuccess"), {
+      description: `${listingItem.name ?? "Ürün"} — ${formatTry(priceTry)}`,
     })
+    return true
   }
 
   const handleRefresh = () => {
@@ -460,8 +359,10 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   }
 
   // Derived lists
-  const tradable = inventoryItems.filter((i) => i.tradable)
-  const locked = inventoryItems.filter((i) => !i.tradable)
+  const { tradable, locked } = useMemo(() => ({
+    tradable: inventoryItems.filter((i) => i.tradable),
+    locked: inventoryItems.filter((i) => !i.tradable),
+  }), [inventoryItems])
 
   return (
     <>
@@ -470,12 +371,10 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
         {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
 
         <SheetContent
-          className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-2xl"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
+          className="flex h-full w-full flex-col gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl"
         >
           {/* Header */}
-          <SheetHeader className="border-b border-border px-5 py-4">
+          <SheetHeader className="shrink-0 border-b border-border px-5 py-4">
             <SheetTitle className="flex items-center gap-2 text-foreground">
               <Package className="h-5 w-5 text-primary" />
               {t("inventory.title")}
@@ -500,7 +399,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
           </SheetHeader>
 
           {/* Body */}
-          <ScrollArea className="flex-1">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none]">
             {/* Loading spinner */}
             {loading && (
               <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -532,10 +431,12 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
             )}
 
             {/* General fetch error */}
-            {!loading && fetchError === "error" && (
+            {!loading && (fetchError === "error" || fetchError === "timeout") && (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                 <Package className="h-10 w-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{t("inventory.error")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {fetchError === "timeout" ? t("inventory.timeout") : t("inventory.error")}
+                </p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -564,16 +465,11 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                     <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-success">
                       {t("inventory.tradable")} ({tradable.length})
                     </p>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
-                      {tradable.map((item) => (
-                        <InventoryCard
-                          key={item.assetId}
-                          item={item}
-                          marketItems={marketItems}
-                          onListClick={handleListClick}
-                        />
-                      ))}
-                    </div>
+                    <InventoryGrid
+                      items={tradable}
+                      marketItems={marketItems}
+                      onListClick={handleListClick}
+                    />
                   </section>
                 )}
 
@@ -582,21 +478,17 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                     <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                       {t("inventory.locked")} ({locked.length})
                     </p>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3 opacity-60">
-                      {locked.map((item) => (
-                        <InventoryCard
-                          key={item.assetId}
-                          item={item}
-                          marketItems={marketItems}
-                          onListClick={handleListClick}
-                        />
-                      ))}
-                    </div>
+                    <InventoryGrid
+                      items={locked}
+                      marketItems={marketItems}
+                      onListClick={handleListClick}
+                      className="opacity-60"
+                    />
                   </section>
                 )}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </SheetContent>
       </Sheet>
 
