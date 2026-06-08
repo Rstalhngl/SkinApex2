@@ -102,27 +102,44 @@ const InventoryGridCard = memo(function InventoryGridCard({
       </div>
 
       {item.tradable && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-xl bg-card/96 px-3 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 flex flex-col items-stretch justify-center bg-card/96 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100",
+            compact ? "gap-1 rounded-lg px-1.5 py-2" : "gap-1.5 rounded-xl px-3",
+          )}
+        >
           <Button
             size="sm"
             onClick={() => onListClick(item, marketPrice)}
-            className="h-8 w-full bg-primary text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
+            className={cn(
+              "w-full min-w-0 shrink bg-primary text-primary-foreground hover:bg-primary/90",
+              compact
+                ? "h-auto min-h-7 gap-1 px-1.5 py-1 text-[9px] font-semibold leading-tight whitespace-normal normal-case"
+                : "h-8 gap-1.5 text-[10px] font-bold uppercase",
+            )}
           >
-            <Tag className="mr-1.5 h-3.5 w-3.5" />
-            {t("sell.list")}
+            <Tag className={cn("shrink-0", compact ? "h-3 w-3" : "h-3.5 w-3.5")} />
+            <span className="min-w-0 text-center leading-tight">
+              {t(compact ? "sell.listShort" : "sell.list")}
+            </span>
           </Button>
           {item.marketHashName && (
             <a
               href={`https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.marketHashName)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="pointer-events-auto flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input text-[10px] font-semibold text-muted-foreground hover:border-[#66c0f4] hover:text-[#66c0f4]"
+              className={cn(
+                "pointer-events-auto flex w-full min-w-0 items-center justify-center rounded-md border border-border bg-input font-semibold text-muted-foreground hover:border-[#66c0f4] hover:text-[#66c0f4]",
+                compact
+                  ? "h-6 gap-1 px-1 text-[8px] leading-none"
+                  : "h-7 gap-1.5 px-2 text-[10px]",
+              )}
             >
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+              <svg viewBox="0 0 24 24" className={cn("shrink-0 fill-current", compact ? "h-2.5 w-2.5" : "h-3 w-3")}>
                 <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
               </svg>
-              Steam
-              <ExternalLink className="h-2.5 w-2.5" />
+              <span className="truncate">Steam</span>
+              <ExternalLink className={cn("shrink-0", compact ? "h-2 w-2" : "h-2.5 w-2.5")} />
             </a>
           )}
         </div>
@@ -153,7 +170,7 @@ export function InventoryGrid({
       className={cn(
         "grid gap-3",
         compact
-          ? "grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2"
+          ? "grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2"
           : "grid-cols-[repeat(auto-fill,minmax(130px,1fr))]",
         className,
       )}
