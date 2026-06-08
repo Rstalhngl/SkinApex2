@@ -9,6 +9,7 @@ const http = require("http")
 const { readFile } = require("fs/promises")
 const path = require("path")
 const { WebSocketServer, WebSocket } = require("ws")
+const { verifyWsToken } = require("../lib/ws-auth.cjs")
 
 const ROOT = path.join(__dirname, "..")
 const PORT = Number(process.env.WS_PORT || 3001)
@@ -116,8 +117,11 @@ async function main() {
     ws.on("message", (data) => {
       try {
         const msg = JSON.parse(String(data))
-        if (msg.type === "auth" && typeof msg.steamId === "string" && msg.steamId) {
-          client.steamId = msg.steamId
+        if (msg.type === "auth") {
+          if (typeof msg.token === "string" && msg.token) {
+            const verified = verifyWsToken(msg.token)
+            if (verified) client.steamId = verified.steamId
+          }
         }
         if (msg.type === "ping") {
           ws.send(JSON.stringify({ type: "pong", ts: Date.now() }))

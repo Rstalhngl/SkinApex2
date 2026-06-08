@@ -7,6 +7,7 @@ type ConnectionHandler = (connected: boolean) => void
 
 let socket: WebSocket | null = null
 let authSteamId: string | undefined
+let wsAuthToken: string | undefined
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectAttempt = 0
 let intentionalClose = false
@@ -42,8 +43,24 @@ function scheduleReconnect() {
   reconnectAttempt++
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
-    connectWs(authSteamId)
+    void connectWs(authSteamId)
   }, delay)
+}
+
+async function fetchWsToken(): Promise<string | undefined> {
+  try {
+    const res = await fetch("/api/auth/ws-token", { credentials: "include" })
+    if (!res.ok) return undefined
+    const data = (await res.json()) as { token?: string }
+    return data.token?.trim() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+function sendWsAuth() {
+  if (!socket || socket.readyState !== WebSocket.OPEN || !wsAuthToken) return
+  socket.send(JSON.stringify({ type: "auth", token: wsAuthToken }))
 }
 
 export function isWsConnected(): boolean {
@@ -62,15 +79,21 @@ export function subscribeWsChannel(channel: WsChannel, handler: ChannelHandler):
   return () => channelHandlers.get(channel)?.delete(handler)
 }
 
-export function connectWs(steamId?: string): void {
+export async function connectWs(steamId?: string): Promise<void> {
   if (typeof window === "undefined") return
 
   authSteamId = steamId
   intentionalClose = false
 
+  if (steamId) {
+    wsAuthToken = await fetchWsToken()
+  } else {
+    wsAuthToken = undefined
+  }
+
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-    if (steamId && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "auth", steamId }))
+    if (wsAuthToken && socket.readyState === WebSocket.OPEN) {
+      sendWsAuth()
     }
     return
   }
@@ -90,9 +113,7 @@ export function connectWs(steamId?: string): void {
   socket.onopen = () => {
     reconnectAttempt = 0
     notifyConnection(true)
-    if (authSteamId) {
-      socket?.send(JSON.stringify({ type: "auth", steamId: authSteamId }))
-    }
+    sendWsAuth()
   }
 
   socket.onmessage = (ev) => {
@@ -119,6 +140,7 @@ export function connectWs(steamId?: string): void {
 
 export function disconnectWs(): void {
   intentionalClose = true
+  wsAuthToken = undefined
   if (reconnectTimer) {
     clearTimeout(reconnectTimer)
     reconnectTimer = null

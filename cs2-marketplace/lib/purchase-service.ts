@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg"
 import type { Listing } from "@/lib/listing-types"
 import type { Sale } from "@/lib/sale-types"
 import { DELIVERY_MS } from "@/lib/sale-types"
@@ -5,13 +6,14 @@ import { withStoreLock } from "@/lib/data-lock"
 import { rejectPendingOffersForListing } from "@/lib/offer-cleanup"
 import { readListingsStore, writeListingsStore } from "@/lib/listings-store"
 import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
-import { debitWallet, creditWallet, getWalletBalance } from "@/lib/wallet-store"
+import { debitWallet, creditWallet, getWalletBalance, type WalletTxType } from "@/lib/wallet-store"
 import { addUserNotification } from "@/lib/notifications-store"
 import { isValidTradeUrl, tradeUrlMatchesSteamId } from "@/lib/trade-url"
 import { verifyAssetOwnership } from "@/lib/steam-inventory"
 import { buildSaleTradeFields } from "@/lib/trade-delivery-service"
 import { isTradeBotEnabled } from "@/lib/trade-bot-config"
 import { publishPurchaseEvents, publishUserChannel } from "@/lib/ws-publish"
+import { isDbEnabled, withTransaction } from "@/lib/db"
 
 export interface PurchaseBuyer {
   steamId: string
@@ -39,6 +41,269 @@ function validateBuyerTradeUrl(
   return null
 }
 
+async function nextCounterInTx(client: PoolClient, name: string): Promise<number> {
+  const res = await client.query<{ value: string }>(
+    `UPDATE counters SET value = value + 1 WHERE name = $1 RETURNING value`,
+    [name],
+  )
+  return Number(res.rows[0]?.value ?? 1)
+}
+
+async function debitWalletInTx(
+  client: PoolClient,
+  steamId: string,
+  amount: number,
+  type: WalletTxType,
+  refId?: string,
+  note?: string,
+): Promise<{ ok: true; balance: number } | { ok: false; error: string }> {
+  await client.query(
+    `INSERT INTO wallets (steam_id, balance) VALUES ($1, 0) ON CONFLICT DO NOTHING`,
+    [steamId],
+  )
+  const locked = await client.query<{ balance: string }>(
+    `SELECT balance FROM wallets WHERE steam_id = $1 FOR UPDATE`,
+    [steamId],
+  )
+  const current = Number(locked.rows[0]?.balance ?? 0)
+  if (current < amount) return { ok: false, error: "insufficient_balance" }
+
+  const updated = await client.query<{ balance: string }>(
+    `UPDATE wallets SET balance = ROUND(balance - $2, 2) WHERE steam_id = $1 RETURNING balance`,
+    [steamId, amount],
+  )
+  const balance = Number(updated.rows[0]?.balance ?? 0)
+  const txNum = await nextCounterInTx(client, "wallet_tx_id")
+  await client.query(
+    `INSERT INTO wallet_transactions
+      (id, steam_id, type, amount, balance_after, ref_id, note, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [`tx-${txNum}`, steamId, type, -amount, balance, refId ?? null, note ?? null, Date.now()],
+  )
+  return { ok: true, balance }
+}
+
+function formatTry(v: number): string {
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+    maximumFractionDigits: 0,
+  }).format(v)
+}
+
+function deliveryHint(buyer: PurchaseBuyer): string {
+  return isTradeBotEnabled()
+    ? "Teslimat bot tarafından otomatik gönderilecek."
+    : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
+}
+
+async function notifyPurchaseSideEffects(
+  buyer: PurchaseBuyer,
+  listing: Listing,
+  sale: Sale,
+  chargeAmount: number,
+): Promise<void> {
+  await addUserNotification(
+    listing.sellerId,
+    "item_sold",
+    `Ürününüz satıldı: ${listing.name} — ${formatTry(chargeAmount)}. ${deliveryHint(buyer)}`,
+    { saleId: sale.id, listingId: listing.id },
+  )
+  await rejectPendingOffersForListing(listing.id)
+  publishPurchaseEvents({
+    buyerId: buyer.steamId,
+    sellerId: listing.sellerId,
+    itemName: listing.name,
+    priceTry: chargeAmount,
+    saleId: sale.id,
+    listingId: listing.id,
+  })
+}
+
+function buildSaleRecord(
+  saleId: number,
+  listing: Listing,
+  buyer: PurchaseBuyer,
+  chargeAmount: number,
+  soldAt: number,
+): Sale {
+  const netToSeller = Math.round(chargeAmount * (1 - listing.commissionRate))
+  return {
+    id: `sale-${saleId}`,
+    listingId: listing.id,
+    ...buildSaleTradeFields(listing.assetId),
+    sellerId: listing.sellerId,
+    sellerName: listing.sellerName,
+    buyerId: buyer.steamId,
+    buyerName: buyer.steamName ?? buyer.steamId,
+    itemName: listing.name,
+    itemImg: listing.img,
+    exterior: listing.exterior,
+    priceTry: chargeAmount,
+    netToSeller,
+    soldAt,
+    deliveryDeadline: soldAt + DELIVERY_MS,
+    status: "pending_delivery",
+    buyerTradeUrl: buyer.tradeUrl.trim(),
+  }
+}
+
+async function completePurchasePg(
+  listingId: string,
+  buyer: PurchaseBuyer,
+  priceTry: number | undefined,
+  txType: WalletTxType,
+): Promise<PurchaseResult> {
+  try {
+    const result = await withTransaction(async (client) => {
+      const listingRes = await client.query<{ payload: Listing }>(
+        `SELECT payload FROM listings
+         WHERE id = $1 AND payload->>'status' = 'active'
+         FOR UPDATE`,
+        [listingId],
+      )
+      if (!listingRes.rows[0]) return { ok: false as const, error: "listing_not_found" }
+
+      const listing = listingRes.rows[0].payload
+      if (listing.sellerId === buyer.steamId) {
+        return { ok: false as const, error: "cannot_buy_own_listing" }
+      }
+
+      const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
+      if (!ownership.ok) return { ok: false as const, error: "asset_unavailable" }
+
+      const chargeAmount = priceTry ?? listing.priceTry
+      const debit = await debitWalletInTx(client, buyer.steamId, chargeAmount, txType, listingId)
+      if (!debit.ok) {
+        return { ok: false as const, error: debit.error, minBalance: chargeAmount }
+      }
+
+      const soldAt = Date.now()
+      const netToSeller = Math.round(chargeAmount * (1 - listing.commissionRate))
+      const updatedListing: Listing = {
+        ...listing,
+        status: "sold",
+        soldAt,
+        priceTry: chargeAmount,
+        netToSeller,
+      }
+
+      await client.query(`UPDATE listings SET payload = $2::jsonb WHERE id = $1`, [
+        listingId,
+        JSON.stringify(updatedListing),
+      ])
+
+      const saleNum = await nextCounterInTx(client, "sale_id")
+      const sale = buildSaleRecord(saleNum, listing, buyer, chargeAmount, soldAt)
+      await client.query(`INSERT INTO sales (id, payload) VALUES ($1, $2::jsonb)`, [
+        sale.id,
+        JSON.stringify(sale),
+      ])
+
+      return { ok: true as const, sale, listing: updatedListing, chargeAmount }
+    })
+
+    if (result.ok) {
+      await notifyPurchaseSideEffects(buyer, result.listing, result.sale, result.chargeAmount)
+      return { ok: true, sale: result.sale, listing: result.listing }
+    }
+    return result
+  } catch {
+    return { ok: false, error: "server_error" }
+  }
+}
+
+async function completeBatchPurchasePg(
+  listingIds: string[],
+  buyer: PurchaseBuyer,
+): Promise<BatchPurchaseResult> {
+  const uniqueIds = [...new Set(listingIds)].sort()
+
+  try {
+    const result = await withTransaction(async (client) => {
+      const resolved: { listing: Listing; charge: number }[] = []
+
+      for (const listingId of uniqueIds) {
+        const listingRes = await client.query<{ payload: Listing }>(
+          `SELECT payload FROM listings
+           WHERE id = $1 AND payload->>'status' = 'active'
+           FOR UPDATE`,
+          [listingId],
+        )
+        if (!listingRes.rows[0]) return { ok: false as const, error: "listing_not_found" }
+
+        const listing = listingRes.rows[0].payload
+        if (listing.sellerId === buyer.steamId) {
+          return { ok: false as const, error: "cannot_buy_own_listing" }
+        }
+
+        const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
+        if (!ownership.ok) return { ok: false as const, error: "asset_unavailable" }
+
+        resolved.push({ listing, charge: listing.priceTry })
+      }
+
+      const totalCharge = resolved.reduce((sum, r) => sum + r.charge, 0)
+      const debit = await debitWalletInTx(
+        client,
+        buyer.steamId,
+        totalCharge,
+        "purchase",
+        uniqueIds.join(","),
+      )
+      if (!debit.ok) {
+        return { ok: false as const, error: debit.error, minBalance: totalCharge }
+      }
+
+      const soldAt = Date.now()
+      const createdSales: Sale[] = []
+      const updatedListings: Listing[] = []
+
+      for (const { listing, charge } of resolved) {
+        const netToSeller = Math.round(charge * (1 - listing.commissionRate))
+        const updatedListing: Listing = {
+          ...listing,
+          status: "sold",
+          soldAt,
+          priceTry: charge,
+          netToSeller,
+        }
+        await client.query(`UPDATE listings SET payload = $2::jsonb WHERE id = $1`, [
+          listing.id,
+          JSON.stringify(updatedListing),
+        ])
+
+        const saleNum = await nextCounterInTx(client, "sale_id")
+        const sale = buildSaleRecord(saleNum, listing, buyer, charge, soldAt)
+        await client.query(`INSERT INTO sales (id, payload) VALUES ($1, $2::jsonb)`, [
+          sale.id,
+          JSON.stringify(sale),
+        ])
+
+        createdSales.push(sale)
+        updatedListings.push(updatedListing)
+      }
+
+      return { ok: true as const, sales: createdSales, listings: updatedListings }
+    })
+
+    if (result.ok) {
+      for (let i = 0; i < result.sales.length; i++) {
+        await notifyPurchaseSideEffects(
+          buyer,
+          result.listings[i],
+          result.sales[i],
+          result.sales[i].priceTry,
+        )
+      }
+      return result
+    }
+    return result
+  } catch {
+    return { ok: false, error: "server_error" }
+  }
+}
+
 export async function completePurchase(
   listingId: string,
   buyer: PurchaseBuyer,
@@ -47,6 +312,10 @@ export async function completePurchase(
 ): Promise<PurchaseResult> {
   const tradeErr = validateBuyerTradeUrl(buyer)
   if (tradeErr) return tradeErr
+
+  if (isDbEnabled()) {
+    return completePurchasePg(listingId, buyer, priceTry, txType)
+  }
 
   return withStoreLock("purchase", async () => {
     const listingsStore = await readListingsStore()
@@ -104,30 +373,7 @@ export async function completePurchase(
     await writeListingsStore(listingsStore)
     await writeSalesStore(salesStore)
 
-    const fmt = (v: number) =>
-      new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
-
-    const deliveryHint = isTradeBotEnabled()
-      ? "Teslimat bot tarafından otomatik gönderilecek."
-      : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
-
-    await addUserNotification(
-      listing.sellerId,
-      "item_sold",
-      `Ürününüz satıldı: ${listing.name} — ${fmt(chargeAmount)}. ${deliveryHint}`,
-      { saleId: sale.id, listingId: listing.id },
-    )
-
-    await rejectPendingOffersForListing(listing.id)
-
-    publishPurchaseEvents({
-      buyerId: buyer.steamId,
-      sellerId: listing.sellerId,
-      itemName: listing.name,
-      priceTry: chargeAmount,
-      saleId: sale.id,
-      listingId: listing.id,
-    })
+    await notifyPurchaseSideEffects(buyer, updatedListing, sale, chargeAmount)
 
     return { ok: true, sale, listing: updatedListing }
   })
@@ -142,6 +388,10 @@ export async function completeBatchPurchase(
 
   if (listingIds.length === 0) {
     return { ok: false, error: "empty_cart" }
+  }
+
+  if (isDbEnabled()) {
+    return completeBatchPurchasePg(listingIds, buyer)
   }
 
   return withStoreLock("purchase", async () => {
@@ -213,29 +463,7 @@ export async function completeBatchPurchase(
         salesStore.sales = [sale, ...salesStore.sales]
         createdSales.push(sale)
 
-        const fmt = (v: number) =>
-          new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 }).format(v)
-
-        const deliveryHint = isTradeBotEnabled()
-          ? "Teslimat bot tarafından otomatik gönderilecek."
-          : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
-
-        await addUserNotification(
-          listing.sellerId,
-          "item_sold",
-          `Ürününüz satıldı: ${listing.name} — ${fmt(charge)}. ${deliveryHint}`,
-          { saleId: sale.id, listingId: listing.id },
-        )
-        await rejectPendingOffersForListing(listing.id)
-
-        publishPurchaseEvents({
-          buyerId: buyer.steamId,
-          sellerId: listing.sellerId,
-          itemName: listing.name,
-          priceTry: charge,
-          saleId: sale.id,
-          listingId: listing.id,
-        })
+        await notifyPurchaseSideEffects(buyer, updatedListing, sale, charge)
       }
 
       await writeListingsStore(listingsStore)

@@ -1,4 +1,4 @@
-import { Pool, type QueryResultRow } from "pg"
+import { Pool, type PoolClient, type QueryResultRow } from "pg"
 
 let pool: Pool | null = null
 let schemaReady: Promise<void> | null = null
@@ -127,4 +127,22 @@ export async function bumpCounter(name: string): Promise<number> {
     [name],
   )
   return Number(res.rows[0]?.value ?? 1)
+}
+
+export async function withTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  await ensureSchema()
+  const client = await getPool().connect()
+  try {
+    await client.query("BEGIN")
+    const result = await fn(client)
+    await client.query("COMMIT")
+    return result
+  } catch (err) {
+    await client.query("ROLLBACK")
+    throw err
+  } finally {
+    client.release()
+  }
 }

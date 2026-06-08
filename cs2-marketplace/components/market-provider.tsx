@@ -197,7 +197,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [steamProfile?.steamId, cartListingIds, hydrateCart])
 
   useEffect(() => {
-    connectWs(steamProfile?.steamId)
+    void connectWs(steamProfile?.steamId)
     return () => disconnectWs()
   }, [steamProfile?.steamId])
 
