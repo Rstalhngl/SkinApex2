@@ -5,7 +5,7 @@
  * Defensive rewrite — null-safe, no infinite loops, no nested Radix modals.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ExternalLink,
   Lock,
@@ -39,6 +39,7 @@ import { createListingWithError } from "@/lib/listings"
 import { listingErrorMessage } from "@/lib/listing-errors"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { InventoryGrid } from "@/components/inventory-grid"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,15 +60,6 @@ function formatTry(value: number): string {
     currency: "TRY",
     maximumFractionDigits: 0,
   }).format(value)
-}
-
-/** Safely get market price for an item. Never throws. */
-function getMarketPrice(
-  marketHashName: string | undefined,
-  skins: import("@/lib/skins").Skin[],
-): number | null {
-  if (!marketHashName) return null
-  return skins.find((s) => s.marketHashName === marketHashName)?.price ?? null
 }
 
 /** Safely build Steam CDN image URL */
@@ -245,121 +237,6 @@ function ListingDialog({
   )
 }
 
-// ─── InventoryCard ─────────────────────────────────────────────────────────────
-
-interface InventoryCardProps {
-  item: InventoryItem
-  marketItems: import("@/lib/skins").Skin[]
-  onListClick: (item: InventoryItem, refPrice: number | null) => void
-}
-
-function InventoryCard({ item, marketItems, onListClick }: InventoryCardProps) {
-  const { t } = useI18n()
-  const price = getMarketPrice(item.marketHashName, marketItems)
-  const displayName = (item.name ?? "")
-    .replace("StatTrak™ ", "")
-    .replace("Souvenir ", "")
-
-  return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-3 transition-colors hover:border-[#243146]">
-      {/* Rarity colour bar */}
-      <div
-        className="absolute inset-x-0 top-0 h-1 rounded-t-xl"
-        style={{ backgroundColor: item.rarityColor ?? "#b0c3d9" }}
-      />
-
-      {/* Badges */}
-      <div className="mb-1.5 mt-0.5 flex items-center justify-between text-[9px]">
-        <span
-          className="font-semibold"
-          style={{ color: item.rarityColor ?? "#b0c3d9" }}
-        >
-          {item.exterior || "—"}
-        </span>
-        <div className="flex gap-1">
-          {item.stattrak && (
-            <span className="rounded bg-[#cf6a32]/20 px-1 py-px font-extrabold text-[#cf6a32]">
-              ST™
-            </span>
-          )}
-          {item.souvenir && (
-            <span className="rounded bg-[#ffe400]/20 px-1 py-px font-extrabold text-[#ffe400]">
-              SV
-            </span>
-          )}
-          {!item.tradable && (
-            <span className="rounded bg-destructive/15 px-1 py-px font-bold text-destructive">
-              Kilit
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Item image */}
-      <div className="flex h-[90px] items-center justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={safeImg(item.img)}
-          alt={displayName}
-          className="max-h-full max-w-[90%] object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]"
-          referrerPolicy="no-referrer"
-          loading="lazy"
-          onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
-        />
-      </div>
-
-      {/* Item info */}
-      <div className="mt-2 min-w-0">
-        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">
-          {item.type ?? ""}
-        </p>
-        <p className="truncate text-[11px] font-semibold leading-tight text-foreground">
-          {displayName}
-        </p>
-        {item.rarity && (
-          <p
-            className="text-[9px] font-semibold"
-            style={{ color: item.rarityColor ?? "#b0c3d9" }}
-          >
-            {item.rarity}
-          </p>
-        )}
-        {price != null && (
-          <p className="mt-0.5 text-[11px] font-bold text-success">{formatPrice(price)}</p>
-        )}
-      </div>
-
-      {/* Hover overlay — only appears on hover */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-xl bg-card/96 px-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-        {item.tradable && (
-          <Button
-            size="sm"
-            onClick={() => onListClick(item, price)}
-            className="h-8 w-full bg-primary text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
-          >
-            <Tag className="mr-1.5 h-3.5 w-3.5" />
-            {t("sell.list")}
-          </Button>
-        )}
-        {item.marketHashName && (
-          <a
-            href={`https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.marketHashName)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input text-[10px] font-semibold text-muted-foreground hover:border-[#66c0f4] hover:text-[#66c0f4]"
-          >
-            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
-              <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
-            </svg>
-            Steam
-            <ExternalLink className="h-2.5 w-2.5" />
-          </a>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ─── InventorySheet ────────────────────────────────────────────────────────────
 
 interface InventorySheetProps {
@@ -448,10 +325,10 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   }, [open, steamProfile?.steamId])
 
   // Handlers
-  const handleListClick = (item: InventoryItem, refPrice: number | null) => {
+  const handleListClick = useCallback((item: InventoryItem, refPrice: number | null) => {
     setListingItem(item)
     setListingRefPrice(refPrice)
-  }
+  }, [])
 
   const handleListClose = () => {
     setListingItem(null)
@@ -482,8 +359,10 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   }
 
   // Derived lists
-  const tradable = inventoryItems.filter((i) => i.tradable)
-  const locked = inventoryItems.filter((i) => !i.tradable)
+  const { tradable, locked } = useMemo(() => ({
+    tradable: inventoryItems.filter((i) => i.tradable),
+    locked: inventoryItems.filter((i) => !i.tradable),
+  }), [inventoryItems])
 
   return (
     <>
@@ -520,7 +399,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
           </SheetHeader>
 
           {/* Body */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none]">
             {/* Loading spinner */}
             {loading && (
               <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -586,16 +465,11 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                     <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-success">
                       {t("inventory.tradable")} ({tradable.length})
                     </p>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
-                      {tradable.map((item) => (
-                        <InventoryCard
-                          key={item.assetId}
-                          item={item}
-                          marketItems={marketItems}
-                          onListClick={handleListClick}
-                        />
-                      ))}
-                    </div>
+                    <InventoryGrid
+                      items={tradable}
+                      marketItems={marketItems}
+                      onListClick={handleListClick}
+                    />
                   </section>
                 )}
 
@@ -604,16 +478,12 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                     <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                       {t("inventory.locked")} ({locked.length})
                     </p>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3 opacity-60">
-                      {locked.map((item) => (
-                        <InventoryCard
-                          key={item.assetId}
-                          item={item}
-                          marketItems={marketItems}
-                          onListClick={handleListClick}
-                        />
-                      ))}
-                    </div>
+                    <InventoryGrid
+                      items={locked}
+                      marketItems={marketItems}
+                      onListClick={handleListClick}
+                      className="opacity-60"
+                    />
                   </section>
                 )}
               </div>

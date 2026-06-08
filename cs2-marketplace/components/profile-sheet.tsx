@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ExternalLink, Lock, Package, Pencil, RefreshCw, Tag, User, XCircle,
 } from "lucide-react"
@@ -30,6 +30,7 @@ import { formatPrice, steamProfileUrl } from "@/lib/skins"
 import { listingErrorMessage } from "@/lib/listing-errors"
 import { fetchWalletData, type WalletTransaction } from "@/lib/user-data-client"
 import type { InventoryItem } from "@/lib/inventory-types"
+import { InventoryGrid } from "@/components/inventory-grid"
 import { cn } from "@/lib/utils"
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
@@ -384,8 +385,8 @@ function InventoryTab({
     </div>
   )
 
-  const tradable = invItems.filter(i => i.tradable)
-  const locked = invItems.filter(i => !i.tradable)
+  const tradable = useMemo(() => invItems.filter((i) => i.tradable), [invItems])
+  const locked = useMemo(() => invItems.filter((i) => !i.tradable), [invItems])
 
   return (
     <div className="space-y-4 p-3">
@@ -400,9 +401,12 @@ function InventoryTab({
           <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-success">
             {t("inventory.tradable")} ({tradable.length})
           </p>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-            {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
-          </div>
+          <InventoryGrid
+            items={tradable}
+            marketItems={marketItems}
+            onListClick={onListClick}
+            compact
+          />
         </section>
       )}
       {locked.length > 0 && (
@@ -410,9 +414,13 @@ function InventoryTab({
           <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             {t("inventory.locked")} ({locked.length})
           </p>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-            {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
-          </div>
+          <InventoryGrid
+            items={locked}
+            marketItems={marketItems}
+            onListClick={onListClick}
+            compact
+            className="opacity-60"
+          />
         </section>
       )}
     </div>
@@ -540,46 +548,6 @@ function ListingDialog({
   )
 }
 
-function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[]; onListClick: (item: InventoryItem, price: number | null) => void }) {
-  const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price ?? null
-  const displayName = (item.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
-
-  return (
-    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2">
-        <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: item.rarityColor ?? "#b0c3d9" }} />
-        <div className="flex h-[70px] items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.img || "/placeholder.svg"}
-            alt={displayName}
-            className="max-h-full max-w-[90%] object-contain"
-            referrerPolicy="no-referrer"
-            loading="lazy"
-            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg" }}
-          />
-        </div>
-        <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{item.type ?? ""}</p>
-        <p className="truncate text-[10px] font-semibold text-foreground leading-tight">
-          {displayName}
-        </p>
-        {item.exterior && <p className="text-[9px] text-muted-foreground">{item.exterior}</p>}
-        {price && <p className="text-[10px] font-bold text-success">{formatPrice(price)}</p>}
-
-        {item.tradable && (
-          <div className="absolute inset-0 flex items-center justify-center bg-card/90 opacity-0 transition-opacity group-hover:opacity-100">
-            <button
-              onClick={() => onListClick(item, price)}
-              className="flex items-center gap-1 rounded-md bg-primary px-2 py-1.5 text-[10px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
-            >
-              <Tag className="h-3 w-3" />
-              Listele
-            </button>
-          </div>
-        )}
-    </div>
-  )
-}
-
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
@@ -589,10 +557,10 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
   const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
   const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
 
-  const handleListClick = (item: InventoryItem, price: number | null) => {
+  const handleListClick = useCallback((item: InventoryItem, price: number | null) => {
     setListingItem(item)
     setListingRefPrice(price)
-  }
+  }, [])
 
   const handleListClose = () => {
     setListingItem(null)
@@ -629,7 +597,7 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             <TabsContent value="listings" className="flex-1 overflow-hidden mt-0">
               <ScrollArea className="h-full"><MyListingsTab /></ScrollArea>
             </TabsContent>
-            <TabsContent value="inventory" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            <TabsContent value="inventory" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none]">
                 <InventoryTab active={tab === "inventory"} onListClick={handleListClick} />
             </TabsContent>
           </Tabs>
