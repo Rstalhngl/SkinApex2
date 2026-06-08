@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD } from "@/lib/skins"
 import { sendOffer } from "@/lib/offers"
+import { offerErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
 import { toast } from "sonner"
 
@@ -79,7 +80,7 @@ export function OfferDialog({
     }
 
     setSending(true)
-    const offer = await sendOffer(
+    const result = await sendOffer(
       {
         id: skin.id,
         type: skin.type,
@@ -92,8 +93,10 @@ export function OfferDialog({
     )
     setSending(false)
 
-    if (!offer) {
-      toast.error("Teklif gönderilemedi", { description: "Lütfen tekrar deneyin." })
+    if (!result.offer) {
+      toast.error(t("offer.sendFailed"), {
+        description: offerErrorMessage(result.error, t),
+      })
       return
     }
 

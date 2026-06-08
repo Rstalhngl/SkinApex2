@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { isSession, requireSession } from "@/lib/api-auth"
 import { getUserData, updateUserData } from "@/lib/user-store"
-import { isValidTradeUrl } from "@/lib/trade-url"
+import { isValidTradeUrl, tradeUrlMatchesSteamId } from "@/lib/trade-url"
 
 export async function GET() {
   const session = await requireSession()
@@ -28,6 +28,9 @@ export async function PATCH(req: Request) {
     if (tradeUrl !== undefined) {
       if (tradeUrl && !isValidTradeUrl(tradeUrl)) {
         return NextResponse.json({ error: "invalid_trade_url" }, { status: 400 })
+      }
+      if (tradeUrl && !tradeUrlMatchesSteamId(tradeUrl, session.steamId)) {
+        return NextResponse.json({ error: "trade_url_mismatch" }, { status: 400 })
       }
       patch.tradeUrl = tradeUrl.trim()
     }

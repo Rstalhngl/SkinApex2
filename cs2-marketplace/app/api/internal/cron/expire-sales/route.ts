@@ -9,9 +9,7 @@ export async function POST(req: Request) {
   }
 
   const header = req.headers.get("x-cron-secret")?.trim()
-  const url = new URL(req.url)
-  const query = url.searchParams.get("secret")?.trim()
-  if (header !== secret && query !== secret) {
+  if (header !== secret) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

@@ -67,8 +67,8 @@ export async function sendOffer(
     listingId?: string
   },
   offerTry: number,
-): Promise<Offer | null> {
-  if (!skin.listingId) return null
+): Promise<{ offer?: Offer; error?: string }> {
+  if (!skin.listingId) return { error: "listing_not_found" }
 
   try {
     const res = await apiFetch("/api/offers", {
@@ -76,16 +76,16 @@ export async function sendOffer(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ listingId: skin.listingId, offerTry }),
     })
-    if (!res.ok) return null
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: (data as { error?: string }).error ?? "failed" }
 
-    const data = await res.json()
     const stored = data.offer as StoredOffer
     const offer = storedToOffer(stored, stored.buyerId)
     offers = [offer, ...offers.filter((o) => o.id !== offer.id)]
     notifyOfferListeners()
-    return offer
+    return { offer }
   } catch {
-    return null
+    return { error: "failed" }
   }
 }
 

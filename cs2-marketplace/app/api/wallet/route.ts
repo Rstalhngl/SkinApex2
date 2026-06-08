@@ -6,7 +6,7 @@ import {
   getWalletBalance,
   getWalletTransactions,
 } from "@/lib/wallet-store"
-import { isDemoDepositEnabled } from "@/lib/app-config"
+import { isDemoDepositEnabled, isWithdrawEnabled } from "@/lib/app-config"
 import { publishUserChannel } from "@/lib/ws-publish"
 
 export async function GET() {
@@ -44,6 +44,9 @@ export async function POST(req: Request) {
     }
 
     if (action === "withdraw") {
+      if (!isWithdrawEnabled()) {
+        return NextResponse.json({ error: "withdraw_disabled" }, { status: 403 })
+      }
       if (amount < 500) {
         return NextResponse.json({ error: "min_withdraw_500" }, { status: 400 })
       }

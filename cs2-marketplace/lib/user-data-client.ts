@@ -81,14 +81,18 @@ export async function walletDeposit(amount: number): Promise<number | "deposits_
   }
 }
 
-export async function walletWithdraw(amount: number): Promise<number | null> {
+export async function walletWithdraw(amount: number): Promise<number | "withdraw_disabled" | null> {
   try {
     const res = await apiFetch("/api/wallet", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "withdraw", amount }),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      if (data.error === "withdraw_disabled") return "withdraw_disabled"
+      return null
+    }
     const data = await res.json()
     return data.balance
   } catch {

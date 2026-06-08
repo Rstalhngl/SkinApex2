@@ -9,7 +9,6 @@ import {
   readListingsStore,
   writeListingsStore,
 } from "@/lib/listings-store"
-import { processExpiredSales } from "@/lib/sale-lifecycle"
 import { verifyAssetOwnership } from "@/lib/steam-inventory"
 import { isListingBanned } from "@/lib/moderation-store"
 import { publishListingCreated, publishListingsChanged } from "@/lib/ws-publish"
@@ -18,11 +17,10 @@ const COMMISSION = 0.07
 
 export async function GET() {
   try {
-    await processExpiredSales()
     const listings = await getActiveListingsFromStore()
     return NextResponse.json({ listings })
   } catch {
-    return NextResponse.json({ listings: [] })
+    return NextResponse.json({ error: "server_error" }, { status: 503 })
   }
 }
 

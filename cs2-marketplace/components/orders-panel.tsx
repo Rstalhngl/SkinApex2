@@ -114,11 +114,13 @@ function PurchaseRow({ sale }: { sale: Sale }) {
 function SellerSaleRow({ sale }: { sale: Sale }) {
   const { t } = useI18n()
   const active = sale.status === "pending_delivery" && sale.deliveryDeadline > Date.now()
+  const awaitingBuyer = active && !!sale.deliveredAt
+  const canMarkDeliver = active && !sale.deliveredAt
   const msLeft = useCountdown(sale.deliveryDeadline, active)
 
   const handleDeliver = async () => {
     const ok = await markSaleDelivered(sale.id)
-    if (ok) toast.success(t("orders.markedDelivered"))
+    if (ok) toast.success(t("orders.markedDelivered"), { description: t("orders.markedDeliveredDesc") })
     else toast.error(t("orders.actionFailed"))
   }
 
@@ -147,7 +149,12 @@ function SellerSaleRow({ sale }: { sale: Sale }) {
             {t("orders.deliveryLeft")}: {formatDeliveryCountdown(msLeft)}
           </p>
         )}
-        {sale.buyerTradeUrl && active && (
+        {awaitingBuyer && (
+          <p className="text-[10px] font-semibold text-primary">
+            {t("orders.awaitingBuyerConfirm")}
+          </p>
+        )}
+        {sale.buyerTradeUrl && canMarkDeliver && (
           <a
             href={sale.buyerTradeUrl}
             target="_blank"
@@ -159,7 +166,7 @@ function SellerSaleRow({ sale }: { sale: Sale }) {
             {t("orders.buyerTradeUrl")}
           </a>
         )}
-        {active && (
+        {canMarkDeliver && (
           <Button size="sm" className="mt-1.5 h-6 gap-1 px-2 text-[10px]" onClick={handleDeliver}>
             <Truck className="h-3 w-3" />
             {t("orders.markDelivered")}

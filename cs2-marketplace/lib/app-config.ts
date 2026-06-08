@@ -1,3 +1,5 @@
+import { isDbEnabled } from "@/lib/db"
+
 const DEV_SESSION_FALLBACK = "skx-dev-secret-change-in-production"
 
 export function getSessionSecret(): string {
@@ -14,6 +16,17 @@ export function isDemoDepositEnabled(): boolean {
   if (process.env.ALLOW_DEMO_DEPOSITS === "true") return true
   if (process.env.NODE_ENV !== "production") return true
   return false
+}
+
+/** Real IBAN payout pipeline must be wired before enabling withdraw. */
+export function isWithdrawEnabled(): boolean {
+  return process.env.ALLOW_WITHDRAWALS === "true"
+}
+
+export function requireDatabaseInProduction(): void {
+  if (process.env.NODE_ENV === "production" && !isDbEnabled()) {
+    throw new Error("DATABASE_URL is required in production")
+  }
 }
 
 export function getAllowedAuthOrigins(): string[] {

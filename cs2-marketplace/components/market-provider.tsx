@@ -33,6 +33,7 @@ import {
   walletWithdraw,
 } from "@/lib/user-data-client"
 import { apiFetch } from "@/lib/api-client"
+import { checkoutErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
 
 export interface SteamProfile {
@@ -369,10 +370,14 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const withdraw = useCallback(async (amount: number) => {
     if (!isLoggedIn) return false
     const balance = await walletWithdraw(amount)
+    if (balance === "withdraw_disabled") {
+      toast.error(t("withdraw.disabled"))
+      return false
+    }
     if (balance == null) return false
     setWallet(balance)
     return true
-  }, [isLoggedIn])
+  }, [isLoggedIn, t])
 
   const cartTotal = useMemo(
     () => cartSkins.reduce((sum, s) => sum + s.price, 0),
@@ -397,11 +402,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
     const result = await purchaseBatch(listingIds, tradeUrlValue)
     if (!result.ok) {
-      const msg =
-        result.error === "trade_url_mismatch" ? t("checkout.tradeUrlMismatch")
-        : result.error === "asset_unavailable" ? t("checkout.assetUnavailable")
-        : t("checkout.failedDesc")
-      toast.error(t("checkout.failed"), { description: msg })
+      toast.error(t("checkout.failed"), {
+        description: checkoutErrorMessage(result.error, t),
+      })
       await refreshWallet()
       return
     }

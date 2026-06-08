@@ -102,9 +102,16 @@ export async function fetchUserAssetIds(steamId: string): Promise<Set<string>> {
 export async function verifyAssetOwnership(
   steamId: string,
   assetId: string,
+  opts?: { skipCache?: boolean },
 ): Promise<AssetOwnershipResult> {
   try {
-    const ids = await fetchUserAssetIds(steamId)
+    let ids: Set<string>
+    if (opts?.skipCache) {
+      assetCache.delete(steamId)
+      ids = await fetchUserAssetIds(steamId)
+    } else {
+      ids = await fetchUserAssetIds(steamId)
+    }
     if (ids.has(assetId)) return { ok: true }
     return { ok: false, error: "not_found" }
   } catch (e: unknown) {

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
-import { isValidTradeUrl } from "@/lib/trade-url"
+import { isValidTradeUrl, tradeUrlMatchesSteamId } from "@/lib/trade-url"
 import { toast } from "sonner"
 
 export function TradeUrlDialog({
@@ -25,18 +25,24 @@ export function TradeUrlDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { tradeUrl, setTradeUrl } = useMarket()
+  const { tradeUrl, setTradeUrl, steamProfile } = useMarket()
   const { t } = useI18n()
   const [value, setValue] = useState(tradeUrl)
 
-  const isValid = isValidTradeUrl(value)
+  const formatOk = isValidTradeUrl(value)
+  const accountOk = !steamProfile?.steamId || !formatOk || tradeUrlMatchesSteamId(value, steamProfile.steamId)
+  const isValid = formatOk && accountOk
 
-  const handleSave = () => {
-    if (!isValid) {
+  const handleSave = async () => {
+    if (!formatOk) {
       toast.error(t("tradeUrl.invalid"), { description: t("tradeUrl.invalidDesc") })
       return
     }
-    setTradeUrl(value.trim())
+    if (!accountOk) {
+      toast.error(t("tradeUrl.invalid"), { description: t("tradeUrl.accountMismatch") })
+      return
+    }
+    await setTradeUrl(value.trim())
     toast.success(t("tradeUrl.saved"), { description: t("tradeUrl.savedDesc") })
     onOpenChange(false)
   }
@@ -78,7 +84,7 @@ export function TradeUrlDialog({
                 }`}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                {isValid ? t("tradeUrl.validFormat") : t("tradeUrl.invalidFormat")}
+                {isValid ? t("tradeUrl.validFormat") : !formatOk ? t("tradeUrl.invalidFormat") : t("tradeUrl.accountMismatch")}
               </p>
             )}
           </div>

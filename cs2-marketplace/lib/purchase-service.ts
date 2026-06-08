@@ -8,7 +8,7 @@ import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
 import { debitWallet, creditWallet, getWalletBalance } from "@/lib/wallet-store"
 import { addUserNotification } from "@/lib/notifications-store"
 import { isValidTradeUrl, tradeUrlMatchesSteamId } from "@/lib/trade-url"
-import { userOwnsAsset } from "@/lib/steam-inventory"
+import { verifyAssetOwnership } from "@/lib/steam-inventory"
 import { buildSaleTradeFields } from "@/lib/trade-delivery-service"
 import { isTradeBotEnabled } from "@/lib/trade-bot-config"
 import { publishPurchaseEvents, publishUserChannel } from "@/lib/ws-publish"
@@ -60,8 +60,8 @@ export async function completePurchase(
       return { ok: false, error: "cannot_buy_own_listing" }
     }
 
-    const owns = await userOwnsAsset(listing.sellerId, listing.assetId)
-    if (!owns) return { ok: false, error: "asset_unavailable" }
+    const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
+    if (!ownership.ok) return { ok: false, error: "asset_unavailable" }
 
     const chargeAmount = priceTry ?? listing.priceTry
     const debit = await debitWallet(buyer.steamId, chargeAmount, txType, listingId)
@@ -158,8 +158,8 @@ export async function completeBatchPurchase(
       if (listing.sellerId === buyer.steamId) {
         return { ok: false, error: "cannot_buy_own_listing" }
       }
-      const owns = await userOwnsAsset(listing.sellerId, listing.assetId)
-      if (!owns) return { ok: false, error: "asset_unavailable" }
+      const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
+      if (!ownership.ok) return { ok: false, error: "asset_unavailable" }
       resolved.push({ idx, listing, charge: listing.priceTry })
     }
 

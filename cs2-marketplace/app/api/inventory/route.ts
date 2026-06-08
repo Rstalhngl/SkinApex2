@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 import zlib from "zlib"
 import { promisify } from "util"
 import { cacheUserAssetIds } from "@/lib/steam-inventory"
+import { isSession, requireSession } from "@/lib/api-auth"
 
 const gunzip = promisify(zlib.gunzip)
 const inflate = promisify(zlib.inflate)
@@ -174,8 +175,14 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
 }
 
 export async function GET(request: NextRequest) {
+  const session = await requireSession()
+  if (!isSession(session)) return session
+
   const steamId = request.nextUrl.searchParams.get("steamId")
   if (!steamId) return NextResponse.json({ error: "steamId required" }, { status: 400 })
+  if (steamId !== session.steamId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 })
+  }
 
   try {
     // Fetch first page

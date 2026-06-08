@@ -64,12 +64,18 @@ export async function markSaleDelivered(saleId: string, sellerId: string): Promi
   if (sale.sellerId !== sellerId) return null
   if (sale.status !== "pending_delivery") return null
   if (sale.deliveryDeadline <= Date.now()) return null
+  if (sale.deliveredAt) return sale
 
-  const updated: Sale = { ...sale, status: "delivered", deliveredAt: Date.now() }
+  const updated: Sale = { ...sale, deliveredAt: Date.now() }
   store.sales[idx] = updated
   await writeSalesStore(store)
 
-  await payoutDeliveredSale(updated)
+  await addUserNotification(
+    sale.buyerId,
+    "item_sold",
+    `Satıcı teslim ettiğini bildirdi: ${sale.itemName}. Lütfen kontrol edip onaylayın veya destek talebi açın.`,
+    { saleId: sale.id },
+  )
   publishUserChannel("sales", sale.sellerId)
   publishUserChannel("sales", sale.buyerId)
   return updated
@@ -82,7 +88,8 @@ export async function confirmSaleReceived(saleId: string, buyerId: string): Prom
 
   const sale = store.sales[idx]
   if (sale.buyerId !== buyerId) return null
-  if (sale.status !== "pending_delivery" && sale.status !== "delivered") return null
+  if (sale.status !== "pending_delivery") return null
+  if (sale.deliveryDeadline <= Date.now()) return null
 
   const updated: Sale = {
     ...sale,
@@ -93,9 +100,7 @@ export async function confirmSaleReceived(saleId: string, buyerId: string): Prom
   store.sales[idx] = updated
   await writeSalesStore(store)
 
-  if (sale.status === "pending_delivery" && !sale.deliveredAt) {
-    await payoutDeliveredSale(updated)
-  }
+  await payoutDeliveredSale(updated)
   publishUserChannel("sales", sale.buyerId)
   publishUserChannel("sales", sale.sellerId)
   return updated
