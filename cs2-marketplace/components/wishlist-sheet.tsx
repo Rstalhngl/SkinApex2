@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Heart } from "lucide-react"
 import {
   Sheet,
@@ -13,14 +14,22 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { formatPrice } from "@/lib/skins"
+import { getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
 import { cn } from "@/lib/utils"
 import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
 
 export function WishlistSheet() {
-  const { wishlist, toggleWishlist, addToCart, items, isLoggedIn } = useMarket()
+  const { wishlist, toggleWishlist, addToCart, isLoggedIn } = useMarket()
   const { t } = useI18n()
-  const wishedItems = items.filter((s) => wishlist.includes(s.id))
+  const [listings, setListings] = useState<Listing[]>(() => getActiveListings())
+
+  useEffect(() => {
+    void syncListings()
+    return subscribeListings(() => setListings([...getActiveListings()]))
+  }, [])
+
+  const wishedListings = listings.filter((l) => wishlist.includes(l.id))
 
   return (
     <Sheet>
@@ -47,17 +56,17 @@ export function WishlistSheet() {
           )}
         </button>
       </SheetTrigger>
-      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
+      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-md">
         <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle className="flex items-center gap-2 text-foreground">
             <Heart className="h-5 w-5 fill-favorite text-favorite" />
             {t("wishlist.title")}
-            <span className="text-sm font-normal text-muted-foreground">({wishedItems.length})</span>
+            <span className="text-sm font-normal text-muted-foreground">({wishedListings.length})</span>
           </SheetTitle>
           <SheetDescription className="sr-only">{t("wishlist.savedDesc")}</SheetDescription>
         </SheetHeader>
 
-        {!isLoggedIn ? <LoginGate /> : wishedItems.length === 0 ? (
+        {!isLoggedIn ? <LoginGate /> : wishedListings.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <Heart className="h-10 w-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("wishlist.empty")}</p>
@@ -65,28 +74,43 @@ export function WishlistSheet() {
         ) : (
           <ScrollArea className="flex-1">
             <ul className="divide-y divide-border">
-              {wishedItems.map((item) => (
+              {wishedListings.map((item) => (
                 <li key={item.id} className="flex items-center gap-3 px-5 py-3">
                   <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-md bg-input">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.img || "/placeholder.svg"}
-                      alt={`${item.type} ${item.title}`}
+                      alt={item.name}
                       className="max-h-12 max-w-[85%] object-contain"
                       referrerPolicy="no-referrer"
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                      {item.type}
-                    </p>
-                    <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
-                    <span className="font-bold text-success">{formatPrice(item.price)}</span>
+                    <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
+                    <span className="font-bold text-success">{formatPrice(item.priceTry)}</span>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Button
                       size="sm"
-                      onClick={() => addToCart(item)}
+                      onClick={() => addToCart({
+                        id: 0,
+                        listingId: item.id,
+                        type: item.type,
+                        title: item.name,
+                        img: item.img,
+                        price: item.priceTry,
+                        exterior: "FT",
+                        rarity: "milspec",
+                        float: 0,
+                        oldPrice: item.priceTry,
+                        discount: 0,
+                        isST: item.stattrak,
+                        isSV: item.souvenir,
+                        popularity: 50,
+                        listedAt: item.listedAt,
+                        owner: "other",
+                        stickers: [],
+                      })}
                       className="h-7 bg-primary px-2 text-[11px] font-bold uppercase text-primary-foreground hover:bg-primary/90"
                     >
                       {t("wishlist.add")}
@@ -94,7 +118,25 @@ export function WishlistSheet() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => toggleWishlist(item)}
+                      onClick={() => toggleWishlist({
+                        id: 0,
+                        listingId: item.id,
+                        type: item.type,
+                        title: item.name,
+                        img: item.img,
+                        price: item.priceTry,
+                        exterior: "FT",
+                        rarity: "milspec",
+                        float: 0,
+                        oldPrice: item.priceTry,
+                        discount: 0,
+                        isST: item.stattrak,
+                        isSV: item.souvenir,
+                        popularity: 50,
+                        listedAt: item.listedAt,
+                        owner: "other",
+                        stickers: [],
+                      })}
                       className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive"
                     >
                       {t("wishlist.remove")}
