@@ -332,6 +332,9 @@ function InventoryTab({
     setError(null)
   }, [steamProfile?.steamId])
 
+  const tradable = useMemo(() => invItems.filter((i) => i.tradable), [invItems])
+  const locked = useMemo(() => invItems.filter((i) => !i.tradable), [invItems])
+
   if (!steamProfile?.steamId) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
@@ -384,9 +387,6 @@ function InventoryTab({
       <p className="text-sm">{t("inventory.empty")}</p>
     </div>
   )
-
-  const tradable = useMemo(() => invItems.filter((i) => i.tradable), [invItems])
-  const locked = useMemo(() => invItems.filter((i) => !i.tradable), [invItems])
 
   return (
     <div className="space-y-4 p-3">
