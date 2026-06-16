@@ -4,6 +4,7 @@ import { ExternalLink, Handshake, Heart, Tag, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD, isOwnListing, steamMarketUrl } from "@/lib/skins"
+import { isDemoSkin } from "@/lib/demo-marketplace"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -27,6 +28,7 @@ export function SkinCard({
   const isOwned = skin.owner === "me"
   const isListed = listedSkins.includes(skin.id)
   const isMyListing = isOwnListing(skin, steamProfile?.steamId)
+  const isDemo = isDemoSkin(skin)
 
   return (
     <div
@@ -43,6 +45,11 @@ export function SkinCard({
           )}
         >
           {skin.discount < 0 ? `+${Math.abs(skin.discount)}%` : `-${skin.discount}%`}
+        </span>
+      )}
+      {isDemo && (
+        <span className="absolute right-2 top-2 z-10 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+          {t("card.demoBadge")}
         </span>
       )}
 
@@ -100,6 +107,10 @@ export function SkinCard({
                 {isListed ? t("sell.delist") : t("sell.list")}
               </Button>
             </div>
+          ) : isDemo ? (
+            <p className="px-2 text-center text-[10px] leading-snug text-muted-foreground">
+              {t("card.demoBrowseOnly")}
+            </p>
           ) : (
             <div className="flex w-full gap-1.5">
               <Button
@@ -120,8 +131,8 @@ export function SkinCard({
               </button>
             </div>
           )}
-          {/* Offer button — only for non-owned items */}
-          {!isOwned && !isMyListing && onOffer && (
+          {/* Offer button — only for real listings */}
+          {!isOwned && !isMyListing && !isDemo && onOffer && (
             <button
               onClick={() => onOffer(skin)}
               className="flex w-full items-center justify-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20"

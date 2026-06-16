@@ -23,6 +23,12 @@ export function isWithdrawEnabled(): boolean {
   return process.env.ALLOW_WITHDRAWALS === "true"
 }
 
+/** Show CS2 demo catalog alongside real user listings on the marketplace. */
+export function isDemoCatalogEnabled(): boolean {
+  if (process.env.SHOW_DEMO_CATALOG === "false") return false
+  return true
+}
+
 export function requireDatabaseInProduction(): void {
   if (process.env.NODE_ENV === "production" && !isDbEnabled()) {
     throw new Error("DATABASE_URL is required in production")

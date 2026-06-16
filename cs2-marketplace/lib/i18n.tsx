@@ -147,6 +147,8 @@ const en: Dict = {
   // Skin card
   "card.inCart": "In Cart",
   "card.addToCart": "Add to Cart",
+  "card.demoBadge": "Demo",
+  "card.demoBrowseOnly": "Sample item — browse only",
   "card.float": "Float",
   "card.inspect": "Inspect item",
   "card.toggleWishlist": "Toggle wishlist",
@@ -529,6 +531,8 @@ const tr: Dict = {
 
   "card.inCart": "Sepette",
   "card.addToCart": "Sepete Ekle",
+  "card.demoBadge": "Örnek",
+  "card.demoBrowseOnly": "Örnek ürün — yalnızca görüntüleme",
   "card.float": "Float",
   "card.inspect": "Eşyayı incele",
   "card.toggleWishlist": "İstek listesine ekle/çıkar",

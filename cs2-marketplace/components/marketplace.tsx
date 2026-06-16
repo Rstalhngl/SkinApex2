@@ -14,6 +14,7 @@ import { InspectDialog } from "@/components/inspect-dialog"
 import { SellDialog } from "@/components/sell-dialog"
 import { OfferDialog } from "@/components/offer-dialog"
 import { listingToSkin } from "@/lib/listing-to-skin"
+import { mergeMarketplaceSkins } from "@/lib/demo-marketplace"
 import { categoryOf, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
@@ -61,7 +62,7 @@ function EmptyMarketplace({ onReset, hasFilters }: { onReset: () => void; hasFil
 
 export function Marketplace() {
   const { t } = useI18n()
-  const { steamProfile, isLoadingItems } = useMarket()
+  const { steamProfile, isLoadingItems, items: demoCatalog } = useMarket()
 
   const [listings, setListings] = useState<Listing[]>(() => getActiveListings())
   const [loading, setLoading] = useState(true)
@@ -81,7 +82,14 @@ export function Marketplace() {
   const [offering, setOffering] = useState<Skin | null>(null)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
-  const allSkins = useMemo(() => listings.map(listingToSkin), [listings, isLoadingItems])
+  const listingSkins = useMemo(() => listings.map(listingToSkin), [listings])
+
+  const allSkins = useMemo(() => {
+    if (myListingsOnly && steamProfile?.steamId) {
+      return listingSkins.filter((s) => s.sellerId === steamProfile.steamId)
+    }
+    return mergeMarketplaceSkins(listingSkins, demoCatalog)
+  }, [listingSkins, demoCatalog, myListingsOnly, steamProfile?.steamId])
 
   const visible = useMemo(() => {
     let list = [...allSkins]
@@ -91,10 +99,6 @@ export function Marketplace() {
       list = list.filter(
         (s) => s.title.toLowerCase().includes(q) || s.type.toLowerCase().includes(q),
       )
-    }
-
-    if (myListingsOnly && steamProfile?.steamId) {
-      list = list.filter((s) => s.sellerId === steamProfile.steamId)
     }
 
     if (filters.category) list = list.filter((s) => categoryOf(s.type) === filters.category)
@@ -119,7 +123,7 @@ export function Marketplace() {
     }
 
     return list
-  }, [allSkins, filters, search, myListingsOnly, steamProfile?.steamId])
+  }, [allSkins, filters, search])
 
   const displayed = visible.slice(0, visibleCount)
   const hasMore = visibleCount < visible.length
@@ -241,7 +245,7 @@ export function Marketplace() {
             </p>
           )}
 
-          {loading ? (
+          {loading || isLoadingItems ? (
             <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               {t("items.loading")}
@@ -256,7 +260,7 @@ export function Marketplace() {
                     key={skin.listingId ?? skin.id}
                     skin={skin}
                     onInspect={setInspecting}
-                    onOffer={setOffering}
+                    onOffer={skin.listingId ? setOffering : undefined}
                     onDelist={handleDelist}
                   />
                 ))}
