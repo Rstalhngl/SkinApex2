@@ -42,6 +42,8 @@ export interface Skin {
   marketHashName?: string
   patternSeed?: number  // 0-999 kalıp şablonu numarası
   phase?: string        // Doppler phase (e.g. "Phase 1", "Ruby", "Sapphire")
+  listingId?: string    // real marketplace listing id
+  sellerId?: string     // Steam ID of listing owner
 }
 
 export const CURRENT_USER = {
@@ -109,6 +111,67 @@ const CATEGORY_BY_WEAPON: Record<string, CategoryKey> = {
   "Music Kit": "music",
 }
 
+const STEAM_TYPE_TO_CATEGORY: Record<string, CategoryKey> = {
+  pistol: "pistol",
+  rifle: "rifle",
+  smg: "smg",
+  shotgun: "heavy",
+  machinegun: "heavy",
+  knife: "knife",
+  gloves: "glove",
+  sticker: "sticker",
+  "music kit": "music",
+  agent: "agent",
+}
+
+function parseWeaponFromLabel(label: string): string | null {
+  const cleaned = label
+    .replace(/^StatTrak™\s+/, "")
+    .replace(/^Souvenir\s+/, "")
+    .replace(/^★\s+/, "")
+    .replace(/\s*\([^)]+\)\s*$/, "")
+    .trim()
+  const weaponPart = cleaned.split(" | ")[0]?.trim()
+  if (!weaponPart) return null
+  if (CATEGORY_BY_WEAPON[weaponPart]) return weaponPart
+
+  const lower = weaponPart.toLowerCase()
+  if (lower.startsWith("sticker")) return "Sticker"
+  if (lower.startsWith("music kit")) return "Music Kit"
+  if (lower === "agent") return "Agent"
+
+  for (const cat of ["knife", "glove"] as CategoryKey[]) {
+    for (const weapon of WEAPONS_BY_CATEGORY[cat]) {
+      if (weaponPart === weapon || weaponPart.includes(weapon) || weapon.includes(weaponPart)) {
+        return weapon
+      }
+    }
+  }
+
+  return weaponPart
+}
+
+/** Normalize Steam inventory/listing type to a weapon or item label used for filters. */
+export function resolveItemType(
+  type: string,
+  name?: string,
+  marketHashName?: string,
+): string {
+  const rawType = (type ?? "").trim()
+  if (rawType && CATEGORY_BY_WEAPON[rawType]) return rawType
+
+  for (const source of [name, marketHashName]) {
+    if (!source) continue
+    const parsed = parseWeaponFromLabel(source)
+    if (!parsed) continue
+    if (CATEGORY_BY_WEAPON[parsed]) return parsed
+    if (parsed === "Sticker" || parsed === "Music Kit" || parsed === "Agent") return parsed
+    if (categoryOf(parsed)) return parsed
+  }
+
+  return rawType
+}
+
 export const WEAPONS_BY_CATEGORY: Record<CategoryKey, string[]> = {
   rifle: ["AK-47", "M4A4", "M4A1-S", "AWP", "Galil AR", "FAMAS", "SG 553", "AUG", "SSG 08", "G3SG1", "SCAR-20"],
   smg: ["MP7", "MP9", "MP5-SD", "MAC-10", "UMP-45", "P90", "PP-Bizon"],
@@ -129,15 +192,42 @@ export const WEAPONS_BY_CATEGORY: Record<CategoryKey, string[]> = {
   agent: ["Agent"],
 }
 
+export function isOwnListing(
+  skin: Pick<Skin, "listingId" | "sellerId">,
+  steamId?: string | null,
+): boolean {
+  return !!(
+    skin.listingId &&
+    skin.sellerId &&
+    steamId &&
+    skin.sellerId === steamId
+  )
+}
+
 export function categoryOf(type: string): CategoryKey | null {
   if (CATEGORY_BY_WEAPON[type]) return CATEGORY_BY_WEAPON[type]
+  const steamCat = STEAM_TYPE_TO_CATEGORY[type.toLowerCase()]
+  if (steamCat) return steamCat
   const t = type.toLowerCase()
+  if (t.includes("sticker")) return "sticker"
   if (t.includes("knife") || t.includes("karambit") || t.includes("bayonet") || t.includes("daggers"))
     return "knife"
   if (t.includes("glove") || t.includes("hand wraps")) return "glove"
   if (t.includes("music")) return "music"
   if (t.includes("agent")) return "agent"
   return null
+}
+
+export function getListedWeaponsInCategory(
+  category: CategoryKey,
+  items: { type: string; title?: string; marketHashName?: string }[],
+): string[] {
+  const weapons = new Set<string>()
+  for (const item of items) {
+    const resolved = resolveItemType(item.type, item.title, item.marketHashName)
+    if (categoryOf(resolved) === category) weapons.add(resolved)
+  }
+  return [...weapons].sort((a, b) => a.localeCompare(b, "tr"))
 }
 
 export const EXTERIOR_LABELS: Record<Exterior, string> = {

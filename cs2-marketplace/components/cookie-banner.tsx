@@ -42,6 +42,7 @@ function saveConsent(analytics: boolean, marketing: boolean) {
     ts: Date.now(),
   }
   localStorage.setItem(CONSENT_KEY, JSON.stringify(consent))
+  window.dispatchEvent(new Event("skx-cookie-consent"))
   return consent
 }
 
