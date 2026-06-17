@@ -32,11 +32,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { formatPrice } from "@/lib/skins"
-import { createListing } from "@/lib/listings"
+import { createListingWithError } from "@/lib/listings"
+import { listingErrorMessage } from "@/lib/listing-errors"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -87,7 +87,7 @@ interface ListingDialogProps {
   refPrice: number | null
   open: boolean
   onClose: () => void
-  onConfirm: (priceTry: number) => void
+  onConfirm: (priceTry: number) => Promise<boolean>
 }
 
 function ListingDialog({
@@ -98,6 +98,7 @@ function ListingDialog({
   onConfirm,
 }: ListingDialogProps) {
   const [price, setPrice] = useState<string>("")
+  const [saving, setSaving] = useState(false)
 
   // Sync price input when dialog opens/closes or refPrice changes
   useEffect(() => {
@@ -116,13 +117,15 @@ function ListingDialog({
   const netToSeller = Math.round(priceNum * (1 - COMMISSION))
   const isValid = priceNum > 0
 
-  const handleConfirm = () => {
-    if (!isValid) return
-    onConfirm(priceNum)
-    toast.success("İlan yayınlandı!", {
-      description: `${item.name ?? "Ürün"} — ${formatTry(priceNum)} · elinize geçecek: ${formatTry(netToSeller)}`,
-    })
-    onClose()
+  const handleConfirm = async () => {
+    if (!isValid || saving) return
+    setSaving(true)
+    try {
+      const ok = await onConfirm(priceNum)
+      if (ok) onClose()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -229,8 +232,8 @@ function ListingDialog({
             İptal
           </Button>
           <Button
-            disabled={!isValid}
-            onClick={handleConfirm}
+            disabled={!isValid || saving}
+            onClick={() => { void handleConfirm() }}
             className="bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             <Tag className="mr-2 h-4 w-4" />
@@ -373,7 +376,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   // Inventory data
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [fetchError, setFetchError] = useState<"private" | "error" | null>(null)
+  const [fetchError, setFetchError] = useState<"private" | "timeout" | "error" | null>(null)
   const [total, setTotal] = useState(0)
 
   // Listing dialog state — lifted here so dialog renders OUTSIDE SheetContent
@@ -391,13 +394,23 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     setFetchError(null)
 
     try {
-      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 25_000)
+      const res = await fetch(`/api/inventory?steamId=${encodeURIComponent(steamId)}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      if (res.status === 429) throw new Error("rate_limited")
       if (!res.ok) throw new Error(`http_${res.status}`)
 
       const data: ApiResponse = await res.json()
 
       if ("error" in data && data.error) {
-        setFetchError(data.error === "private" ? "private" : "error")
+        setFetchError(
+          data.error === "private" ? "private"
+            : data.error === "timeout" ? "timeout"
+              : "error",
+        )
         setInventoryItems([])
         setTotal(0)
       } else {
@@ -411,8 +424,8 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
         setInventoryItems(safe)
         setTotal(data.total ?? safe.length)
       }
-    } catch {
-      setFetchError("error")
+    } catch (e) {
+      setFetchError(e instanceof Error && e.name === "AbortError" ? "timeout" : "error")
       setInventoryItems([])
       setTotal(0)
     } finally {
@@ -445,13 +458,22 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     setListingRefPrice(null)
   }
 
-  const handleConfirm = (priceTry: number) => {
-    if (!steamProfile || !listingItem) return
-    createListing(listingItem, priceTry, {
-      steamId: steamProfile.steamId,
-      steamName: steamProfile.steamName,
-      steamAvatar: steamProfile.steamAvatar,
+  const handleConfirm = async (priceTry: number): Promise<boolean> => {
+    if (!steamProfile || !listingItem) return false
+    const result = await createListingWithError(listingItem, priceTry)
+    if (result.error === "listing_banned") {
+      toast.error(t("listings.banned"))
+      return false
+    }
+    if (!result.listing) {
+      const msg = listingErrorMessage(result.error, t)
+      toast.error(msg.title)
+      return false
+    }
+    toast.success(t("listings.listedSuccess"), {
+      description: `${listingItem.name ?? "Ürün"} — ${formatTry(priceTry)}`,
     })
+    return true
   }
 
   const handleRefresh = () => {
@@ -470,12 +492,10 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
         {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
 
         <SheetContent
-          className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-2xl"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
+          className="flex h-full w-full flex-col gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl"
         >
           {/* Header */}
-          <SheetHeader className="border-b border-border px-5 py-4">
+          <SheetHeader className="shrink-0 border-b border-border px-5 py-4">
             <SheetTitle className="flex items-center gap-2 text-foreground">
               <Package className="h-5 w-5 text-primary" />
               {t("inventory.title")}
@@ -500,7 +520,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
           </SheetHeader>
 
           {/* Body */}
-          <ScrollArea className="flex-1">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
             {/* Loading spinner */}
             {loading && (
               <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -532,10 +552,12 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
             )}
 
             {/* General fetch error */}
-            {!loading && fetchError === "error" && (
+            {!loading && (fetchError === "error" || fetchError === "timeout") && (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                 <Package className="h-10 w-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{t("inventory.error")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {fetchError === "timeout" ? t("inventory.timeout") : t("inventory.error")}
+                </p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -596,7 +618,7 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                 )}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </SheetContent>
       </Sheet>
 

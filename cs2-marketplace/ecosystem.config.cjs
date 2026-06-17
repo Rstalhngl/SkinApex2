@@ -13,9 +13,34 @@ module.exports = {
         // STEAM_API_KEY: "your_key_here",
       },
       max_memory_restart: "512M",
-      // Restart on crash, but not in a loop
       min_uptime: "10s",
       max_restarts: 5,
+    },
+    {
+      name: "skinapex-trade-bot",
+      script: "scripts/trade-bot.cjs",
+      cwd: "./",
+      env: {
+        NODE_ENV: "production",
+        TRADE_BOT_APP_URL: "http://127.0.0.1:3000",
+      },
+      max_memory_restart: "256M",
+      min_uptime: "10s",
+      max_restarts: 10,
+      autorestart: true,
+    },
+    {
+      name: "skinapex-ws",
+      script: "scripts/ws-server.cjs",
+      cwd: "./",
+      env: {
+        NODE_ENV: "production",
+        WS_PORT: 3001,
+      },
+      max_memory_restart: "128M",
+      min_uptime: "10s",
+      max_restarts: 10,
+      autorestart: true,
     },
   ],
 }

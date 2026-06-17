@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import { AnalyticsLoader } from '@/components/analytics-loader'
 import { CookieBanner } from '@/components/cookie-banner'
 import { AiChat } from '@/components/ai-chat'
 import { RadixPointerFix } from '@/components/radix-pointer-fix'
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: 'SkinApex — Global CS2 Skin Marketplace',
   description:
     'Buy, sell and trade CS2 skins instantly with secure P2P escrow. Live market prices, float inspection, StatTrak™ and Souvenir items.',
-  generator: 'v0.app',
+  generator: 'SkinApex',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '32x32' },
@@ -40,7 +40,7 @@ export default function RootLayout({
           <AiChat />
           <RadixPointerFix />
         </ThemeProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === 'production' && <AnalyticsLoader />}
         <script dangerouslySetInnerHTML={{ __html: `
   const observer = new MutationObserver(() => {
     document.body.style.pointerEvents = "auto";
