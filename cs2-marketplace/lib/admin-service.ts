@@ -3,11 +3,11 @@ import { getAdminSteamIds } from "@/lib/admin-auth"
 import { addUserNotification } from "@/lib/notifications-store"
 import { creditWallet } from "@/lib/wallet-store"
 import { payoutDeliveredSale } from "@/lib/purchase-service"
-import { getDisputedSales, patchSale } from "@/lib/sales-store"
-import { readSalesStore } from "@/lib/sales-store"
+import { getDisputedSales, patchSale, readSalesStore } from "@/lib/sales-store"
 import { publishUserChannel } from "@/lib/ws-publish"
 import { LISTING_BAN_MS } from "@/lib/app-config"
 import { setListingBan } from "@/lib/moderation-store"
+import { getActiveUserStats } from "@/lib/active-users"
 
 export async function notifyAdmins(message: string, extra?: { saleId?: string }): Promise<void> {
   for (const steamId of getAdminSteamIds()) {
@@ -16,7 +16,7 @@ export async function notifyAdmins(message: string, extra?: { saleId?: string })
 }
 
 export async function getAdminOverview() {
-  const store = await readSalesStore()
+  const [store, active] = await Promise.all([readSalesStore(), getActiveUserStats()])
   const sales = store.sales
   return {
     totalSales: sales.length,
@@ -25,6 +25,8 @@ export async function getAdminOverview() {
     delivered: sales.filter((s) => s.status === "delivered").length,
     expired: sales.filter((s) => s.status === "expired").length,
     resolved: sales.filter((s) => s.status === "resolved").length,
+    activeUsers: active.activeUsers,
+    wsConnections: active.wsConnections,
   }
 }
 

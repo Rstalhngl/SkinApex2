@@ -202,6 +202,26 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [steamProfile?.steamId])
 
   useEffect(() => {
+    if (!isLoggedIn) return
+
+    const ping = () => {
+      void apiFetch("/api/presence", { method: "POST" }).catch(() => {})
+    }
+
+    ping()
+    const interval = setInterval(ping, 45_000)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") ping()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [isLoggedIn])
+
+  useEffect(() => {
     const steamId = steamProfile?.steamId
     const syncAll = () => {
       void syncListings().then(() => {

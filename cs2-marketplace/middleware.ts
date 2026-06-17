@@ -31,6 +31,7 @@ function isExemptPath(pathname: string): boolean {
   if (pathname.startsWith("/api/auth/")) return true
   if (pathname.startsWith("/api/internal/")) return true
   if (pathname === "/api/inventory") return true
+  if (pathname === "/api/presence") return true
   return false
 }
 

@@ -62,6 +62,17 @@ function readBody(req) {
   })
 }
 
+function getStats() {
+  let connections = 0
+  const steamIds = new Set()
+  for (const client of clients) {
+    if (client.ws.readyState !== WebSocket.OPEN) continue
+    connections++
+    if (client.steamId) steamIds.add(client.steamId)
+  }
+  return { connections, activeUsers: steamIds.size }
+}
+
 async function main() {
   await loadEnvLocal()
 
@@ -98,9 +109,21 @@ async function main() {
       return
     }
 
+    if (req.method === "GET" && req.url === "/internal/stats") {
+      if (req.headers["x-ws-key"] !== key) {
+        res.writeHead(401)
+        res.end("unauthorized")
+        return
+      }
+      const stats = getStats()
+      res.writeHead(200, { "Content-Type": "application/json" })
+      res.end(JSON.stringify(stats))
+      return
+    }
+
     if (req.method === "GET" && req.url === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" })
-      res.end(JSON.stringify({ ok: true, clients: clients.size }))
+      res.end(JSON.stringify({ ok: true, ...getStats() }))
       return
     }
 
