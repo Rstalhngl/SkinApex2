@@ -1,9 +1,9 @@
 "use client"
 
-import { ExternalLink, Handshake, Heart, Tag } from "lucide-react"
+import { ExternalLink, Handshake, Heart, Tag, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
+import { type Skin, formatPrice, formatUSD, isOwnListing, steamMarketUrl } from "@/lib/skins"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -12,25 +12,44 @@ export function SkinCard({
   onInspect,
   onSell,
   onOffer,
+  onDelist,
 }: {
   skin: Skin
   onInspect: (skin: Skin) => void
   onSell?: (skin: Skin) => void
   onOffer?: (skin: Skin) => void
+  onDelist?: (skin: Skin) => void
 }) {
-  const { addToCart, toggleWishlist, isWished, isInCart, listedSkins } = useMarket()
+  const { addToCart, toggleWishlist, isWished, isInCart, listedSkins, steamProfile } = useMarket()
   const { t } = useI18n()
-  const wished = isWished(skin.id)
-  const inCart = isInCart(skin.id)
+  const wished = isWished(skin.listingId)
+  const inCart = isInCart(skin.listingId)
   const isOwned = skin.owner === "me"
   const isListed = listedSkins.includes(skin.id)
+  const isMyListing = isOwnListing(skin, steamProfile?.steamId)
 
   return (
     <div
       className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-[#243146] cursor-pointer"
       onClick={() => onInspect(skin)}
     >
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+      {skin.discount !== 0 && (
+        <span
+          className={cn(
+            "absolute left-2 top-2 z-10 rounded px-1.5 py-0.5 text-[10px] font-bold",
+            skin.discount < 0
+              ? "bg-destructive/15 text-destructive"
+              : "bg-success/15 text-success",
+          )}
+        >
+          {skin.discount < 0 ? `+${Math.abs(skin.discount)}%` : `-${skin.discount}%`}
+        </span>
+      )}
+
+      <div className={cn(
+        "flex items-center justify-between text-[11px] text-muted-foreground",
+        skin.discount !== 0 && "mt-5",
+      )}>
         <span className="font-semibold">{skin.exterior}</span>
         <div className="flex items-center gap-1.5">
           {isOwned && (
@@ -41,15 +60,6 @@ export function SkinCard({
                 : "bg-primary/15 text-primary",
             )}>
               {isListed ? t("sell.listedBadge") : t("sell.ownedBadge")}
-            </span>
-          )}
-          {skin.discount !== 0 && (
-            <span className={
-              skin.discount < 0
-                ? "rounded bg-destructive/15 px-1.5 py-0.5 font-bold text-destructive"
-                : "rounded bg-success/15 px-1.5 py-0.5 font-bold text-success"
-            }>
-              {skin.discount < 0 ? `+${Math.abs(skin.discount)}%` : `-${skin.discount}%`}
             </span>
           )}
         </div>
@@ -66,8 +76,16 @@ export function SkinCard({
           loading="lazy"
         />
         {/* Hover action buttons */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-card/95 px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
-          {isOwned ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/95 px-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
+          {isMyListing ? (
+            <Button
+              onClick={() => onDelist?.(skin)}
+              className="h-8 w-full min-w-0 max-w-full bg-destructive px-2 text-[10px] font-semibold leading-tight text-destructive-foreground hover:bg-destructive/90"
+            >
+              <XCircle className="mr-1 h-3 w-3 shrink-0" />
+              <span className="truncate">{t("sell.unpublish")}</span>
+            </Button>
+          ) : isOwned ? (
             <div className="flex w-full gap-1.5">
               <Button
                 onClick={() => onSell?.(skin)}
@@ -103,7 +121,7 @@ export function SkinCard({
             </div>
           )}
           {/* Offer button — only for non-owned items */}
-          {!isOwned && onOffer && (
+          {!isOwned && !isMyListing && onOffer && (
             <button
               onClick={() => onOffer(skin)}
               className="flex w-full items-center justify-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 py-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20"
@@ -112,19 +130,21 @@ export function SkinCard({
               {t("offer.makeOffer")}
             </button>
           )}
-          <a
-            href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat, skin.marketHashName)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-[#66c0f4] hover:text-[#66c0f4]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
-              <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
-            </svg>
-            {t("card.viewOnMarket")}
-            <ExternalLink className="h-3 w-3" />
-          </a>
+          {!isMyListing && (
+            <a
+              href={steamMarketUrl(skin.type, skin.title, skin.exterior, skin.hasFloat, skin.marketHashName)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-input py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-[#66c0f4] hover:text-[#66c0f4]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+                <path d="M11.98 0C5.67 0 .5 4.87.02 11.06l6.43 2.66a3.4 3.4 0 0 1 1.92-.59l2.86-4.15v-.06a4.54 4.54 0 1 1 4.54 4.54h-.1l-4.08 2.92.01.4a3.41 3.41 0 0 1-6.76.66L.07 15.4C1.52 20.4 6.32 24 11.98 24 18.62 24 24 18.63 24 12S18.62 0 11.98 0z" />
+              </svg>
+              {t("card.viewOnMarket")}
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { ShoppingCart, Trash2, X } from "lucide-react"
+import { CheckoutDialog } from "@/components/checkout-dialog"
 import {
   Sheet,
   SheetContent,
@@ -19,8 +21,9 @@ import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
 
 export function CartSheet() {
-  const { cart, cartTotal, removeFromCart, checkout, wallet, isLoggedIn } = useMarket()
+  const { cart, cartTotal, removeFromCart, wallet, isLoggedIn } = useMarket()
   const { t } = useI18n()
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const insufficient = cartTotal > wallet
 
   return (
@@ -38,7 +41,7 @@ export function CartSheet() {
           )}
         </button>
       </SheetTrigger>
-      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
+      <SheetContent className="flex w-full flex-col gap-0 border-border bg-card p-0 sm:max-w-md">
         <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle className="flex items-center gap-2 text-foreground">
             <ShoppingCart className="h-5 w-5 text-primary" />
@@ -57,7 +60,7 @@ export function CartSheet() {
           <ScrollArea className="flex-1">
             <ul className="divide-y divide-border">
               {cart.map((item) => (
-                <li key={item.id} className="flex items-center gap-3 px-5 py-3">
+                <li key={item.listingId ?? item.id} className="flex items-center gap-3 px-5 py-3">
                   <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-md bg-input">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -77,7 +80,7 @@ export function CartSheet() {
                   <div className="flex flex-col items-end gap-1">
                     <span className="font-bold text-success">{formatPrice(item.price)}</span>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => item.listingId && removeFromCart(item.listingId)}
                       className="text-muted-foreground transition-colors hover:text-destructive"
                       aria-label={t("cart.removeItem")}
                     >
@@ -106,7 +109,7 @@ export function CartSheet() {
               </p>
             )}
             <Button
-              onClick={checkout}
+              onClick={() => setCheckoutOpen(true)}
               disabled={cart.length === 0}
               className={cn(
                 "w-full font-bold uppercase tracking-wide",
@@ -118,6 +121,7 @@ export function CartSheet() {
           </div>
         </SheetFooter>
       </SheetContent>
+      <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} />
     </Sheet>
   )
 }
