@@ -15,6 +15,10 @@ export function checkoutErrorMessage(
       return t("checkout.listingNotFound")
     case "cannot_buy_own_listing":
       return t("checkout.cannotBuyOwn")
+    case "profile_incomplete":
+      return t("profile.completeDesc")
+    case "mss_not_accepted":
+      return t("checkout.mssRequired")
     case "empty_cart":
       return t("toast.cartEmpty")
     default:

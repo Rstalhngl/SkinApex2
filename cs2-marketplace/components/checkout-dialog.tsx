@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Link, ShoppingCart } from "lucide-react"
+import Link from "next/link"
+import { ShoppingCart } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { formatPrice } from "@/lib/skins"
@@ -27,20 +29,32 @@ export function CheckoutDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const { t } = useI18n()
-  const { cart, cartTotal, wallet, tradeUrl, setTradeUrl, checkout } = useMarket()
+  const { cart, cartTotal, wallet, tradeUrl, setTradeUrl, checkout, profileComplete, openProfileCompletion } = useMarket()
   const [value, setValue] = useState(tradeUrl)
+  const [mssAccepted, setMssAccepted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (open) setValue(tradeUrl)
+    if (open) {
+      setValue(tradeUrl)
+      setMssAccepted(false)
+    }
   }, [open, tradeUrl])
 
   const valid = isValidTradeUrl(value)
   const insufficient = cartTotal > wallet
 
   const handleConfirm = async () => {
+    if (!profileComplete) {
+      openProfileCompletion()
+      return
+    }
     if (!valid) {
       toast.error(t("tradeUrl.invalid"), { description: t("tradeUrl.invalidDesc") })
+      return
+    }
+    if (!mssAccepted) {
+      toast.error(t("checkout.mssRequired"))
       return
     }
     if (insufficient) {
@@ -51,7 +65,7 @@ export function CheckoutDialog({
     const trimmed = value.trim()
     setTradeUrl(trimmed)
     try {
-      await checkout(trimmed)
+      await checkout(trimmed, mssAccepted)
       onOpenChange(false)
     } finally {
       setSubmitting(false)
@@ -83,7 +97,6 @@ export function CheckoutDialog({
 
           <div className="space-y-2">
             <Label htmlFor="checkout-trade-url" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              <Link className="mr-1 inline h-3.5 w-3.5" />
               {t("checkout.tradeUrlLabel")}
             </Label>
             <Input
@@ -95,12 +108,27 @@ export function CheckoutDialog({
             />
             <p className="text-[11px] text-muted-foreground">{t("checkout.tradeUrlHint")}</p>
           </div>
+
+          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Checkbox checked={mssAccepted} onCheckedChange={(v) => setMssAccepted(v === true)} className="mt-0.5" />
+            <span>
+              {t("checkout.mssPrefix")}{" "}
+              <Link href="/on-bilgilendirme-formu" target="_blank" className="text-primary hover:underline">
+                {t("checkout.preInfoLink")}
+              </Link>{" "}
+              {t("checkout.mssAnd")}{" "}
+              <Link href="/mesafeli-satis-sozlesmesi" target="_blank" className="text-primary hover:underline">
+                {t("checkout.mssLink")}
+              </Link>
+              {t("checkout.mssSuffix")}
+            </span>
+          </label>
         </div>
 
         <DialogFooter>
           <Button
             onClick={handleConfirm}
-            disabled={!valid || insufficient || submitting || cart.length === 0}
+            disabled={!valid || insufficient || submitting || cart.length === 0 || !mssAccepted}
             className="w-full bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             {submitting ? t("checkout.processing") : t("checkout.confirm")}

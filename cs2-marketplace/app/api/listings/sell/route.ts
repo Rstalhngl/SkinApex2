@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { isSession, requireSession } from "@/lib/api-auth"
+import { requireCompleteProfile } from "@/lib/profile-gate"
 import { completePurchase } from "@/lib/purchase-service"
 import { isValidTradeUrl } from "@/lib/trade-url"
 import { updateUserData } from "@/lib/user-store"
@@ -8,11 +9,19 @@ export async function POST(req: Request) {
   const session = await requireSession()
   if (!isSession(session)) return session
 
+  const profile = await requireCompleteProfile(session.steamId)
+  if (profile instanceof Response) return profile
+
   try {
     const body = await req.json()
-    const { listingId, tradeUrl } = body as {
+    const { listingId, tradeUrl, mssAccepted } = body as {
       listingId?: string
       tradeUrl?: string
+      mssAccepted?: boolean
+    }
+
+    if (!mssAccepted) {
+      return NextResponse.json({ error: "mss_not_accepted" }, { status: 400 })
     }
 
     const buyerTradeUrl = (tradeUrl ?? "").trim()

@@ -7,8 +7,17 @@ export function SiteFooter() {
         <Link href="/kullanim-kosullari" className="hover:text-foreground">
           Kullanım Koşulları
         </Link>
+        <Link href="/p2p-satici-sozlesmesi" className="hover:text-foreground">
+          P2P Satıcı Sözleşmesi
+        </Link>
         <Link href="/gizlilik-politikasi" className="hover:text-foreground">
-          Gizlilik Politikası
+          KVKK / Gizlilik
+        </Link>
+        <Link href="/on-bilgilendirme-formu" className="hover:text-foreground">
+          Ön Bilgilendirme
+        </Link>
+        <Link href="/mesafeli-satis-sozlesmesi" className="hover:text-foreground">
+          Mesafeli Satış (MSS)
         </Link>
         <Link href="/cerez-politikasi" className="hover:text-foreground">
           Çerez Politikası

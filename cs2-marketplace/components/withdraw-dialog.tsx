@@ -23,51 +23,57 @@ export function WithdrawDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { wallet, withdraw } = useMarket()
+  const {
+    withdrawableBalance,
+    profileComplete,
+    userProfile,
+    openProfileCompletion,
+    withdraw,
+  } = useMarket()
   const { t } = useI18n()
   const [amount, setAmount] = useState("")
   const [iban, setIban] = useState("")
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [enabled, setEnabled] = useState<boolean | null>(null)
+  const [minWithdraw, setMinWithdraw] = useState(100)
 
   useEffect(() => {
     if (!open) return
     void fetch("/api/config")
       .then((r) => r.json())
-      .then((d: { withdrawEnabled?: boolean }) => setEnabled(Boolean(d.withdrawEnabled)))
+      .then((d: { withdrawEnabled?: boolean; withdrawMin?: number }) => {
+        setEnabled(Boolean(d.withdrawEnabled))
+        if (typeof d.withdrawMin === "number") setMinWithdraw(d.withdrawMin)
+      })
       .catch(() => setEnabled(false))
   }, [open])
 
-  const walletTry = Math.round(wallet * 100) / 100
+  const withdrawTry = Math.round(withdrawableBalance * 100) / 100
   const reqAmount = parseFloat(amount) || 0
-  const trimmedFirstName = firstName.trim()
-  const trimmedLastName = lastName.trim()
+  const accountHolderName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ")
   const isValid =
     reqAmount > 0 &&
-    reqAmount <= walletTry &&
+    reqAmount <= withdrawTry &&
     iban.replace(/\s/g, "").length >= 16 &&
-    trimmedFirstName.length >= 2 &&
-    trimmedLastName.length >= 2
+    accountHolderName.length >= 4
 
   const handleWithdraw = async () => {
-    if (!isValid || submitting || !enabled) return
-    setSubmitting(true)
-    const ok = await withdraw(reqAmount)
-    setSubmitting(false)
-    if (!ok) {
-      toast.error(t("withdraw.failed"))
+    if (!enabled) return
+    if (!profileComplete) {
+      openProfileCompletion()
       return
     }
+    if (!isValid || submitting) return
+    setSubmitting(true)
+    const ok = await withdraw(reqAmount, iban, accountHolderName)
+    setSubmitting(false)
+    if (!ok) return
     toast.success(t("withdraw.success"), {
       description: t("withdraw.successDesc"),
     })
     onOpenChange(false)
     setAmount("")
     setIban("")
-    setFirstName("")
-    setLastName("")
   }
 
   const loading = enabled === null
@@ -94,10 +100,19 @@ export function WithdrawDialog({
           </p>
         ) : (
           <div className="space-y-4 py-2">
-            <div className="flex items-center justify-between rounded-lg border border-border bg-input px-3 py-2 text-sm">
-              <span className="text-muted-foreground">{t("withdraw.balance")}</span>
-              <span className="font-bold text-success">{formatPrice(walletTry)}</span>
+            <div className="rounded-lg border border-border bg-input px-3 py-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("withdraw.withdrawable")}</span>
+                <span className="font-bold text-success">{formatPrice(withdrawTry)}</span>
+              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">{t("withdraw.amlNote")}</p>
             </div>
+
+            {!profileComplete && (
+              <Button variant="outline" className="w-full" onClick={openProfileCompletion}>
+                {t("profile.completeTitle")}
+              </Button>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="withdraw-amount" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -108,16 +123,16 @@ export function WithdrawDialog({
                 <Input
                   id="withdraw-amount"
                   type="number"
-                  min={1}
-                  max={walletTry}
+                  min={minWithdraw}
+                  max={withdrawTry}
                   value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  onChange={(e) => setAmount(e.target.value)}
                   className="border-border bg-input pl-7 text-foreground"
                   placeholder="0"
                 />
               </div>
-              {reqAmount > walletTry && (
-                <p className="text-[11px] text-destructive">{t("withdraw.tooHigh")}</p>
+              {reqAmount > withdrawTry && (
+                <p className="text-[11px] text-destructive">{t("withdraw.tooHighWithdrawable")}</p>
               )}
             </div>
 
@@ -128,43 +143,20 @@ export function WithdrawDialog({
               <Input
                 id="iban"
                 value={iban}
-                onChange={e => setIban(e.target.value.toUpperCase())}
+                onChange={(e) => setIban(e.target.value.toUpperCase())}
                 className="border-border bg-input font-mono text-sm text-foreground"
                 placeholder={t("withdraw.ibanPlaceholder")}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="withdraw-first-name" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("withdraw.firstNameLabel")}
-                </Label>
-                <Input
-                  id="withdraw-first-name"
-                  value={firstName}
-                  onChange={e => setFirstName(e.target.value)}
-                  className="border-border bg-input text-foreground"
-                  placeholder={t("withdraw.firstNamePlaceholder")}
-                  autoComplete="given-name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="withdraw-last-name" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  {t("withdraw.lastNameLabel")}
-                </Label>
-                <Input
-                  id="withdraw-last-name"
-                  value={lastName}
-                  onChange={e => setLastName(e.target.value)}
-                  className="border-border bg-input text-foreground"
-                  placeholder={t("withdraw.lastNamePlaceholder")}
-                  autoComplete="family-name"
-                />
-              </div>
-            </div>
+            {profileComplete && (
+              <p className="text-[11px] text-muted-foreground">
+                {t("withdraw.accountHolder")}: <strong className="text-foreground">{accountHolderName}</strong>
+              </p>
+            )}
 
             <p className="text-[11px] text-muted-foreground">
-              {t("withdraw.info")}
+              {t("withdraw.infoDynamic", { min: String(minWithdraw) })}
             </p>
           </div>
         )}
@@ -173,7 +165,7 @@ export function WithdrawDialog({
           <DialogFooter>
             <Button
               onClick={handleWithdraw}
-              disabled={!isValid || reqAmount < 500 || submitting}
+              disabled={!isValid || reqAmount < minWithdraw || submitting || !profileComplete}
               className="w-full bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
             >
               <Banknote className="mr-2 h-4 w-4" />

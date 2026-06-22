@@ -64,8 +64,17 @@ async function initSchema(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS wallets (
       steam_id TEXT PRIMARY KEY,
-      balance NUMERIC(12, 2) NOT NULL DEFAULT 0
+      balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
+      deposited_balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
+      withdrawable_balance NUMERIC(12, 2) NOT NULL DEFAULT 0
     );
+
+    ALTER TABLE wallets ADD COLUMN IF NOT EXISTS deposited_balance NUMERIC(12, 2) NOT NULL DEFAULT 0;
+    ALTER TABLE wallets ADD COLUMN IF NOT EXISTS withdrawable_balance NUMERIC(12, 2) NOT NULL DEFAULT 0;
+
+    UPDATE wallets
+    SET deposited_balance = balance, withdrawable_balance = 0
+    WHERE deposited_balance = 0 AND withdrawable_balance = 0 AND balance > 0;
 
     CREATE TABLE IF NOT EXISTS wallet_transactions (
       id TEXT PRIMARY KEY,
@@ -80,13 +89,42 @@ async function initSchema(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS users (
       steam_id TEXT PRIMARY KEY,
+      first_name TEXT,
+      last_name TEXT,
+      email TEXT,
       trade_url TEXT,
       cart_listing_ids JSONB NOT NULL DEFAULT '[]',
       wishlist_listing_ids JSONB NOT NULL DEFAULT '[]',
-      listing_banned_until BIGINT
+      listing_banned_until BIGINT,
+      tos_accepted_at BIGINT,
+      tos_version TEXT,
+      saved_iban TEXT
     );
 
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS tos_accepted_at BIGINT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS tos_version TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS saved_iban TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS listing_banned_until BIGINT;
+
+    CREATE TABLE IF NOT EXISTS withdrawal_requests (
+      id TEXT PRIMARY KEY,
+      steam_id TEXT NOT NULL,
+      amount NUMERIC(12, 2) NOT NULL,
+      iban TEXT NOT NULL,
+      account_holder_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at BIGINT NOT NULL,
+      processed_at BIGINT,
+      reject_reason TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_withdrawals_steam ON withdrawal_requests (steam_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawal_requests (status, created_at DESC);
+
+    INSERT INTO counters (name, value) VALUES ('withdrawal_id', 1) ON CONFLICT DO NOTHING;
 
     CREATE INDEX IF NOT EXISTS idx_listings_status ON listings ((payload->>'status'));
     CREATE INDEX IF NOT EXISTS idx_listings_seller ON listings ((payload->>'sellerId'));

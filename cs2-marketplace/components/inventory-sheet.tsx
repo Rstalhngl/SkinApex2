@@ -368,7 +368,7 @@ interface InventorySheetProps {
 
 export function InventorySheet({ trigger }: InventorySheetProps) {
   const { t } = useI18n()
-  const { steamProfile, items: marketItems } = useMarket()
+  const { steamProfile, items: marketItems, openProfileCompletion } = useMarket()
 
   // Sheet open/close
   const [open, setOpen] = useState(false)
@@ -463,6 +463,10 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     const result = await createListingWithError(listingItem, priceTry)
     if (result.error === "listing_banned") {
       toast.error(t("listings.banned"))
+      return false
+    }
+    if (result.error === "profile_incomplete") {
+      openProfileCompletion()
       return false
     }
     if (!result.listing) {

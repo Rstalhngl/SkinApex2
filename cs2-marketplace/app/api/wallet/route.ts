@@ -1,24 +1,28 @@
 import { NextResponse } from "next/server"
 import { getSession, isSession, requireSession } from "@/lib/api-auth"
 import {
-  creditWallet,
-  debitWallet,
-  getWalletBalance,
+  getWalletBalances,
   getWalletTransactions,
 } from "@/lib/wallet-store"
 import { isDemoDepositEnabled, isWithdrawEnabled } from "@/lib/app-config"
+import { creditWallet } from "@/lib/wallet-store"
 import { publishUserChannel } from "@/lib/ws-publish"
 
 export async function GET() {
   const session = await requireSession()
   if (!isSession(session)) return session
 
-  const [balance, transactions] = await Promise.all([
-    getWalletBalance(session.steamId),
+  const [balances, transactions] = await Promise.all([
+    getWalletBalances(session.steamId),
     getWalletTransactions(session.steamId),
   ])
 
-  return NextResponse.json({ balance, transactions })
+  return NextResponse.json({
+    balance: balances.balance,
+    depositedBalance: balances.deposited,
+    withdrawableBalance: balances.withdrawable,
+    transactions,
+  })
 }
 
 export async function POST(req: Request) {
@@ -40,20 +44,23 @@ export async function POST(req: Request) {
       const result = await creditWallet(session.steamId, amount, "deposit")
       if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
       publishUserChannel("wallet", session.steamId)
-      return NextResponse.json({ balance: result.balance })
+      const balances = await getWalletBalances(session.steamId)
+      return NextResponse.json({
+        balance: balances.balance,
+        depositedBalance: balances.deposited,
+        withdrawableBalance: balances.withdrawable,
+      })
     }
 
     if (action === "withdraw") {
-      if (!isWithdrawEnabled()) {
-        return NextResponse.json({ error: "withdraw_disabled" }, { status: 403 })
-      }
-      if (amount < 500) {
-        return NextResponse.json({ error: "min_withdraw_500" }, { status: 400 })
-      }
-      const result = await debitWallet(session.steamId, amount, "withdraw")
-      if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
-      publishUserChannel("wallet", session.steamId)
-      return NextResponse.json({ balance: result.balance })
+      return NextResponse.json(
+        {
+          error: "use_withdrawals_api",
+          message: "Nakit çekim için POST /api/withdrawals kullanın.",
+          withdrawEnabled: isWithdrawEnabled(),
+        },
+        { status: 400 },
+      )
     }
 
     return NextResponse.json({ error: "unknown_action" }, { status: 400 })

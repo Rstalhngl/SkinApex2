@@ -6,9 +6,15 @@ const DATA_DIR = path.join(process.cwd(), "data")
 const DATA_PATH = path.join(DATA_DIR, "users.json")
 
 export interface UserData {
+  firstName?: string
+  lastName?: string
+  email?: string
   tradeUrl?: string
   cartListingIds: string[]
   wishlistListingIds: string[]
+  tosAcceptedAt?: number
+  tosVersion?: string
+  savedIban?: string
 }
 
 interface UsersStore {
@@ -37,25 +43,45 @@ async function writeStoreJson(store: UsersStore): Promise<void> {
 }
 
 function rowToUserData(row: {
+  first_name: string | null
+  last_name: string | null
+  email: string | null
   trade_url: string | null
   cart_listing_ids: string[]
   wishlist_listing_ids: string[]
+  tos_accepted_at: string | null
+  tos_version: string | null
+  saved_iban: string | null
 }): UserData {
   return {
+    firstName: row.first_name ?? undefined,
+    lastName: row.last_name ?? undefined,
+    email: row.email ?? undefined,
     tradeUrl: row.trade_url ?? undefined,
     cartListingIds: row.cart_listing_ids ?? [],
     wishlistListingIds: row.wishlist_listing_ids ?? [],
+    tosAcceptedAt: row.tos_accepted_at ? Number(row.tos_accepted_at) : undefined,
+    tosVersion: row.tos_version ?? undefined,
+    savedIban: row.saved_iban ?? undefined,
   }
 }
 
 export async function getUserData(steamId: string): Promise<UserData> {
   if (isDbEnabled()) {
     const res = await query<{
+      first_name: string | null
+      last_name: string | null
+      email: string | null
       trade_url: string | null
       cart_listing_ids: string[]
       wishlist_listing_ids: string[]
+      tos_accepted_at: string | null
+      tos_version: string | null
+      saved_iban: string | null
     }>(
-      "SELECT trade_url, cart_listing_ids, wishlist_listing_ids FROM users WHERE steam_id = $1",
+      `SELECT first_name, last_name, email, trade_url, cart_listing_ids, wishlist_listing_ids,
+              tos_accepted_at, tos_version, saved_iban
+       FROM users WHERE steam_id = $1`,
       [steamId],
     )
     if (!res.rows[0]) return defaultUser()
@@ -69,31 +95,50 @@ export async function updateUserData(
   steamId: string,
   patch: Partial<UserData>,
 ): Promise<UserData> {
+  const current = await getUserData(steamId)
+  const next: UserData = {
+    ...current,
+    ...patch,
+    cartListingIds: patch.cartListingIds ?? current.cartListingIds,
+    wishlistListingIds: patch.wishlistListingIds ?? current.wishlistListingIds,
+  }
+
   if (isDbEnabled()) {
-    const current = await getUserData(steamId)
-    const next = { ...current, ...patch }
     await query(
-      `INSERT INTO users (steam_id, trade_url, cart_listing_ids, wishlist_listing_ids)
-       VALUES ($1, $2, $3::jsonb, $4::jsonb)
+      `INSERT INTO users
+        (steam_id, first_name, last_name, email, trade_url, cart_listing_ids, wishlist_listing_ids,
+         tos_accepted_at, tos_version, saved_iban)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10)
        ON CONFLICT (steam_id) DO UPDATE SET
+         first_name = EXCLUDED.first_name,
+         last_name = EXCLUDED.last_name,
+         email = EXCLUDED.email,
          trade_url = EXCLUDED.trade_url,
          cart_listing_ids = EXCLUDED.cart_listing_ids,
-         wishlist_listing_ids = EXCLUDED.wishlist_listing_ids`,
+         wishlist_listing_ids = EXCLUDED.wishlist_listing_ids,
+         tos_accepted_at = EXCLUDED.tos_accepted_at,
+         tos_version = EXCLUDED.tos_version,
+         saved_iban = EXCLUDED.saved_iban`,
       [
         steamId,
+        next.firstName ?? null,
+        next.lastName ?? null,
+        next.email ?? null,
         next.tradeUrl ?? null,
         JSON.stringify(next.cartListingIds),
         JSON.stringify(next.wishlistListingIds),
+        next.tosAcceptedAt ?? null,
+        next.tosVersion ?? null,
+        next.savedIban ?? null,
       ],
     )
     return next
   }
 
   const store = await readStoreJson()
-  const current = store.users[steamId] ?? defaultUser()
-  store.users[steamId] = { ...current, ...patch }
+  store.users[steamId] = next
   await writeStoreJson(store)
-  return store.users[steamId]
+  return next
 }
 
 export async function getUserTradeUrl(steamId: string): Promise<string | undefined> {

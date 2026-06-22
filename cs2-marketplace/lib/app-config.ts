@@ -23,6 +23,26 @@ export function isWithdrawEnabled(): boolean {
   return process.env.ALLOW_WITHDRAWALS === "true"
 }
 
+export const CURRENT_TOS_VERSION = "2025-06-v2"
+
+/** Minimum single cash-out amount (TRY). */
+export function getWithdrawMinTry(): number {
+  const v = Number(process.env.WITHDRAW_MIN_TRY ?? 100)
+  return Number.isFinite(v) && v > 0 ? v : 100
+}
+
+/** Maximum single cash-out amount (TRY). */
+export function getWithdrawMaxPerTxTry(): number {
+  const v = Number(process.env.WITHDRAW_MAX_PER_TX_TRY ?? 50000)
+  return Number.isFinite(v) && v > 0 ? v : 50000
+}
+
+/** Maximum total cash-out per UTC day (TRY). */
+export function getWithdrawMaxDailyTry(): number {
+  const v = Number(process.env.WITHDRAW_MAX_DAILY_TRY ?? 50000)
+  return Number.isFinite(v) && v > 0 ? v : 50000
+}
+
 export function requireDatabaseInProduction(): void {
   if (process.env.NODE_ENV === "production" && !isDbEnabled()) {
     throw new Error("DATABASE_URL is required in production")

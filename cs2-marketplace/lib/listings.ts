@@ -82,12 +82,13 @@ export async function createListingWithError(
 export async function purchaseBatch(
   listingIds: string[],
   tradeUrl: string,
+  mssAccepted = false,
 ): Promise<{ ok: true } | { ok: false; error?: string }> {
   try {
     const res = await apiFetch("/api/listings/batch-sell", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingIds, tradeUrl }),
+      body: JSON.stringify({ listingIds, tradeUrl, mssAccepted }),
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))

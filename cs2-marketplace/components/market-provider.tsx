@@ -27,11 +27,13 @@ import { syncOffers } from "@/lib/offers"
 import { syncUserNotifications } from "@/lib/user-notifications"
 import {
   fetchUserData,
-  fetchWalletBalance,
+  fetchWalletData,
   patchUserData,
+  requestCashout,
   walletDeposit,
-  walletWithdraw,
+  type UserData,
 } from "@/lib/user-data-client"
+import { ProfileCompletionDialog } from "@/components/profile-completion-dialog"
 import { apiFetch } from "@/lib/api-client"
 import { checkoutErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
@@ -48,6 +50,10 @@ interface MarketContextValue {
   cart: Skin[]
   wishlist: string[]
   wallet: number
+  withdrawableBalance: number
+  profileComplete: boolean
+  userProfile: Pick<UserData, "firstName" | "lastName" | "email">
+  openProfileCompletion: () => void
   cartTotal: number
   addToCart: (skin: Skin) => void
   removeFromCart: (listingId: string) => void
@@ -56,8 +62,8 @@ interface MarketContextValue {
   isInCart: (listingId?: string) => boolean
   isWished: (listingId?: string) => boolean
   deposit: (amount: number) => Promise<void>
-  withdraw: (amount: number) => Promise<boolean>
-  checkout: (tradeUrl: string) => Promise<void>
+  withdraw: (amount: number, iban: string, accountHolderName: string) => Promise<boolean>
+  checkout: (tradeUrl: string, mssAccepted: boolean) => Promise<void>
   isLoggedIn: boolean
   steamProfile: SteamProfile | null
   login: (profile?: SteamProfile) => void
@@ -93,6 +99,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [cartSkins, setCartSkins] = useState<Skin[]>([])
   const [wishlist, setWishlist] = useState<string[]>([])
   const [wallet, setWallet] = useState(0)
+  const [withdrawableBalance, setWithdrawableBalance] = useState(0)
+  const [profileComplete, setProfileComplete] = useState(false)
+  const [userProfile, setUserProfile] = useState<Pick<UserData, "firstName" | "lastName" | "email">>({})
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [steamProfile, setSteamProfile] = useState<SteamProfile | null>(null)
   const [tradeUrl, setTradeUrlState] = useState("")
@@ -110,21 +120,30 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const refreshWallet = useCallback(async () => {
     if (!isLoggedIn) return
-    const balance = await fetchWalletBalance()
-    setWallet(balance)
+    const data = await fetchWalletData()
+    setWallet(data?.balance ?? 0)
+    setWithdrawableBalance(data?.withdrawableBalance ?? 0)
   }, [isLoggedIn])
 
   const loadUserData = useCallback(async (steamId?: string) => {
-    const [data, balance] = await Promise.all([fetchUserData(), fetchWalletBalance()])
-    if (data) {
-      const ids = data.cartListingIds ?? []
-      setWishlist(data.wishlistListingIds ?? [])
-      if (data.tradeUrl) setTradeUrlState(data.tradeUrl)
+    const [userRes, walletData] = await Promise.all([fetchUserData(), fetchWalletData()])
+    if (userRes?.data) {
+      const d = userRes.data
+      const ids = d.cartListingIds ?? []
+      setWishlist(d.wishlistListingIds ?? [])
+      if (d.tradeUrl) setTradeUrlState(d.tradeUrl)
+      setProfileComplete(Boolean(userRes.profileComplete))
+      setUserProfile({ firstName: d.firstName, lastName: d.lastName, email: d.email })
       await syncListings()
       hydrateCart(ids, steamId)
     }
-    setWallet(balance)
+    setWallet(walletData?.balance ?? 0)
+    setWithdrawableBalance(walletData?.withdrawableBalance ?? 0)
   }, [hydrateCart])
+
+  const openProfileCompletion = useCallback(() => {
+    setProfileDialogOpen(true)
+  }, [])
 
   useEffect(() => {
     const fetchRate = async () => {
@@ -367,26 +386,43 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     })
   }, [isLoggedIn, t])
 
-  const withdraw = useCallback(async (amount: number) => {
+  const withdraw = useCallback(async (amount: number, iban: string, accountHolderName: string) => {
     if (!isLoggedIn) return false
-    const balance = await walletWithdraw(amount)
-    if (balance === "withdraw_disabled") {
-      toast.error(t("withdraw.disabled"))
+    if (!profileComplete) {
+      openProfileCompletion()
       return false
     }
-    if (balance == null) return false
-    setWallet(balance)
+    const result = await requestCashout({ amount, iban, accountHolderName })
+    if (!result.ok) {
+      if (result.error === "withdraw_disabled") toast.error(t("withdraw.disabled"))
+      else if (result.error === "profile_incomplete") openProfileCompletion()
+      else if (result.error === "name_mismatch") toast.error(t("withdraw.nameMismatch"))
+      else if (result.error === "invalid_iban") toast.error(t("withdraw.invalidIban"))
+      else if (result.error === "insufficient_withdrawable") toast.error(t("withdraw.insufficientWithdrawable"))
+      else if (result.error === "below_minimum") toast.error(t("withdraw.belowMin", { min: String(result.min ?? 100) }))
+      else toast.error(t("withdraw.failed"))
+      return false
+    }
+    await refreshWallet()
     return true
-  }, [isLoggedIn, t])
+  }, [isLoggedIn, profileComplete, openProfileCompletion, refreshWallet, t])
 
   const cartTotal = useMemo(
     () => cartSkins.reduce((sum, s) => sum + s.price, 0),
     [cartSkins],
   )
 
-  const checkout = useCallback(async (tradeUrlValue: string) => {
+  const checkout = useCallback(async (tradeUrlValue: string, mssAccepted: boolean) => {
     if (!isLoggedIn || !steamProfile) {
       toast.error(t("toast.login.title"), { description: t("toast.login.desc") })
+      return
+    }
+    if (!profileComplete) {
+      openProfileCompletion()
+      return
+    }
+    if (!mssAccepted) {
+      toast.error(t("checkout.mssRequired"))
       return
     }
     if (cartSkins.length === 0) { toast.error(t("toast.cartEmpty")); return }
@@ -400,8 +436,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     const listingIds = cartSkins.map((s) => s.listingId).filter((id): id is string => !!id)
     if (listingIds.length === 0) { toast.error(t("toast.cartEmpty")); return }
 
-    const result = await purchaseBatch(listingIds, tradeUrlValue)
+    const result = await purchaseBatch(listingIds, tradeUrlValue, mssAccepted)
     if (!result.ok) {
+      if (result.error === "profile_incomplete") {
+        openProfileCompletion()
+        return
+      }
       toast.error(t("checkout.failed"), {
         description: checkoutErrorMessage(result.error, t),
       })
@@ -419,7 +459,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     clearCart()
     void syncUserNotifications()
     void syncUserSales()
-  }, [cartSkins, cartTotal, wallet, isLoggedIn, steamProfile, t, clearCart, refreshWallet])
+  }, [cartSkins, cartTotal, wallet, isLoggedIn, steamProfile, profileComplete, openProfileCompletion, t, clearCart, refreshWallet])
 
   const listForSale = useCallback((_skin: Skin, _price: number) => {
     toast.info(t("sell.useInventory"), {
@@ -434,7 +474,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     items, isLoadingItems,
-    cart: cartSkins, wishlist, wallet, cartTotal,
+    cart: cartSkins, wishlist, wallet, withdrawableBalance, cartTotal,
+    profileComplete, userProfile, openProfileCompletion,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,
     deposit, withdraw, checkout,
@@ -444,7 +485,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     refreshWallet,
   }), [
     items, isLoadingItems,
-    cartSkins, wishlist, wallet, cartTotal,
+    cartSkins, wishlist, wallet, withdrawableBalance, cartTotal,
+    profileComplete, userProfile, openProfileCompletion,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,
     deposit, withdraw, checkout,
@@ -454,7 +496,19 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     refreshWallet,
   ])
 
-  return <MarketContext.Provider value={value}>{children}</MarketContext.Provider>
+  return (
+    <MarketContext.Provider value={value}>
+      {children}
+      <ProfileCompletionDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        initial={userProfile}
+        onCompleted={() => {
+          void loadUserData(steamProfile?.steamId)
+        }}
+      />
+    </MarketContext.Provider>
+  )
 }
 
 export function useMarket() {

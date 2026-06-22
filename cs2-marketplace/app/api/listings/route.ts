@@ -9,6 +9,7 @@ import {
   readListingsStore,
   writeListingsStore,
 } from "@/lib/listings-store"
+import { requireCompleteProfile } from "@/lib/profile-gate"
 import { verifyAssetOwnership } from "@/lib/steam-inventory"
 import { isListingBanned } from "@/lib/moderation-store"
 import { publishListingCreated, publishListingsChanged } from "@/lib/ws-publish"
@@ -27,6 +28,9 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await requireSession()
   if (!isSession(session)) return session
+
+  const profile = await requireCompleteProfile(session.steamId)
+  if (profile instanceof Response) return profile
 
   try {
     const body = await req.json()

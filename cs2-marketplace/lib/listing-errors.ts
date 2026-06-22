@@ -15,6 +15,8 @@ export function listingErrorMessage(
       return { title: t("listings.errorSteam") }
     case "invalid_request":
       return { title: t("listings.errorInvalid") }
+    case "profile_incomplete":
+      return { title: t("profile.completeDesc") }
     default:
       return { title: t("listings.errorGeneric") }
   }

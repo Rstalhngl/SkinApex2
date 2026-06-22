@@ -6,7 +6,7 @@ import { withStoreLock } from "@/lib/data-lock"
 import { rejectPendingOffersForListing } from "@/lib/offer-cleanup"
 import { readListingsStore, writeListingsStore } from "@/lib/listings-store"
 import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
-import { debitWallet, creditWallet, getWalletBalance, type WalletTxType } from "@/lib/wallet-store"
+import { debitForPurchase, creditWallet, getWalletBalance, type WalletTxType } from "@/lib/wallet-store"
 import { addUserNotification } from "@/lib/notifications-store"
 import { isValidTradeUrl, tradeUrlMatchesSteamId } from "@/lib/trade-url"
 import { verifyAssetOwnership } from "@/lib/steam-inventory"
@@ -58,29 +58,43 @@ async function debitWalletInTx(
   note?: string,
 ): Promise<{ ok: true; balance: number } | { ok: false; error: string }> {
   await client.query(
-    `INSERT INTO wallets (steam_id, balance) VALUES ($1, 0) ON CONFLICT DO NOTHING`,
+    `INSERT INTO wallets (steam_id, balance, deposited_balance, withdrawable_balance)
+     VALUES ($1, 0, 0, 0) ON CONFLICT DO NOTHING`,
     [steamId],
   )
-  const locked = await client.query<{ balance: string }>(
-    `SELECT balance FROM wallets WHERE steam_id = $1 FOR UPDATE`,
+  const locked = await client.query<{
+    balance: string
+    deposited_balance: string
+    withdrawable_balance: string
+  }>(
+    `SELECT balance, deposited_balance, withdrawable_balance FROM wallets WHERE steam_id = $1 FOR UPDATE`,
     [steamId],
   )
-  const current = Number(locked.rows[0]?.balance ?? 0)
-  if (current < amount) return { ok: false, error: "insufficient_balance" }
+  const balance = Number(locked.rows[0]?.balance ?? 0)
+  const deposited = Number(locked.rows[0]?.deposited_balance ?? 0)
+  const withdrawable = Number(locked.rows[0]?.withdrawable_balance ?? 0)
+  if (balance < amount) return { ok: false, error: "insufficient_balance" }
 
-  const updated = await client.query<{ balance: string }>(
-    `UPDATE wallets SET balance = ROUND(balance - $2, 2) WHERE steam_id = $1 RETURNING balance`,
-    [steamId, amount],
+  const fromDeposited = Math.min(deposited, amount)
+  const fromWithdrawable = Math.round((amount - fromDeposited) * 100) / 100
+  const nextDeposited = Math.round((deposited - fromDeposited) * 100) / 100
+  const nextWithdrawable = Math.round((withdrawable - fromWithdrawable) * 100) / 100
+  const nextBalance = Math.round((balance - amount) * 100) / 100
+
+  await client.query(
+    `UPDATE wallets SET balance = $2, deposited_balance = $3, withdrawable_balance = $4
+     WHERE steam_id = $1`,
+    [steamId, nextBalance, nextDeposited, nextWithdrawable],
   )
-  const balance = Number(updated.rows[0]?.balance ?? 0)
+
   const txNum = await nextCounterInTx(client, "wallet_tx_id")
   await client.query(
     `INSERT INTO wallet_transactions
       (id, steam_id, type, amount, balance_after, ref_id, note, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [`tx-${txNum}`, steamId, type, -amount, balance, refId ?? null, note ?? null, Date.now()],
+    [`tx-${txNum}`, steamId, type, -amount, nextBalance, refId ?? null, note ?? null, Date.now()],
   )
-  return { ok: true, balance }
+  return { ok: true, balance: nextBalance }
 }
 
 function formatTry(v: number): string {
@@ -333,7 +347,7 @@ export async function completePurchase(
     if (!ownership.ok) return { ok: false, error: "asset_unavailable" }
 
     const chargeAmount = priceTry ?? listing.priceTry
-    const debit = await debitWallet(buyer.steamId, chargeAmount, txType, listingId)
+    const debit = await debitForPurchase(buyer.steamId, chargeAmount, txType, listingId)
     if (!debit.ok) {
       return { ok: false, error: debit.error, minBalance: chargeAmount }
     }
@@ -419,7 +433,7 @@ export async function completeBatchPurchase(
       return { ok: false, error: "insufficient_balance", minBalance: totalCharge }
     }
 
-    const debit = await debitWallet(buyer.steamId, totalCharge, "purchase", uniqueIds.join(","))
+    const debit = await debitForPurchase(buyer.steamId, totalCharge, "purchase", uniqueIds.join(","))
     if (!debit.ok) {
       return { ok: false, error: debit.error, minBalance: totalCharge }
     }
@@ -503,7 +517,7 @@ export async function refundExpiredSale(sale: Sale): Promise<void> {
   await addUserNotification(
     sale.sellerId,
     "item_sold",
-    `Teslimat süresi doldu: ${sale.itemName}. Alıcıya iade yapıldı.`,
+    "Size ayrılan 2 saatlik süre içinde ürünü teslim edemediğiniz için işleminiz iptal edilmiştir.",
     { saleId: sale.id },
   )
 }
