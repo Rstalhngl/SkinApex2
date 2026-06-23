@@ -19,6 +19,7 @@ import { categoryOf, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
 import { SavedFiltersControl } from "@/components/saved-filters-control"
+import { useMarket } from "@/components/market-provider"
 import { toast } from "sonner"
 
 const DEFAULT_FILTERS: Filters = {
