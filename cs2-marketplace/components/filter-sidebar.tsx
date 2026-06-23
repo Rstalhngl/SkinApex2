@@ -147,28 +147,7 @@ export function FilterSidebar({
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-          {t("filter.sortBy")}
-        </Label>
-        <Select value={filters.sort} onValueChange={(v) => set({ sort: v as SortKey })}>
-          <SelectTrigger className="border-border bg-input text-foreground">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="border-border bg-card">
-            <SelectItem value="all">{t("filter.sort.all")}</SelectItem>
-            <SelectItem value="popular">{t("filter.sort.popular")}</SelectItem>
-            <SelectItem value="newest">{t("filter.sort.newest")}</SelectItem>
-            <SelectItem value="discount-desc">{t("filter.sort.discount")}</SelectItem>
-            <SelectItem value="price-asc">{t("filter.sort.priceAsc")}</SelectItem>
-            <SelectItem value="price-desc">{t("filter.sort.priceDesc")}</SelectItem>
-            <SelectItem value="float-asc">{t("filter.sort.floatAsc")}</SelectItem>
-            <SelectItem value="float-desc">{t("filter.sort.floatDesc")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Price range filter — below sort */}
+      {/* Price range filter — below categories */}
       <div className="space-y-2">
         <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
           {t("filter.priceRange")}

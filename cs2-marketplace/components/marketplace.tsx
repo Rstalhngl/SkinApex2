@@ -18,7 +18,7 @@ import { listingToSkin } from "@/lib/listing-to-skin"
 import { categoryOf, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
-import { SavedFiltersControl } from "@/components/saved-filters-control"
+import { ListingSortControl } from "@/components/listing-sort-control"
 import { SearchBarIcon, searchBarIconBoxClass } from "@/components/search-bar-icons"
 import { useMarket } from "@/components/market-provider"
 import { cn } from "@/lib/utils"
@@ -197,14 +197,12 @@ export function Marketplace() {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE) }}
                 placeholder={t("search.placeholder")}
-                className="h-12 border-border bg-card pl-[3.25rem] pr-[3.25rem] text-base text-foreground placeholder:text-muted-foreground"
+                className="h-12 border-border bg-card pl-[3.25rem] pr-[10.5rem] text-base text-foreground placeholder:text-muted-foreground"
               />
-              <SavedFiltersControl
-                filters={filters}
-                search={search}
-                onApply={(preset) => {
-                  setFilters(preset.filters)
-                  setSearch(preset.search)
+              <ListingSortControl
+                sort={filters.sort}
+                onChange={(sort) => {
+                  setFilters((f) => ({ ...f, sort }))
                   setVisibleCount(PAGE_SIZE)
                 }}
                 className="absolute right-2.5 top-2 z-10"
