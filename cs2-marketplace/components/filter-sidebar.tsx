@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { FloatRangeFilter } from "@/components/float-wear-bar"
 import { FLOAT_MAX, FLOAT_MIN } from "@/lib/float-wear"
 import { useI18n } from "@/lib/i18n"
+import { cn } from "@/lib/utils"
 import {
   CATEGORIES, getListedWeaponsInCategory, RARITIES,
   type CategoryKey, type Rarity, type Skin,
