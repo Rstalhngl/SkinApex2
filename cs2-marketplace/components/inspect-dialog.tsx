@@ -13,6 +13,7 @@ import { useState } from "react"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD, isOwnListing, steamMarketUrl } from "@/lib/skins"
 import { OfferDialog } from "@/components/offer-dialog"
+import { FloatWearMarker } from "@/components/float-wear-bar"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -58,9 +59,12 @@ export function InspectDialog({
 
             <div className="space-y-2.5 rounded-lg border border-border bg-input p-4 text-sm">
               {skin.hasFloat !== false && (
-                <Row label={t("inspect.floatValue")}>
-                  <span className="font-bold text-primary">{skin.float.toFixed(4)}</span>
-                </Row>
+                <>
+                  <Row label={t("inspect.floatValue")}>
+                    <span className="font-bold text-primary">{skin.float.toFixed(4)}</span>
+                  </Row>
+                  <FloatWearMarker float={skin.float} className="pt-1" />
+                </>
               )}
               {skin.patternSeed !== undefined && skin.hasFloat !== false && (
                 <Row label={t("inspect.patternSeed")}>

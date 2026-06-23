@@ -8,7 +8,8 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from 
 import { SiteHeader } from "@/components/site-header"
 import { LiveTicker } from "@/components/live-ticker"
 import { SiteFooter } from "@/components/site-footer"
-import { FilterSidebar, type Filters, PRICE_FILTER_MAX } from "@/components/filter-sidebar"
+import { FilterSidebar, type Filters, FLOAT_FILTER_MAX, FLOAT_FILTER_MIN, PRICE_FILTER_MAX } from "@/components/filter-sidebar"
+import { isFloatFilterActive } from "@/lib/float-wear"
 import { SkinCard } from "@/components/skin-card"
 import { InspectDialog } from "@/components/inspect-dialog"
 import { SellDialog } from "@/components/sell-dialog"
@@ -30,6 +31,8 @@ const DEFAULT_FILTERS: Filters = {
   rarity: null,
   priceMin: 0,
   priceMax: PRICE_FILTER_MAX,
+  floatMin: FLOAT_FILTER_MIN,
+  floatMax: FLOAT_FILTER_MAX,
 }
 
 const PAGE_SIZE = 48
@@ -106,6 +109,14 @@ export function Marketplace() {
     if (filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX) {
       list = list.filter((s) => s.price >= filters.priceMin && s.price <= filters.priceMax)
     }
+    if (isFloatFilterActive(filters.floatMin, filters.floatMax)) {
+      list = list.filter(
+        (s) =>
+          s.hasFloat !== false &&
+          s.float >= filters.floatMin &&
+          s.float <= filters.floatMax,
+      )
+    }
 
     switch (filters.sort) {
       case "all": break
@@ -127,7 +138,8 @@ export function Marketplace() {
   const activeFilters =
     filters.st || filters.sv || filters.exterior !== "all" ||
     !!filters.category || !!filters.weapon || !!filters.rarity ||
-    filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX || !!search
+    filters.priceMin > 0 || filters.priceMax < PRICE_FILTER_MAX ||
+    isFloatFilterActive(filters.floatMin, filters.floatMax) || !!search
 
   const resetFilters = () => {
     setFilters(DEFAULT_FILTERS)

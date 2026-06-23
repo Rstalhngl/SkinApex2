@@ -64,6 +64,9 @@ const en: Dict = {
 
   // Filters
   "filter.priceRange": "Price Range",
+  "filter.wear": "Wear",
+  "filter.floatMin": "Minimum",
+  "filter.floatMax": "Maximum",
   "filter.priceAll": "All Prices",
   "filter.reset": "Reset Filters",
   "inspect.aboveMarket": "Above Market",
@@ -475,6 +478,9 @@ const tr: Dict = {
   "empty.reset": "Filtreleri sıfırla",
 
   "filter.priceRange": "Fiyat Aralığı",
+  "filter.wear": "Aşınma (Float)",
+  "filter.floatMin": "Minimum",
+  "filter.floatMax": "Maksimum",
   "filter.priceAll": "Tüm Fiyatlar",
   "filter.reset": "Filtreleri Sıfırla",
   "inspect.aboveMarket": "Piyasa Üstü",

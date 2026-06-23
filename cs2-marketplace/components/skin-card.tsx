@@ -4,6 +4,7 @@ import { ExternalLink, Handshake, Heart, Tag, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD, isOwnListing, steamMarketUrl } from "@/lib/skins"
+import { FloatWearMarker } from "@/components/float-wear-bar"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -151,16 +152,7 @@ export function SkinCard({
       {/* Float bar */}
       {skin.hasFloat !== false && (
         <div className="mb-3">
-          <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
-            <span>{t("card.float")}</span>
-            <strong className="text-foreground">{skin.float.toFixed(4)}</strong>
-          </div>
-          <div className="relative h-1 rounded-full bg-[linear-gradient(90deg,#3b82f6_0%,#10b981_20%,#eab308_40%,#f97316_70%,#ef4444_100%)]">
-            <span
-              className="absolute -top-0.5 h-2 w-1 rounded-sm bg-white shadow-[0_0_4px_#000]"
-              style={{ left: `${Math.min(skin.float * 100, 98)}%` }}
-            />
-          </div>
+          <FloatWearMarker float={skin.float} showValue valueLabel={t("card.float")} />
         </div>
       )}
 

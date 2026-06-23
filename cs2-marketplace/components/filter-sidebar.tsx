@@ -12,7 +12,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
+import { FloatRangeFilter } from "@/components/float-wear-bar"
+import { FLOAT_MAX, FLOAT_MIN } from "@/lib/float-wear"
 import { useI18n } from "@/lib/i18n"
 import {
   CATEGORIES, getListedWeaponsInCategory, RARITIES,
@@ -40,7 +41,12 @@ export interface Filters {
   rarity: Rarity | null
   priceMin: number
   priceMax: number
+  floatMin: number
+  floatMax: number
 }
+
+export const FLOAT_FILTER_MIN = FLOAT_MIN
+export const FLOAT_FILTER_MAX = FLOAT_MAX
 
 export const PRICE_FILTER_MAX = 200000 // TRY
 
@@ -213,6 +219,15 @@ export function FilterSidebar({
           </p>
         )}
       </div>
+
+      <FloatRangeFilter
+        floatMin={filters.floatMin}
+        floatMax={filters.floatMax}
+        onChange={(patch) => set(patch)}
+        wearLabel={t("filter.wear")}
+        minLabel={t("filter.floatMin")}
+        maxLabel={t("filter.floatMax")}
+      />
 
       <div className="space-y-2">
         <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
