@@ -174,7 +174,7 @@ export function Marketplace() {
 
       <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 md:grid-cols-[280px_1fr] md:px-10">
         <aside className="hidden md:block">
-          <div className="sticky top-[64px] max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-border bg-card p-6 scrollbar-thin">
+          <div className="scrollbar-skinapex sticky top-[64px] max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-border bg-card p-6">
             <FilterSidebar
               filters={filters}
               listedItems={allSkins}
@@ -213,7 +213,7 @@ export function Marketplace() {
               >
                 <SheetTitle className="sr-only">{t("filter.title")}</SheetTitle>
                 <SheetDescription className="sr-only">{t("filter.title")}</SheetDescription>
-                <div className="mt-6">
+                <div className="scrollbar-skinapex mt-6 max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
                   <FilterSidebar
                     filters={filters}
                     listedItems={allSkins}
