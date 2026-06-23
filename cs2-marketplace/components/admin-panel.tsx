@@ -20,13 +20,27 @@ interface Overview {
   delivered: number
   expired: number
   resolved: number
+  activeListings: number
+  activeUsers: number
+  wsConnections: number
 }
 
-function StatCard({ label, value, accent }: { label: string; value: number; accent?: string }) {
+function StatCard({
+  label,
+  value,
+  accent,
+  hint,
+}: {
+  label: string
+  value: number
+  accent?: string
+  hint?: string
+}) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={cn("mt-1 text-2xl font-bold", accent ?? "text-foreground")}>{value}</p>
+      {hint ? <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p> : null}
     </div>
   )
 }
@@ -139,8 +153,8 @@ export function AdminPanel() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [disputes, setDisputes] = useState<Sale[]>([])
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true)
     try {
       const meRes = await apiFetch("/api/admin/me")
       const me = await meRes.json()
@@ -158,7 +172,7 @@ export function AdminPanel() {
       setOverview(ovData.overview ?? null)
       setDisputes(Array.isArray(dispData.disputes) ? dispData.disputes : [])
     } finally {
-      setLoading(false)
+      if (!options?.silent) setLoading(false)
     }
   }, [])
 
@@ -169,6 +183,12 @@ export function AdminPanel() {
       setAllowed(false)
     }
   }, [isLoggedIn, load])
+
+  useEffect(() => {
+    if (!allowed) return
+    const interval = setInterval(() => void load({ silent: true }), 30_000)
+    return () => clearInterval(interval)
+  }, [allowed, load])
 
   if (loading) {
     return (
@@ -226,7 +246,18 @@ export function AdminPanel() {
         </div>
 
         {overview && (
-          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
+            <StatCard
+              label={t("admin.stat.activeListings")}
+              value={overview.activeListings}
+              accent="text-primary"
+            />
+            <StatCard
+              label={t("admin.stat.activeUsers")}
+              value={overview.activeUsers}
+              accent="text-success"
+              hint={t("admin.stat.activeUsersDetail", { ws: overview.wsConnections })}
+            />
             <StatCard label={t("admin.stat.total")} value={overview.totalSales} />
             <StatCard label={t("admin.stat.pending")} value={overview.pendingDelivery} accent="text-yellow-400" />
             <StatCard label={t("admin.stat.disputed")} value={overview.disputed} accent="text-primary" />

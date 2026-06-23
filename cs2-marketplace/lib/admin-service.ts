@@ -6,7 +6,8 @@ import { payoutDeliveredSale } from "@/lib/purchase-service"
 import { getDisputedSales, patchSale } from "@/lib/sales-store"
 import { readSalesStore } from "@/lib/sales-store"
 import { publishUserChannel } from "@/lib/ws-publish"
-import { LISTING_BAN_MS } from "@/lib/app-config"
+import { getActiveUserStats } from "@/lib/active-users"
+import { getActiveListingsFromStore } from "@/lib/listings-store"
 import { setListingBan } from "@/lib/moderation-store"
 
 export async function notifyAdmins(message: string, extra?: { saleId?: string }): Promise<void> {
@@ -16,7 +17,11 @@ export async function notifyAdmins(message: string, extra?: { saleId?: string })
 }
 
 export async function getAdminOverview() {
-  const store = await readSalesStore()
+  const [store, active, listings] = await Promise.all([
+    readSalesStore(),
+    getActiveUserStats(),
+    getActiveListingsFromStore(),
+  ])
   const sales = store.sales
   return {
     totalSales: sales.length,
@@ -25,6 +30,9 @@ export async function getAdminOverview() {
     delivered: sales.filter((s) => s.status === "delivered").length,
     expired: sales.filter((s) => s.status === "expired").length,
     resolved: sales.filter((s) => s.status === "resolved").length,
+    activeListings: listings.length,
+    activeUsers: active.activeUsers,
+    wsConnections: active.wsConnections,
   }
 }
 
