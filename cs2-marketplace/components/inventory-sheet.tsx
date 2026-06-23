@@ -5,7 +5,7 @@
  * Defensive rewrite — null-safe, no infinite loops, no nested Radix modals.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ExternalLink,
   Lock,
@@ -50,6 +50,7 @@ type ApiResponse =
 
 const COMMISSION = 0.07
 const STEAM_IMG_BASE = "https://community.akamai.steamstatic.com/economy/image/"
+const INV_PAGE_SIZE = 48
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -61,14 +62,6 @@ function formatTry(value: number): string {
   }).format(value)
 }
 
-/** Safely get market price for an item. Never throws. */
-function getMarketPrice(
-  marketHashName: string | undefined,
-  skins: import("@/lib/skins").Skin[],
-): number | null {
-  if (!marketHashName) return null
-  return skins.find((s) => s.marketHashName === marketHashName)?.price ?? null
-}
 
 /** Safely build Steam CDN image URL */
 function safeImg(iconUrl: string | undefined): string {
@@ -109,8 +102,7 @@ function ListingDialog({
     }
   }, [open, refPrice])
 
-  // Do nothing if no item (null-safe)
-  if (!item) return null
+  if (!open || !item) return null
 
   const priceNum = parseFloat(price) || 0
   const commission = Math.round(priceNum * COMMISSION)
@@ -249,13 +241,12 @@ function ListingDialog({
 
 interface InventoryCardProps {
   item: InventoryItem
-  marketItems: import("@/lib/skins").Skin[]
+  price: number | null
   onListClick: (item: InventoryItem, refPrice: number | null) => void
 }
 
-function InventoryCard({ item, marketItems, onListClick }: InventoryCardProps) {
+function InventoryCard({ item, price, onListClick }: InventoryCardProps) {
   const { t } = useI18n()
-  const price = getMarketPrice(item.marketHashName, marketItems)
   const displayName = (item.name ?? "")
     .replace("StatTrak™ ", "")
     .replace("Souvenir ", "")
@@ -370,6 +361,16 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   const { t } = useI18n()
   const { steamProfile, items: marketItems, openProfileCompletion } = useMarket()
 
+  const priceByHash = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const skin of marketItems) {
+      if (skin.marketHashName && !map.has(skin.marketHashName)) {
+        map.set(skin.marketHashName, skin.price)
+      }
+    }
+    return map
+  }, [marketItems])
+
   // Sheet open/close
   const [open, setOpen] = useState(false)
 
@@ -382,6 +383,8 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   // Listing dialog state — lifted here so dialog renders OUTSIDE SheetContent
   const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
   const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
+  const [visibleTradable, setVisibleTradable] = useState(INV_PAGE_SIZE)
+  const [visibleLocked, setVisibleLocked] = useState(INV_PAGE_SIZE)
 
   // Ref prevents duplicate fetches within same open session
   const hasFetched = useRef(false)
@@ -443,6 +446,8 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
     }
     if (!open) {
       hasFetched.current = false
+      setVisibleTradable(INV_PAGE_SIZE)
+      setVisibleLocked(INV_PAGE_SIZE)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, steamProfile?.steamId])
@@ -488,6 +493,11 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
   // Derived lists
   const tradable = inventoryItems.filter((i) => i.tradable)
   const locked = inventoryItems.filter((i) => !i.tradable)
+  const shownTradable = tradable.slice(0, visibleTradable)
+  const shownLocked = locked.slice(0, visibleLocked)
+
+  const getRefPrice = (item: InventoryItem) =>
+    item.marketHashName ? priceByHash.get(item.marketHashName) ?? null : null
 
   return (
     <>
@@ -591,15 +601,25 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                       {t("inventory.tradable")} ({tradable.length})
                     </p>
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
-                      {tradable.map((item) => (
+                      {shownTradable.map((item) => (
                         <InventoryCard
                           key={item.assetId}
                           item={item}
-                          marketItems={marketItems}
+                          price={getRefPrice(item)}
                           onListClick={handleListClick}
                         />
                       ))}
                     </div>
+                    {visibleTradable < tradable.length && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full border-border text-xs"
+                        onClick={() => setVisibleTradable((n) => n + INV_PAGE_SIZE)}
+                      >
+                        {t("items.loadMore")} ({tradable.length - visibleTradable})
+                      </Button>
+                    )}
                   </section>
                 )}
 
@@ -609,15 +629,25 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
                       {t("inventory.locked")} ({locked.length})
                     </p>
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3 opacity-60">
-                      {locked.map((item) => (
+                      {shownLocked.map((item) => (
                         <InventoryCard
                           key={item.assetId}
                           item={item}
-                          marketItems={marketItems}
+                          price={getRefPrice(item)}
                           onListClick={handleListClick}
                         />
                       ))}
                     </div>
+                    {visibleLocked < locked.length && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full border-border text-xs"
+                        onClick={() => setVisibleLocked((n) => n + INV_PAGE_SIZE)}
+                      >
+                        {t("items.loadMore")} ({locked.length - visibleLocked})
+                      </Button>
+                    )}
                   </section>
                 )}
               </div>

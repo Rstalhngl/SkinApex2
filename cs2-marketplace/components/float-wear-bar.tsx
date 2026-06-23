@@ -29,23 +29,26 @@ export function FloatWearMarker({
   showValue,
   valueLabel,
 }: {
-  float: number
+  float: number | undefined
   className?: string
   showValue?: boolean
   valueLabel?: string
 }) {
+  if (!Number.isFinite(float)) return null
+  const safeFloat = float as number
+
   return (
     <div className={cn("w-full", className)}>
       {showValue && (
         <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
           <span>{valueLabel}</span>
-          <strong className="text-foreground">{float.toFixed(4)}</strong>
+          <strong className="text-foreground">{safeFloat.toFixed(4)}</strong>
         </div>
       )}
       <div className="relative h-1.5 rounded-full" style={{ background: WEAR_GRADIENT }}>
         <span
           className="absolute top-1/2 z-10 h-0 w-0 -translate-x-1/2 -translate-y-full border-x-[4px] border-b-[6px] border-x-transparent border-b-white drop-shadow-[0_0_3px_rgba(0,0,0,0.85)]"
-          style={{ left: floatMarkerLeft(float) }}
+          style={{ left: floatMarkerLeft(safeFloat) }}
           aria-hidden="true"
         />
       </div>

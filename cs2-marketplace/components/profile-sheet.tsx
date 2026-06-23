@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ExternalLink, Lock, Package, Pencil, RefreshCw, Tag, User, XCircle,
 } from "lucide-react"
@@ -11,6 +11,7 @@ import {
 } from "@/lib/listings"
 
 const COMMISSION_RATE = 0.07  // 7% platform commission
+const INV_PAGE_SIZE = 48
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
   SheetDescription, SheetTrigger,
@@ -278,7 +279,19 @@ function InventoryTab({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
+  const [visibleTradable, setVisibleTradable] = useState(INV_PAGE_SIZE)
+  const [visibleLocked, setVisibleLocked] = useState(INV_PAGE_SIZE)
   const loadedFor = useRef<string | null>(null)
+
+  const priceByHash = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const skin of marketItems) {
+      if (skin.marketHashName && !map.has(skin.marketHashName)) {
+        map.set(skin.marketHashName, skin.price)
+      }
+    }
+    return map
+  }, [marketItems])
 
   const fetchInv = async () => {
     const steamId = steamProfile?.steamId
@@ -329,6 +342,8 @@ function InventoryTab({
     setInvItems([])
     setTotal(0)
     setError(null)
+    setVisibleTradable(INV_PAGE_SIZE)
+    setVisibleLocked(INV_PAGE_SIZE)
   }, [steamProfile?.steamId])
 
   if (!steamProfile?.steamId) {
@@ -386,6 +401,8 @@ function InventoryTab({
 
   const tradable = invItems.filter(i => i.tradable)
   const locked = invItems.filter(i => !i.tradable)
+  const shownTradable = tradable.slice(0, visibleTradable)
+  const shownLocked = locked.slice(0, visibleLocked)
 
   return (
     <div className="space-y-4 p-3">
@@ -401,8 +418,25 @@ function InventoryTab({
             {t("inventory.tradable")} ({tradable.length})
           </p>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-            {tradable.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
+            {shownTradable.map(item => (
+              <InvCard
+                key={item.assetId}
+                item={item}
+                price={item.marketHashName ? priceByHash.get(item.marketHashName) ?? null : null}
+                onListClick={onListClick}
+              />
+            ))}
           </div>
+          {visibleTradable < tradable.length && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full border-border text-xs"
+              onClick={() => setVisibleTradable((n) => n + INV_PAGE_SIZE)}
+            >
+              {t("items.loadMore")} ({tradable.length - visibleTradable})
+            </Button>
+          )}
         </section>
       )}
       {locked.length > 0 && (
@@ -411,8 +445,25 @@ function InventoryTab({
             {t("inventory.locked")} ({locked.length})
           </p>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
-            {locked.map(item => <InvCard key={item.assetId} item={item} marketItems={marketItems} onListClick={onListClick} />)}
+            {shownLocked.map(item => (
+              <InvCard
+                key={item.assetId}
+                item={item}
+                price={item.marketHashName ? priceByHash.get(item.marketHashName) ?? null : null}
+                onListClick={onListClick}
+              />
+            ))}
           </div>
+          {visibleLocked < locked.length && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full border-border text-xs"
+              onClick={() => setVisibleLocked((n) => n + INV_PAGE_SIZE)}
+            >
+              {t("items.loadMore")} ({locked.length - visibleLocked})
+            </Button>
+          )}
         </section>
       )}
     </div>
@@ -439,7 +490,7 @@ function ListingDialog({
     }
   }, [open, refPrice])
 
-  if (!item) return null
+  if (!open || !item) return null
 
   const priceNum = parseFloat(price) || 0
   const commission = Math.round(priceNum * COMMISSION_RATE)
@@ -540,8 +591,15 @@ function ListingDialog({
   )
 }
 
-function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; marketItems: import("@/lib/skins").Skin[]; onListClick: (item: InventoryItem, price: number | null) => void }) {
-  const price = marketItems.find(s => s.marketHashName === item.marketHashName)?.price ?? null
+function InvCard({
+  item,
+  price,
+  onListClick,
+}: {
+  item: InventoryItem
+  price: number | null
+  onListClick: (item: InventoryItem, price: number | null) => void
+}) {
   const displayName = (item.name ?? "").replace("StatTrak™ ", "").replace("Souvenir ", "")
 
   return (
@@ -563,7 +621,7 @@ function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; mark
           {displayName}
         </p>
         {item.exterior && <p className="text-[9px] text-muted-foreground">{item.exterior}</p>}
-        {price && <p className="text-[10px] font-bold text-success">{formatPrice(price)}</p>}
+        {price != null && <p className="text-[10px] font-bold text-success">{formatPrice(price)}</p>}
 
         {item.tradable && (
           <div className="absolute inset-0 flex items-center justify-center bg-card/90 opacity-0 transition-opacity group-hover:opacity-100">
@@ -584,7 +642,7 @@ function InvCard({ item, marketItems, onListClick }: { item: InventoryItem; mark
 
 export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
   const { t } = useI18n()
-  const { steamProfile } = useMarket()
+  const { steamProfile, openProfileCompletion } = useMarket()
   const [tab, setTab] = useState("profile")
   const [listingItem, setListingItem] = useState<InventoryItem | null>(null)
   const [listingRefPrice, setListingRefPrice] = useState<number | null>(null)
@@ -647,6 +705,10 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
           const result = await createListingWithError(listingItem, priceTry)
           if (result.error === "listing_banned") {
             toast.error(t("listings.banned"))
+            return false
+          }
+          if (result.error === "profile_incomplete") {
+            openProfileCompletion()
             return false
           }
           if (!result.listing) {
