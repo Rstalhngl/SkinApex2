@@ -202,3 +202,98 @@ body[style*="pointer-events: none"] {
 [data-radix-scroll-area-viewport] {
   pointer-events: auto !important;
 }
+
+/* Filter sidebar & themed scroll areas */
+.scrollbar-skinapex {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--primary) 55%, var(--border)) transparent;
+}
+
+.scrollbar-skinapex::-webkit-scrollbar {
+  width: 7px;
+}
+
+.scrollbar-skinapex::-webkit-scrollbar-track {
+  margin: 6px 0;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 6%, transparent) 0%,
+    color-mix(in srgb, var(--border) 35%, transparent) 50%,
+    color-mix(in srgb, var(--primary) 4%, transparent) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.scrollbar-skinapex::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 95%, white) 0%,
+    var(--primary) 45%,
+    color-mix(in srgb, var(--primary) 80%, #0369a1) 100%
+  );
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--primary) 35%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 25%, transparent);
+}
+
+.scrollbar-skinapex::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 100%, white) 0%,
+    color-mix(in srgb, var(--primary) 90%, #0ea5e9) 50%,
+    color-mix(in srgb, var(--primary) 85%, #0284c7) 100%
+  );
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--primary) 50%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 30%, transparent);
+}
+
+.scrollbar-skinapex::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(
+    180deg,
+    var(--primary) 0%,
+    color-mix(in srgb, var(--primary) 70%, #0369a1) 100%
+  );
+}
+
+.dark .scrollbar-skinapex {
+  scrollbar-color: color-mix(in srgb, var(--primary) 70%, #0c4a6e) transparent;
+}
+
+.dark .scrollbar-skinapex::-webkit-scrollbar-track {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--primary) 8%, transparent) 0%,
+    color-mix(in srgb, var(--border) 60%, transparent) 50%,
+    color-mix(in srgb, var(--primary) 6%, transparent) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.dark .scrollbar-skinapex::-webkit-scrollbar-thumb {
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  background: linear-gradient(
+    180deg,
+    #7dd3fc 0%,
+    var(--primary) 42%,
+    #0284c7 100%
+  );
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--primary) 45%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 15%, transparent);
+}
+
+.dark .scrollbar-skinapex::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    #bae6fd 0%,
+    #38bdf8 40%,
+    #0ea5e9 100%
+  );
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--primary) 55%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 20%, transparent);
+}
