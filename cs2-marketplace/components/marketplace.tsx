@@ -18,7 +18,7 @@ import { listingToSkin } from "@/lib/listing-to-skin"
 import { categoryOf, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
-import { useMarket } from "@/components/market-provider"
+import { SavedFiltersControl } from "@/components/saved-filters-control"
 import { toast } from "sonner"
 
 const DEFAULT_FILTERS: Filters = {
@@ -192,7 +192,17 @@ export function Marketplace() {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE) }}
                 placeholder={t("search.placeholder")}
-                className="h-12 border-border bg-card pl-11 text-base text-foreground placeholder:text-muted-foreground"
+                className="h-12 border-border bg-card pl-11 pr-3 pb-7 text-base text-foreground placeholder:text-muted-foreground"
+              />
+              <SavedFiltersControl
+                filters={filters}
+                search={search}
+                onApply={(preset) => {
+                  setFilters(preset.filters)
+                  setSearch(preset.search)
+                  setVisibleCount(PAGE_SIZE)
+                }}
+                className="absolute bottom-1.5 right-2.5"
               />
             </div>
             <Sheet>
