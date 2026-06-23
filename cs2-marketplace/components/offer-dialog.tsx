@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD } from "@/lib/skins"
 import { sendOffer } from "@/lib/offers"
+import { offerErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
 import { toast } from "sonner"
 
@@ -27,17 +28,16 @@ export function OfferDialog({
   skin: Skin | null
   onClose: () => void
 }) {
-  const { steamProfile, isLoggedIn } = useMarket()
+  const { steamProfile, isLoggedIn, tradeUrl, setTradeUrl } = useMarket()
   const { t } = useI18n()
+  const [sending, setSending] = useState(false)
 
-  // All values stored internally as TRY
-  const listingTry  = skin ? Math.round(skin.price) : 0
-  const minTry      = skin ? Math.round(skin.price * MIN_RATIO) : 0
+  const listingTry = skin ? Math.round(skin.price) : 0
+  const minTry = skin ? Math.round(skin.price * MIN_RATIO) : 0
 
-  // Use string for the input so user can freely type without clamping mid-keystroke
   const [inputStr, setInputStr] = useState<string>(String(listingTry))
 
-  const tryValue = Math.max(0, parseInt(inputStr) || 0)
+  const tryValue = Math.max(0, parseInt(inputStr, 10) || 0)
 
   const handleOpen = (open: boolean) => {
     if (!open) onClose()
@@ -54,22 +54,52 @@ export function OfferDialog({
     ? Math.max(0, Math.min(100, Math.round(((tryValue - minTry) / (listingTry - minTry)) * 100)))
     : 100
 
-  const usdEquiv = skin?.priceUsd ? tryValue / listingTry * (skin.priceUsd) : tryValue / 45.96
+  const usdEquiv = listingTry > 0 && skin?.priceUsd
+    ? (tryValue / listingTry) * skin.priceUsd
+    : tryValue / 45.96
 
-  const handleSend = () => {
-    if (!skin) return
-    if (!isLoggedIn) { toast.error(t("offer.loginRequired")); return }
-    const finalTry = Math.max(0, parseInt(inputStr) || 0)
-    if (finalTry < minTry) { toast.error(t("offer.tooLow", { min: fmt(minTry) })); return }
-    if (finalTry > listingTry) { toast.error(t("offer.tooHigh", { max: fmt(listingTry) })); return }
-    const usdFinal = finalTry / rate
-    const userName = steamProfile?.steamName ?? "Anonim"
-    sendOffer(
-      { id: skin.id, type: skin.type, title: skin.title, img: skin.img, price: skin.price, priceUsd: skin.priceUsd },
-      usdFinal,
-      userName,
-      steamProfile?.steamAvatar,
+  const handleSend = async () => {
+    if (!skin || sending) return
+    if (!isLoggedIn || !steamProfile?.steamId) {
+      toast.error(t("offer.loginRequired"))
+      return
+    }
+    if (!tradeUrl?.trim()) {
+      toast.error(t("offer.tradeUrlRequired"), { description: t("offer.tradeUrlRequiredDesc") })
+      return
+    }
+
+    const finalTry = Math.max(0, parseInt(inputStr, 10) || 0)
+    if (finalTry < minTry) {
+      toast.error(t("offer.tooLow", { min: fmt(minTry) }))
+      return
+    }
+    if (finalTry > listingTry) {
+      toast.error(t("offer.tooHigh", { max: fmt(listingTry) }))
+      return
+    }
+
+    setSending(true)
+    const result = await sendOffer(
+      {
+        id: skin.id,
+        type: skin.type,
+        title: skin.title,
+        img: skin.img,
+        price: skin.price,
+        listingId: skin.listingId,
+      },
+      finalTry,
     )
+    setSending(false)
+
+    if (!result.offer) {
+      toast.error(t("offer.sendFailed"), {
+        description: offerErrorMessage(result.error, t),
+      })
+      return
+    }
+
     toast.success(t("offer.sent"), {
       description: `${skin.type} | ${skin.title} — ${fmt(finalTry)}`,
     })
@@ -93,13 +123,15 @@ export function OfferDialog({
 
         <div className="my-1 flex h-28 items-center justify-center rounded-lg bg-input">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={skin.img || "/placeholder.svg"} alt={skin.title}
+          <img
+            src={skin.img || "/placeholder.svg"}
+            alt={skin.title}
             className="max-h-full max-w-[70%] object-contain drop-shadow"
-            referrerPolicy="no-referrer" />
+            referrerPolicy="no-referrer"
+          />
         </div>
 
         <div className="space-y-4 py-1">
-          {/* Listing price reference */}
           <div className="flex items-center justify-between rounded-lg border border-border bg-input px-3 py-2 text-sm">
             <span className="text-muted-foreground">{t("offer.listingPrice")}</span>
             <div className="flex flex-col items-end">
@@ -108,7 +140,6 @@ export function OfferDialog({
             </div>
           </div>
 
-          {/* TRY input */}
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               {t("offer.yourOffer")}
@@ -122,25 +153,22 @@ export function OfferDialog({
                   max={listingTry}
                   step={1}
                   value={inputStr}
-                  onChange={e => setInputStr(e.target.value)}
-                  onBlur={e => {
-                    const v = parseInt(e.target.value) || minTry
+                  onChange={(e) => setInputStr(e.target.value)}
+                  onBlur={(e) => {
+                    const v = parseInt(e.target.value, 10) || minTry
                     setInputStr(String(Math.min(listingTry, Math.max(minTry, v))))
-                  }}
-                  onKeyDown={e => {
-                    // Prevent typing value above listingTry
-                    const cur = parseInt(inputStr) || 0
-                    if (["ArrowUp"].includes(e.key) && cur >= listingTry) e.preventDefault()
                   }}
                   className={`border-input bg-input pl-7 text-foreground ${tryValue > listingTry ? "border-destructive focus-visible:ring-destructive" : "border-border"}`}
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground min-w-[64px] text-right">
+              <span className="min-w-[64px] text-right text-[11px] text-muted-foreground">
                 ≈ {formatUSD(usdEquiv)}
               </span>
             </div>
             <Slider
-              min={0} max={100} step={1}
+              min={0}
+              max={100}
+              step={1}
               value={[Math.max(0, Math.min(100, sliderPct))]}
               onValueChange={handleSlider}
               className="mt-1"
@@ -160,11 +188,11 @@ export function OfferDialog({
         <DialogFooter>
           <Button
             onClick={handleSend}
-            disabled={tryValue < minTry || tryValue > listingTry}
+            disabled={sending || tryValue < minTry || tryValue > listingTry}
             className="w-full bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             <Handshake className="mr-2 h-4 w-4" />
-            {t("offer.send")} — {fmt(tryValue)}
+            {sending ? "Gönderiliyor..." : `${t("offer.send")} — ${fmt(tryValue)}`}
           </Button>
         </DialogFooter>
       </DialogContent>
