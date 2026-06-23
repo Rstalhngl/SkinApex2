@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Bookmark, Trash2 } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  SavedFiltersIcon,
+  searchBarIconButtonClass,
+} from "@/components/search-bar-icons"
 import type { Filters } from "@/components/filter-sidebar"
 import {
   deleteFilterPreset,
@@ -77,13 +81,11 @@ export function SavedFiltersControl({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={cn(
-            "flex items-center gap-1 rounded-md border border-border/80 bg-card/90 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary",
-            className,
-          )}
+          aria-label={t("savedFilters.title")}
+          title={t("savedFilters.title")}
+          className={cn(searchBarIconButtonClass, className)}
         >
-          <Bookmark className="h-3 w-3" />
-          {t("savedFilters.apply")}
+          <SavedFiltersIcon />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 border-border bg-card p-3">

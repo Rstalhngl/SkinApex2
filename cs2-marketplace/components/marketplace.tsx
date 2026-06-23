@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { LifeBuoy, Search, SlidersHorizontal, Tag } from "lucide-react"
+import { LifeBuoy, SlidersHorizontal, Tag } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -19,7 +19,9 @@ import { categoryOf, type Skin } from "@/lib/skins"
 import { useI18n } from "@/lib/i18n"
 import { cancelListing, getActiveListings, subscribeListings, syncListings, type Listing } from "@/lib/listings"
 import { SavedFiltersControl } from "@/components/saved-filters-control"
+import { SearchBarIcon, searchBarIconBoxClass } from "@/components/search-bar-icons"
 import { useMarket } from "@/components/market-provider"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 const DEFAULT_FILTERS: Filters = {
@@ -188,12 +190,14 @@ export function Marketplace() {
         <div className="flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className={cn(searchBarIconBoxClass, "absolute left-2.5 top-2 z-10 pointer-events-none")}>
+                <SearchBarIcon />
+              </div>
               <Input
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE) }}
                 placeholder={t("search.placeholder")}
-                className="h-12 border-border bg-card pl-11 pr-3 pb-7 text-base text-foreground placeholder:text-muted-foreground"
+                className="h-12 border-border bg-card pl-[3.25rem] pr-[3.25rem] text-base text-foreground placeholder:text-muted-foreground"
               />
               <SavedFiltersControl
                 filters={filters}
@@ -203,7 +207,7 @@ export function Marketplace() {
                   setSearch(preset.search)
                   setVisibleCount(PAGE_SIZE)
                 }}
-                className="absolute bottom-1.5 right-2.5"
+                className="absolute right-2.5 top-2 z-10"
               />
             </div>
             <Sheet>
