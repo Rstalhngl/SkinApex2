@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Handshake } from "lucide-react"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -8,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import { useMarket } from "@/components/market-provider"
 import { type Skin, formatPrice, formatUSD } from "@/lib/skins"
@@ -28,9 +30,10 @@ export function OfferDialog({
   skin: Skin | null
   onClose: () => void
 }) {
-  const { steamProfile, isLoggedIn, tradeUrl, setTradeUrl } = useMarket()
+  const { steamProfile, isLoggedIn, tradeUrl, profileComplete, openProfileCompletion } = useMarket()
   const { t } = useI18n()
   const [sending, setSending] = useState(false)
+  const [mssAccepted, setMssAccepted] = useState(false)
 
   const listingTry = skin ? Math.round(skin.price) : 0
   const minTry = skin ? Math.round(skin.price * MIN_RATIO) : 0
@@ -40,8 +43,13 @@ export function OfferDialog({
   const tryValue = Math.max(0, parseInt(inputStr, 10) || 0)
 
   const handleOpen = (open: boolean) => {
-    if (!open) onClose()
-    else if (skin) setInputStr(String(Math.round(skin.price)))
+    if (!open) {
+      onClose()
+      setMssAccepted(false)
+    } else if (skin) {
+      setInputStr(String(Math.round(skin.price)))
+      setMssAccepted(false)
+    }
   }
 
   const handleSlider = (val: number[]) => {
@@ -64,8 +72,16 @@ export function OfferDialog({
       toast.error(t("offer.loginRequired"))
       return
     }
+    if (!profileComplete) {
+      openProfileCompletion()
+      return
+    }
     if (!tradeUrl?.trim()) {
       toast.error(t("offer.tradeUrlRequired"), { description: t("offer.tradeUrlRequiredDesc") })
+      return
+    }
+    if (!mssAccepted) {
+      toast.error(t("checkout.mssRequired"))
       return
     }
 
@@ -90,6 +106,7 @@ export function OfferDialog({
         listingId: skin.listingId,
       },
       finalTry,
+      mssAccepted,
     )
     setSending(false)
 
@@ -183,16 +200,31 @@ export function OfferDialog({
               </p>
             )}
           </div>
+
+          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Checkbox checked={mssAccepted} onCheckedChange={(v) => setMssAccepted(v === true)} className="mt-0.5" />
+            <span>
+              {t("checkout.mssPrefix")}{" "}
+              <Link href="/on-bilgilendirme-formu" target="_blank" className="text-primary hover:underline">
+                {t("checkout.preInfoLink")}
+              </Link>{" "}
+              {t("checkout.mssAnd")}{" "}
+              <Link href="/mesafeli-satis-sozlesmesi" target="_blank" className="text-primary hover:underline">
+                {t("checkout.mssLink")}
+              </Link>
+              {t("checkout.mssSuffix")}
+            </span>
+          </label>
         </div>
 
         <DialogFooter>
           <Button
             onClick={handleSend}
-            disabled={sending || tryValue < minTry || tryValue > listingTry}
+            disabled={sending || tryValue < minTry || tryValue > listingTry || !mssAccepted}
             className="w-full bg-primary font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             <Handshake className="mr-2 h-4 w-4" />
-            {sending ? "Gönderiliyor..." : `${t("offer.send")} — ${fmt(tryValue)}`}
+            {sending ? t("offer.sending") : `${t("offer.send")} — ${fmt(tryValue)}`}
           </Button>
         </DialogFooter>
       </DialogContent>

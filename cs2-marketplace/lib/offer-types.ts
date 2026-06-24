@@ -14,6 +14,8 @@ export interface StoredOffer {
   listingTry: number
   status: OfferStatus
   createdAt: number
+  /** Buyer accepted MSS when placing the offer (required for accept). */
+  buyerMssAccepted?: boolean
 }
 
 export interface OffersStore {

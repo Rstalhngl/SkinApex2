@@ -5,7 +5,8 @@ import { addUserNotification } from "@/lib/notifications-store"
 import { readListingsStore } from "@/lib/listings-store"
 import { readOffersStore, writeOffersStore } from "@/lib/offers-store"
 import { completePurchase } from "@/lib/purchase-service"
-import { getUserTradeUrl } from "@/lib/user-store"
+import { isProfileComplete, profileIncompleteResponse, requireCompleteProfile } from "@/lib/profile-gate"
+import { getUserData, getUserTradeUrl } from "@/lib/user-store"
 import { publishUserChannel } from "@/lib/ws-publish"
 
 export async function GET(req: Request) {
@@ -27,11 +28,19 @@ export async function POST(req: Request) {
   const session = await requireSession()
   if (!isSession(session)) return session
 
+  const profile = await requireCompleteProfile(session.steamId)
+  if (profile instanceof Response) return profile
+
   try {
     const body = await req.json()
-    const { listingId, offerTry } = body as {
+    const { listingId, offerTry, mssAccepted } = body as {
       listingId?: string
       offerTry?: number
+      mssAccepted?: boolean
+    }
+
+    if (!mssAccepted) {
+      return NextResponse.json({ error: "mss_not_accepted" }, { status: 400 })
     }
 
     if (!listingId || !offerTry || offerTry <= 0) {
@@ -72,6 +81,7 @@ export async function POST(req: Request) {
       listingTry: listing.priceTry,
       status: "pending",
       createdAt: Date.now(),
+      buyerMssAccepted: true,
     }
 
     offersStore.offers = [offer, ...offersStore.offers]
@@ -132,6 +142,18 @@ export async function PATCH(req: Request) {
     }
 
     if (status === "accepted" && offer.status === "pending") {
+      const sellerProfile = await requireCompleteProfile(session.steamId)
+      if (sellerProfile instanceof Response) return sellerProfile
+
+      if (!offer.buyerMssAccepted) {
+        return NextResponse.json({ error: "mss_not_accepted" }, { status: 400 })
+      }
+
+      const buyerData = await getUserData(offer.buyerId)
+      if (!isProfileComplete(buyerData)) {
+        return profileIncompleteResponse()
+      }
+
       const buyerTradeUrl = await getUserTradeUrl(offer.buyerId)
       if (!buyerTradeUrl) {
         return NextResponse.json({ error: "buyer_no_trade_url" }, { status: 400 })

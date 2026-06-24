@@ -37,6 +37,10 @@ export function offerErrorMessage(
       return t("offer.tooLowGeneric")
     case "listing_not_found":
       return t("offer.listingGone")
+    case "profile_incomplete":
+      return t("profile.completeDesc")
+    case "mss_not_accepted":
+      return t("checkout.mssRequired")
     case "invalid_trade_url":
     case "trade_url_mismatch":
       return t("offer.tradeUrlRequiredDesc")

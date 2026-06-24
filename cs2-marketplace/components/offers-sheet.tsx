@@ -29,6 +29,8 @@ const STATUS_CLASS: Record<string, string> = {
 function offerErrorMessage(error: string | undefined, t: (k: string) => string) {
   if (error === "buyer_no_trade_url") return t("offer.buyerNoTradeUrl")
   if (error === "insufficient_balance") return t("offer.insufficientBalance")
+  if (error === "profile_incomplete") return t("profile.completeDesc")
+  if (error === "mss_not_accepted") return t("checkout.mssRequired")
   return t("offer.actionFailed")
 }
 

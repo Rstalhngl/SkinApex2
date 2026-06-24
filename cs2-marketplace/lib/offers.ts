@@ -67,6 +67,7 @@ export async function sendOffer(
     listingId?: string
   },
   offerTry: number,
+  mssAccepted: boolean,
 ): Promise<{ offer?: Offer; error?: string }> {
   if (!skin.listingId) return { error: "listing_not_found" }
 
@@ -74,7 +75,7 @@ export async function sendOffer(
     const res = await apiFetch("/api/offers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId: skin.listingId, offerTry }),
+      body: JSON.stringify({ listingId: skin.listingId, offerTry, mssAccepted }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return { error: (data as { error?: string }).error ?? "failed" }
