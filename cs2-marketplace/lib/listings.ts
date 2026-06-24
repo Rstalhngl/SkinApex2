@@ -9,15 +9,18 @@ import { pushActivity } from "@/lib/activity-feed"
 export type { Listing, ListingStatus } from "@/lib/listing-types"
 
 let listings: Listing[] = []
+let syncSeq = 0
 const listeners = new Set<() => void>()
 
 function notify() { listeners.forEach((cb) => cb()) }
 
 export async function syncListings(): Promise<void> {
+  const seq = ++syncSeq
   try {
     const res = await apiFetch("/api/listings")
     if (!res.ok) return
     const data = await res.json()
+    if (seq !== syncSeq) return
     listings = Array.isArray(data.listings) ? data.listings : []
     notify()
   } catch {

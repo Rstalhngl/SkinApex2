@@ -69,13 +69,17 @@ test("admin email subjects avoid generic fallback for known alerts", async () =>
   assert.doesNotMatch(withdraw, /SkinApex admin uyarısı/)
 })
 
-test("cart sync only refreshes prices without reshaping cart", () => {
+test("cart is session-local and not reshaped by listing sync", () => {
   const resolverSrc = readFileSync(join(root, "lib/cart-resolver.ts"), "utf8")
   const providerSrc = readFileSync(join(root, "components/market-provider.tsx"), "utf8")
+  const listingsSrc = readFileSync(join(root, "lib/listings.ts"), "utf8")
   const persistBlock = providerSrc.split("const persistCartIds")[1]?.split("}, [isLoggedIn]")[0] ?? ""
-  assert.match(resolverSrc, /export function refreshCartPrices/)
-  assert.match(resolverSrc, /cartSkinsChanged/)
-  assert.match(providerSrc, /syncCartPrices/)
-  assert.doesNotMatch(providerSrc, /hydrateCart\(undefined/)
+  assert.match(resolverSrc, /export function skinsFromIds/)
+  assert.match(providerSrc, /cartHydratedFromServerRef/)
+  assert.match(providerSrc, /schedulePersistCart/)
+  assert.match(providerSrc, /refreshProfileFields/)
+  assert.doesNotMatch(providerSrc, /syncCartPrices/)
+  assert.doesNotMatch(providerSrc, /subscribeListings\(\(\) =>/)
   assert.doesNotMatch(persistBlock, /cartListingIdsRef\.current = ids/)
+  assert.match(listingsSrc, /if \(seq !== syncSeq\) return/)
 })

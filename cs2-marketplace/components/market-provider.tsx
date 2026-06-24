@@ -9,7 +9,6 @@ import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import {
   purchaseBatch,
-  subscribeListings,
   syncListings,
 } from "@/lib/listings"
 import { LIVE_SYNC_MS, WS_FALLBACK_SYNC_MS } from "@/lib/live-sync"
@@ -36,7 +35,7 @@ import { apiFetch } from "@/lib/api-client"
 import { checkoutErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
 import { readBalanceHidden, writeBalanceHidden } from "@/lib/wallet-visibility"
-import { resolveCartItems, refreshCartPrices, cartSkinsChanged } from "@/lib/cart-resolver"
+import { resolveCartItems, skinsFromIds } from "@/lib/cart-resolver"
 
 export interface SteamProfile {
   steamId: string
@@ -93,6 +92,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const cartSkinsRef = useRef<Skin[]>([])
   const cartSnapshotsRef = useRef<Map<string, Skin>>(new Map())
   const cartPersistSeqRef = useRef(0)
+  const cartHydratedFromServerRef = useRef(false)
+  const cartPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   cartListingIdsRef.current = cartListingIds
   cartSkinsRef.current = cartSkins
   const [wishlist, setWishlist] = useState<string[]>([])
@@ -116,23 +117,41 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoggedIn])
 
-  const applyCartState = useCallback((ids: string[], skins: Skin[]) => {
+  const schedulePersistCart = useCallback((ids: string[]) => {
+    if (!isLoggedIn) return
+    if (cartPersistTimerRef.current) clearTimeout(cartPersistTimerRef.current)
+    cartPersistTimerRef.current = setTimeout(() => {
+      cartPersistTimerRef.current = null
+      void persistCartIds(ids)
+    }, 500)
+  }, [isLoggedIn, persistCartIds])
+
+  const applyCartState = useCallback((ids: string[], skinsToStore?: Skin[]) => {
+    if (skinsToStore) {
+      for (const skin of skinsToStore) {
+        if (skin.listingId) cartSnapshotsRef.current.set(skin.listingId, skin)
+      }
+    }
+
+    const idSet = new Set(ids)
+    for (const listingId of [...cartSnapshotsRef.current.keys()]) {
+      if (!idSet.has(listingId)) cartSnapshotsRef.current.delete(listingId)
+    }
+
+    const nextSkins = skinsFromIds(ids, cartSnapshotsRef.current)
     const sameIds =
       ids.length === cartListingIdsRef.current.length &&
       ids.every((id, index) => id === cartListingIdsRef.current[index])
-    if (sameIds && !cartSkinsChanged(cartSkinsRef.current, skins)) return
+    const sameSkins =
+      sameIds &&
+      nextSkins.length === cartSkinsRef.current.length &&
+      nextSkins.every((skin, index) => skin.listingId === cartSkinsRef.current[index]?.listingId)
+    if (sameSkins) return
 
     cartListingIdsRef.current = ids
-    cartSkinsRef.current = skins
-    const idSet = new Set(ids)
-    for (const skin of skins) {
-      if (skin.listingId) cartSnapshotsRef.current.set(skin.listingId, skin)
-    }
-    for (const listingId of cartSnapshotsRef.current.keys()) {
-      if (!idSet.has(listingId)) cartSnapshotsRef.current.delete(listingId)
-    }
-    setCartListingIds(ids)
-    setCartSkins(skins)
+    cartSkinsRef.current = nextSkins
+    setCartListingIds([...ids])
+    setCartSkins([...nextSkins])
   }, [])
 
   const hydrateCart = useCallback((
@@ -140,33 +159,27 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     steamId?: string,
   ) => {
     if (ids.length === 0) {
-      applyCartState([], [])
       cartSnapshotsRef.current.clear()
+      applyCartState([])
       return
     }
 
-    const resolved = resolveCartItems(
-      ids,
-      steamId,
-      cartSkinsRef.current,
-      cartSnapshotsRef.current,
-    )
-
+    const resolved = resolveCartItems(ids, steamId, cartSnapshotsRef.current)
     applyCartState(resolved.ids, resolved.skins)
     if (isLoggedIn && resolved.prunedIds.length > 0) {
-      void persistCartIds(resolved.ids)
+      schedulePersistCart(resolved.ids)
     }
-  }, [isLoggedIn, applyCartState, persistCartIds])
+  }, [isLoggedIn, applyCartState, schedulePersistCart])
 
-  const syncCartPrices = useCallback((steamId?: string) => {
-    const ids = cartListingIdsRef.current
-    if (ids.length === 0) return
-
-    const nextSkins = refreshCartPrices(ids, steamId, cartSnapshotsRef.current)
-    if (!nextSkins || !cartSkinsChanged(cartSkinsRef.current, nextSkins)) return
-
-    applyCartState(ids, nextSkins)
-  }, [applyCartState])
+  const refreshProfileFields = useCallback(async () => {
+    const userRes = await fetchUserData()
+    if (!userRes?.data) return
+    const d = userRes.data
+    setProfileComplete(Boolean(userRes.profileComplete))
+    setUserProfile({ firstName: d.firstName, lastName: d.lastName, email: d.email })
+    if (d.tradeUrl) setTradeUrlState(d.tradeUrl)
+    setWishlist(d.wishlistListingIds ?? [])
+  }, [])
 
   const refreshWallet = useCallback(async () => {
     if (!isLoggedIn) return
@@ -179,13 +192,16 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     const [userRes, walletData] = await Promise.all([fetchUserData(), fetchWalletData()])
     if (userRes?.data) {
       const d = userRes.data
-      const ids = d.cartListingIds ?? []
       setWishlist(d.wishlistListingIds ?? [])
       if (d.tradeUrl) setTradeUrlState(d.tradeUrl)
       setProfileComplete(Boolean(userRes.profileComplete))
       setUserProfile({ firstName: d.firstName, lastName: d.lastName, email: d.email })
-      await syncListings()
-      hydrateCart(ids, steamId)
+
+      if (!cartHydratedFromServerRef.current) {
+        await syncListings()
+        hydrateCart(d.cartListingIds ?? [], steamId)
+        cartHydratedFromServerRef.current = true
+      }
     }
     setWallet(walletData?.balance ?? 0)
     setWithdrawableBalance(walletData?.withdrawableBalance ?? 0)
@@ -271,11 +287,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    const steamId = steamProfile?.steamId
-    if (!steamId) return
-    const unsub = subscribeListings(() => syncCartPrices(steamId))
-    return unsub
-  }, [steamProfile?.steamId, syncCartPrices])
+    return () => {
+      if (cartPersistTimerRef.current) clearTimeout(cartPersistTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     void connectWs(steamProfile?.steamId)
@@ -305,7 +320,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const steamId = steamProfile?.steamId
     const syncAll = () => {
-      void syncListings().then(() => syncCartPrices(steamId))
+      void syncListings()
       if (isLoggedIn && steamId) {
         void syncUserNotifications()
         void syncUserSales()
@@ -315,7 +330,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
 
     const unsubListings = subscribeWsChannel("listings", () => {
-      void syncListings().then(() => syncCartPrices(steamId))
+      void syncListings()
     })
     const unsubSales = subscribeWsChannel("sales", () => { if (isLoggedIn && steamId) void syncUserSales() })
     const unsubNotif = subscribeWsChannel("notifications", () => { if (isLoggedIn && steamId) void syncUserNotifications() })
@@ -347,7 +362,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", onVisible)
       window.removeEventListener("focus", syncAll)
     }
-  }, [isLoggedIn, steamProfile?.steamId, refreshWallet, syncCartPrices])
+  }, [isLoggedIn, steamProfile?.steamId, refreshWallet])
 
   const login = useCallback((profile?: SteamProfile) => {
     setIsLoggedIn(true)
@@ -361,8 +376,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     setIsLoggedIn(false)
     setSteamProfile(null)
     setWallet(0)
-    applyCartState([], [])
+    cartHydratedFromServerRef.current = false
+    if (cartPersistTimerRef.current) clearTimeout(cartPersistTimerRef.current)
     cartSnapshotsRef.current.clear()
+    applyCartState([])
     setWishlist([])
     toast.success(t("toast.logout.title"), { description: t("toast.logout.desc") })
   }, [t, applyCartState])
@@ -393,27 +410,26 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
     cartSnapshotsRef.current.set(skin.listingId, skin)
     const nextIds = [...cartListingIdsRef.current, skin.listingId]
-    const nextSkins = [...cartSkinsRef.current, skin]
-    applyCartState(nextIds, nextSkins)
-    void persistCartIds(nextIds)
+    applyCartState(nextIds, [skin])
+    schedulePersistCart(nextIds)
     toast.success(t("toast.addedToCart"), {
       description: `${skin.type} | ${skin.title} — ${formatPrice(skin.price)}`,
     })
     pushActivity(`${skin.type} | ${skin.title}`, "carted", formatPrice(skin.price))
-  }, [applyCartState, persistCartIds, t, steamProfile?.steamId, isLoggedIn])
+  }, [applyCartState, schedulePersistCart, t, steamProfile?.steamId, isLoggedIn])
 
   const removeFromCart = useCallback((listingId: string) => {
+    cartSnapshotsRef.current.delete(listingId)
     const nextIds = cartListingIdsRef.current.filter((id) => id !== listingId)
-    const nextSkins = cartSkinsRef.current.filter((s) => s.listingId !== listingId)
-    applyCartState(nextIds, nextSkins)
-    void persistCartIds(nextIds)
-  }, [applyCartState, persistCartIds])
+    applyCartState(nextIds)
+    schedulePersistCart(nextIds)
+  }, [applyCartState, schedulePersistCart])
 
   const clearCart = useCallback(() => {
     cartSnapshotsRef.current.clear()
-    applyCartState([], [])
-    void persistCartIds([])
-  }, [applyCartState, persistCartIds])
+    applyCartState([])
+    schedulePersistCart([])
+  }, [applyCartState, schedulePersistCart])
 
   const isInCart = useCallback(
     (listingId?: string) => !!listingId && cartListingIds.includes(listingId),
@@ -581,7 +597,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
         onOpenChange={setProfileDialogOpen}
         initial={userProfile}
         onCompleted={() => {
-          void loadUserData(steamProfile?.steamId)
+          void refreshProfileFields()
         }}
       />
     </MarketContext.Provider>
