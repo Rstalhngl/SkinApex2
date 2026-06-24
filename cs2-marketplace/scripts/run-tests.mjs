@@ -3,7 +3,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { spawnSync } from "node:child_process"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
@@ -51,10 +51,20 @@ test("production checklist script runs", () => {
   assert.match(res.stdout, /Preflight passed/)
 })
 
-test("email subjects map events to specific subjects", () => {
-  const mod = readFileSync(join(root, "lib/email-subjects.ts"), "utf8")
-  assert.match(mod, /buildEmailSubject/)
-  assert.match(mod, /buildAdminEmailSubject/)
-  assert.match(mod, /Para çekme talebiniz tamamlandı/)
-  assert.match(mod, /Teklifiniz kabul edildi/)
+test("email subjects cover all notification fixtures", async () => {
+  const mod = await import(pathToFileURL(join(root, "lib/email-subjects.ts")).href)
+  for (const fixture of mod.NOTIFICATION_MESSAGE_FIXTURES) {
+    const subject = mod.buildEmailSubject(fixture.type, fixture.message)
+    assert.ok(
+      subject.includes(fixture.expectedSubjectIncludes),
+      `type=${fixture.type} message=${fixture.message.slice(0, 40)}… subject=${subject}`,
+    )
+  }
+})
+
+test("admin email subjects avoid generic fallback for known alerts", async () => {
+  const mod = await import(pathToFileURL(join(root, "lib/email-subjects.ts")).href)
+  const withdraw = mod.buildAdminEmailSubject("Yeni para çekme talebi: 750 TL — TR12 (76561198)")
+  assert.match(withdraw, /750 TL/)
+  assert.doesNotMatch(withdraw, /SkinApex admin uyarısı/)
 })

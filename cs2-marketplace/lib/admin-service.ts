@@ -20,10 +20,11 @@ import {
 } from "@/lib/withdraw-store"
 
 export async function notifyAdmins(message: string, extra?: { saleId?: string }): Promise<void> {
+  const emailSubject = buildAdminEmailSubject(message)
   for (const steamId of getAdminSteamIds()) {
-    await addUserNotification(steamId, "item_sold", message, extra)
+    await addUserNotification(steamId, "item_sold", message, { ...extra, emailSubject })
   }
-  void sendAdminEmail(buildAdminEmailSubject(message), message)
+  void sendAdminEmail(emailSubject, message)
 }
 
 export async function getAdminOverview() {
