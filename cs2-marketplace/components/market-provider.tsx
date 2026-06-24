@@ -37,6 +37,7 @@ import { ProfileCompletionDialog } from "@/components/profile-completion-dialog"
 import { apiFetch } from "@/lib/api-client"
 import { checkoutErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
+import { readBalanceHidden, writeBalanceHidden } from "@/lib/wallet-visibility"
 
 export interface SteamProfile {
   steamId: string
@@ -50,6 +51,8 @@ interface MarketContextValue {
   cart: Skin[]
   wishlist: string[]
   wallet: number
+  balanceHidden: boolean
+  toggleBalanceHidden: () => void
   withdrawableBalance: number
   profileComplete: boolean
   userProfile: Pick<UserData, "firstName" | "lastName" | "email">
@@ -99,6 +102,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [cartSkins, setCartSkins] = useState<Skin[]>([])
   const [wishlist, setWishlist] = useState<string[]>([])
   const [wallet, setWallet] = useState(0)
+  const [balanceHidden, setBalanceHidden] = useState(false)
   const [withdrawableBalance, setWithdrawableBalance] = useState(0)
   const [profileComplete, setProfileComplete] = useState(false)
   const [userProfile, setUserProfile] = useState<Pick<UserData, "firstName" | "lastName" | "email">>({})
@@ -143,6 +147,18 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const openProfileCompletion = useCallback(() => {
     setProfileDialogOpen(true)
+  }, [])
+
+  useEffect(() => {
+    setBalanceHidden(readBalanceHidden())
+  }, [])
+
+  const toggleBalanceHidden = useCallback(() => {
+    setBalanceHidden((prev) => {
+      const next = !prev
+      writeBalanceHidden(next)
+      return next
+    })
   }, [])
 
   useEffect(() => {
@@ -494,7 +510,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     items, isLoadingItems,
-    cart: cartSkins, wishlist, wallet, withdrawableBalance, cartTotal,
+    cart: cartSkins, wishlist, wallet, balanceHidden, toggleBalanceHidden, withdrawableBalance, cartTotal,
     profileComplete, userProfile, openProfileCompletion,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,
@@ -505,7 +521,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     refreshWallet,
   }), [
     items, isLoadingItems,
-    cartSkins, wishlist, wallet, withdrawableBalance, cartTotal,
+    cartSkins, wishlist, wallet, balanceHidden, toggleBalanceHidden, withdrawableBalance, cartTotal,
     profileComplete, userProfile, openProfileCompletion,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,

@@ -23,6 +23,7 @@ import { ProfileSheet } from "@/components/profile-sheet"
 import { InventorySheet } from "@/components/inventory-sheet"
 import { useMarket } from "@/components/market-provider"
 import { CURRENT_USER, formatPrice, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
+import { WalletBalance } from "@/components/wallet-balance"
 import { LANGS, useI18n } from "@/lib/i18n"
 import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
@@ -168,26 +169,36 @@ export function SiteHeader({
 
           {isLoggedIn && (
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-3 rounded-full border border-border bg-input py-1 pl-1 pr-3 transition-colors hover:border-primary">
-              <span className="h-7 w-7 overflow-hidden rounded-full border-2 border-primary">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={displayAvatar || "/placeholder.svg"}
-                  alt={displayName}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </span>
-              <span className="hidden flex-col items-start leading-tight sm:flex">
-                <span className="text-xs font-semibold text-foreground">{displayName}</span>
-                <span className="text-[11px] font-bold text-success">{formatPrice(wallet)}</span>
-              </span>
-              <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
+            <DropdownMenuTrigger asChild>
+              <div
+                role="button"
+                tabIndex={0}
+                className="flex cursor-pointer items-center gap-3 rounded-full border border-border bg-input py-1 pl-1 pr-3 transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <span className="h-7 w-7 overflow-hidden rounded-full border-2 border-primary">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={displayAvatar || "/placeholder.svg"}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </span>
+                <span className="hidden flex-col items-start leading-tight sm:flex">
+                  <span className="text-xs font-semibold text-foreground">{displayName}</span>
+                  <WalletBalance
+                    amount={wallet}
+                    isolated
+                    className="text-[11px] font-bold text-success"
+                  />
+                </span>
+                <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
+              </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 border-border bg-card">
               <div className="px-2 py-1.5 sm:hidden">
                 <p className="text-sm font-semibold text-foreground">{displayName}</p>
-                <p className="text-xs font-bold text-success">{formatPrice(wallet)}</p>
+                <WalletBalance amount={wallet} className="text-xs font-bold text-success" />
               </div>
               <DropdownMenuSeparator className="bg-border sm:hidden" />
               <ProfileSheet trigger={

@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils"
 
 function ProfileTab() {
   const { t } = useI18n()
-  const { steamProfile, wallet, isLoggedIn } = useMarket()
+  const { steamProfile, wallet, isLoggedIn, balanceHidden, toggleBalanceHidden } = useMarket()
   const [transactions, setTransactions] = useState<WalletTransaction[]>([])
 
   useEffect(() => {
@@ -75,12 +75,19 @@ function ProfileTab() {
         <p className="text-xs text-muted-foreground">Steam ID: {steamProfile.steamId}</p>
       </div>
 
-      <div className="w-full rounded-xl border border-border bg-input p-4 text-sm">
+      <button
+        type="button"
+        onClick={() => toggleBalanceHidden()}
+        className="w-full rounded-xl border border-border bg-input p-4 text-left text-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        aria-label={balanceHidden ? t("wallet.showBalance") : t("wallet.hideBalance")}
+      >
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">{t("cart.wallet")}</span>
-          <span className="text-xl font-bold text-success">{formatPrice(wallet)}</span>
+          <span className="text-xl font-bold text-success">
+            {balanceHidden ? "****" : formatPrice(wallet)}
+          </span>
         </div>
-      </div>
+      </button>
 
       <div className="w-full rounded-xl border border-border bg-input p-4 text-left text-sm">
         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("wallet.recentTx")}</p>
