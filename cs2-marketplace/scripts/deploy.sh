@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # Usage (sunucuda proje klasöründen):
-#   pnpm deploy                          → main
-#   pnpm deploy -- saved-filters         → cursor/saved-filters-13b8
-#   pnpm deploy -- cursor/saved-filters-13b8
+#   pnpm ship                          → main
+#   pnpm ship saved-filters             → cursor/saved-filters-13b8
+#   pnpm ship cursor/saved-filters-13b8
 
 ARG="${1:-main}"
 if [[ "$ARG" == main ]]; then
