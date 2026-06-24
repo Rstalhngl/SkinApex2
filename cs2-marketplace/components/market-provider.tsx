@@ -1,15 +1,13 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import type { Skin } from "@/lib/skins"
 import { formatPrice, isOwnListing, setUsdToTry, skins as demoSkins } from "@/lib/skins"
 import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
-import { listingToSkin } from "@/lib/listing-to-skin"
 import {
-  getActiveListings,
   purchaseBatch,
   subscribeListings,
   syncListings,
@@ -38,6 +36,7 @@ import { apiFetch } from "@/lib/api-client"
 import { checkoutErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
 import { readBalanceHidden, writeBalanceHidden } from "@/lib/wallet-visibility"
+import { resolveCartItems } from "@/lib/cart-resolver"
 
 export interface SteamProfile {
   steamId: string
@@ -81,16 +80,6 @@ interface MarketContextValue {
 
 const MarketContext = createContext<MarketContextValue | null>(null)
 
-function buildCartSkins(ids: string[], steamId?: string): Skin[] {
-  const active = getActiveListings()
-  const byId = new Map(active.map((l) => [l.id, l]))
-  return ids
-    .map((id) => byId.get(id))
-    .filter((l): l is NonNullable<typeof l> => !!l)
-    .map(listingToSkin)
-    .filter((s) => !isOwnListing(s, steamId))
-}
-
 export function MarketProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n()
   const router = useRouter()
@@ -100,6 +89,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingItems, setIsLoadingItems] = useState(true)
   const [cartListingIds, setCartListingIds] = useState<string[]>([])
   const [cartSkins, setCartSkins] = useState<Skin[]>([])
+  const cartListingIdsRef = useRef<string[]>([])
+  const cartSkinsRef = useRef<Skin[]>([])
+  const cartPersistSeqRef = useRef(0)
+  cartListingIdsRef.current = cartListingIds
+  cartSkinsRef.current = cartSkins
   const [wishlist, setWishlist] = useState<string[]>([])
   const [wallet, setWallet] = useState(0)
   const [balanceHidden, setBalanceHidden] = useState(false)
@@ -112,15 +106,30 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [tradeUrl, setTradeUrlState] = useState("")
   const [listedSkins, setListedSkins] = useState<number[]>([])
 
-  const hydrateCart = useCallback((ids: string[], steamId?: string) => {
-    const skins = buildCartSkins(ids, steamId)
-    const validIds = skins.map((s) => s.listingId!).filter(Boolean)
-    setCartListingIds(validIds)
-    setCartSkins(skins)
-    if (isLoggedIn && validIds.length !== ids.length) {
-      void patchUserData({ cartListingIds: validIds })
+  const persistCartIds = useCallback(async (ids: string[]) => {
+    cartListingIdsRef.current = ids
+    if (!isLoggedIn) return
+    const seq = ++cartPersistSeqRef.current
+    await patchUserData({ cartListingIds: ids })
+    if (seq !== cartPersistSeqRef.current && cartListingIdsRef.current !== ids) {
+      await patchUserData({ cartListingIds: cartListingIdsRef.current })
     }
   }, [isLoggedIn])
+
+  const applyCartState = useCallback((ids: string[], skins: Skin[]) => {
+    cartListingIdsRef.current = ids
+    cartSkinsRef.current = skins
+    setCartListingIds(ids)
+    setCartSkins(skins)
+  }, [])
+
+  const hydrateCart = useCallback((ids: string[], steamId?: string) => {
+    const resolved = resolveCartItems(ids, steamId, cartSkinsRef.current)
+    applyCartState(resolved.ids, resolved.skins)
+    if (isLoggedIn && resolved.prunedIds.length > 0) {
+      void persistCartIds(resolved.ids)
+    }
+  }, [isLoggedIn, applyCartState, persistCartIds])
 
   const refreshWallet = useCallback(async () => {
     if (!isLoggedIn) return
@@ -227,9 +236,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const steamId = steamProfile?.steamId
     if (!steamId) return
-    const unsub = subscribeListings(() => hydrateCart(cartListingIds, steamId))
+    const unsub = subscribeListings(() => hydrateCart(cartListingIdsRef.current, steamId))
     return unsub
-  }, [steamProfile?.steamId, cartListingIds, hydrateCart])
+  }, [steamProfile?.steamId, hydrateCart])
 
   useEffect(() => {
     void connectWs(steamProfile?.steamId)
@@ -260,7 +269,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     const steamId = steamProfile?.steamId
     const syncAll = () => {
       void syncListings().then(() => {
-        if (cartListingIds.length > 0) hydrateCart(cartListingIds, steamId)
+        if (cartListingIdsRef.current.length > 0) hydrateCart(cartListingIdsRef.current, steamId)
       })
       if (isLoggedIn && steamId) {
         void syncUserNotifications()
@@ -272,7 +281,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
     const unsubListings = subscribeWsChannel("listings", () => {
       void syncListings().then(() => {
-        if (cartListingIds.length > 0) hydrateCart(cartListingIds, steamId)
+        if (cartListingIdsRef.current.length > 0) hydrateCart(cartListingIdsRef.current, steamId)
       })
     })
     const unsubSales = subscribeWsChannel("sales", () => { if (isLoggedIn && steamId) void syncUserSales() })
@@ -305,7 +314,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", onVisible)
       window.removeEventListener("focus", syncAll)
     }
-  }, [isLoggedIn, steamProfile?.steamId, refreshWallet, cartListingIds, hydrateCart])
+  }, [isLoggedIn, steamProfile?.steamId, refreshWallet, hydrateCart])
 
   const login = useCallback((profile?: SteamProfile) => {
     setIsLoggedIn(true)
@@ -319,20 +328,14 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     setIsLoggedIn(false)
     setSteamProfile(null)
     setWallet(0)
-    setCartListingIds([])
-    setCartSkins([])
+    applyCartState([], [])
     setWishlist([])
     toast.success(t("toast.logout.title"), { description: t("toast.logout.desc") })
-  }, [t])
+  }, [t, applyCartState])
 
   const setTradeUrl = useCallback(async (url: string) => {
     setTradeUrlState(url)
     if (isLoggedIn) await patchUserData({ tradeUrl: url })
-  }, [isLoggedIn])
-
-  const persistCart = useCallback(async (ids: string[]) => {
-    setCartListingIds(ids)
-    if (isLoggedIn) await patchUserData({ cartListingIds: ids })
   }, [isLoggedIn])
 
   const persistWishlist = useCallback(async (ids: string[]) => {
@@ -350,29 +353,31 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       toast.error(t("toast.ownListing"))
       return
     }
-    if (cartListingIds.includes(skin.listingId)) {
+    if (cartListingIdsRef.current.includes(skin.listingId)) {
       toast.info(t("toast.alreadyInCart"), { description: `${skin.type} | ${skin.title}` })
       return
     }
-    const next = [...cartListingIds, skin.listingId]
-    void persistCart(next)
-    setCartSkins((prev) => [...prev, skin])
+    const nextIds = [...cartListingIdsRef.current, skin.listingId]
+    const nextSkins = [...cartSkinsRef.current, skin]
+    applyCartState(nextIds, nextSkins)
+    void persistCartIds(nextIds)
     toast.success(t("toast.addedToCart"), {
       description: `${skin.type} | ${skin.title} — ${formatPrice(skin.price)}`,
     })
     pushActivity(`${skin.type} | ${skin.title}`, "carted", formatPrice(skin.price))
-  }, [cartListingIds, persistCart, t, steamProfile?.steamId, isLoggedIn])
+  }, [applyCartState, persistCartIds, t, steamProfile?.steamId, isLoggedIn])
 
   const removeFromCart = useCallback((listingId: string) => {
-    const next = cartListingIds.filter((id) => id !== listingId)
-    void persistCart(next)
-    setCartSkins((prev) => prev.filter((s) => s.listingId !== listingId))
-  }, [cartListingIds, persistCart])
+    const nextIds = cartListingIdsRef.current.filter((id) => id !== listingId)
+    const nextSkins = cartSkinsRef.current.filter((s) => s.listingId !== listingId)
+    applyCartState(nextIds, nextSkins)
+    void persistCartIds(nextIds)
+  }, [applyCartState, persistCartIds])
 
   const clearCart = useCallback(() => {
-    void persistCart([])
-    setCartSkins([])
-  }, [persistCart])
+    applyCartState([], [])
+    void persistCartIds([])
+  }, [applyCartState, persistCartIds])
 
   const isInCart = useCallback(
     (listingId?: string) => !!listingId && cartListingIds.includes(listingId),
