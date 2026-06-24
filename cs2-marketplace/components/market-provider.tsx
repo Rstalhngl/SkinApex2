@@ -35,7 +35,8 @@ import { apiFetch } from "@/lib/api-client"
 import { checkoutErrorMessage } from "@/lib/checkout-errors"
 import { useI18n } from "@/lib/i18n"
 import { readBalanceHidden, writeBalanceHidden } from "@/lib/wallet-visibility"
-import { resolveCartItems, skinsFromIds } from "@/lib/cart-resolver"
+import { cartListingIds, mergeCartSkin, removeCartListing } from "@/lib/cart-resolver"
+import { clearCartStorage, loadCartFromStorage, saveCartToStorage } from "@/lib/cart-storage"
 
 export interface SteamProfile {
   steamId: string
@@ -86,16 +87,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const [items, setItems] = useState<Skin[]>(demoSkins)
   const [isLoadingItems, setIsLoadingItems] = useState(true)
-  const [cartListingIds, setCartListingIds] = useState<string[]>([])
-  const [cartSkins, setCartSkins] = useState<Skin[]>([])
-  const cartListingIdsRef = useRef<string[]>([])
-  const cartSkinsRef = useRef<Skin[]>([])
-  const cartSnapshotsRef = useRef<Map<string, Skin>>(new Map())
+  const [cart, setCart] = useState<Skin[]>([])
+  const cartRef = useRef<Skin[]>([])
   const cartPersistSeqRef = useRef(0)
-  const cartHydratedFromServerRef = useRef(false)
   const cartPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  cartListingIdsRef.current = cartListingIds
-  cartSkinsRef.current = cartSkins
+  const cartServerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [wishlist, setWishlist] = useState<string[]>([])
   const [wallet, setWallet] = useState(0)
   const [balanceHidden, setBalanceHidden] = useState(false)
@@ -108,68 +104,36 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [tradeUrl, setTradeUrlState] = useState("")
   const [listedSkins, setListedSkins] = useState<number[]>([])
 
-  const persistCartIds = useCallback(async (ids: string[]) => {
+  const persistCartToServer = useCallback(async (ids: string[]) => {
     if (!isLoggedIn) return
     const seq = ++cartPersistSeqRef.current
     await patchUserData({ cartListingIds: ids })
     if (seq !== cartPersistSeqRef.current) {
-      await patchUserData({ cartListingIds: cartListingIdsRef.current })
+      await patchUserData({ cartListingIds: cartListingIds(cartRef.current) })
     }
   }, [isLoggedIn])
 
-  const schedulePersistCart = useCallback((ids: string[]) => {
+  const scheduleServerCartSync = useCallback((nextCart: Skin[]) => {
     if (!isLoggedIn) return
-    if (cartPersistTimerRef.current) clearTimeout(cartPersistTimerRef.current)
-    cartPersistTimerRef.current = setTimeout(() => {
-      cartPersistTimerRef.current = null
-      void persistCartIds(ids)
-    }, 500)
-  }, [isLoggedIn, persistCartIds])
+    if (cartServerTimerRef.current) clearTimeout(cartServerTimerRef.current)
+    cartServerTimerRef.current = setTimeout(() => {
+      cartServerTimerRef.current = null
+      void persistCartToServer(cartListingIds(nextCart))
+    }, 800)
+  }, [isLoggedIn, persistCartToServer])
 
-  const applyCartState = useCallback((ids: string[], skinsToStore?: Skin[]) => {
-    if (skinsToStore) {
-      for (const skin of skinsToStore) {
-        if (skin.listingId) cartSnapshotsRef.current.set(skin.listingId, skin)
-      }
-    }
+  const replaceCart = useCallback((nextCart: Skin[], steamId?: string) => {
+    cartRef.current = nextCart
+    setCart(nextCart)
+    if (steamId) saveCartToStorage(steamId, nextCart)
+    scheduleServerCartSync(nextCart)
+  }, [scheduleServerCartSync])
 
-    const idSet = new Set(ids)
-    for (const listingId of [...cartSnapshotsRef.current.keys()]) {
-      if (!idSet.has(listingId)) cartSnapshotsRef.current.delete(listingId)
-    }
-
-    const nextSkins = skinsFromIds(ids, cartSnapshotsRef.current)
-    const sameIds =
-      ids.length === cartListingIdsRef.current.length &&
-      ids.every((id, index) => id === cartListingIdsRef.current[index])
-    const sameSkins =
-      sameIds &&
-      nextSkins.length === cartSkinsRef.current.length &&
-      nextSkins.every((skin, index) => skin.listingId === cartSkinsRef.current[index]?.listingId)
-    if (sameSkins) return
-
-    cartListingIdsRef.current = ids
-    cartSkinsRef.current = nextSkins
-    setCartListingIds([...ids])
-    setCartSkins([...nextSkins])
+  const restoreCartForUser = useCallback((steamId: string) => {
+    const stored = loadCartFromStorage(steamId)
+    cartRef.current = stored
+    setCart(stored)
   }, [])
-
-  const hydrateCart = useCallback((
-    ids: string[],
-    steamId?: string,
-  ) => {
-    if (ids.length === 0) {
-      cartSnapshotsRef.current.clear()
-      applyCartState([])
-      return
-    }
-
-    const resolved = resolveCartItems(ids, steamId, cartSnapshotsRef.current)
-    applyCartState(resolved.ids, resolved.skins)
-    if (isLoggedIn && resolved.prunedIds.length > 0) {
-      schedulePersistCart(resolved.ids)
-    }
-  }, [isLoggedIn, applyCartState, schedulePersistCart])
 
   const refreshProfileFields = useCallback(async () => {
     const userRes = await fetchUserData()
@@ -196,16 +160,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       if (d.tradeUrl) setTradeUrlState(d.tradeUrl)
       setProfileComplete(Boolean(userRes.profileComplete))
       setUserProfile({ firstName: d.firstName, lastName: d.lastName, email: d.email })
-
-      if (!cartHydratedFromServerRef.current) {
-        await syncListings()
-        hydrateCart(d.cartListingIds ?? [], steamId)
-        cartHydratedFromServerRef.current = true
-      }
+      if (steamId) restoreCartForUser(steamId)
     }
     setWallet(walletData?.balance ?? 0)
     setWithdrawableBalance(walletData?.withdrawableBalance ?? 0)
-  }, [hydrateCart])
+  }, [restoreCartForUser])
 
   const openProfileCompletion = useCallback(() => {
     setProfileDialogOpen(true)
@@ -289,6 +248,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return () => {
       if (cartPersistTimerRef.current) clearTimeout(cartPersistTimerRef.current)
+      if (cartServerTimerRef.current) clearTimeout(cartServerTimerRef.current)
     }
   }, [])
 
@@ -373,16 +333,17 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try { await apiFetch("/api/auth/logout", { method: "POST" }) } catch {}
+    const steamId = steamProfile?.steamId
     setIsLoggedIn(false)
     setSteamProfile(null)
     setWallet(0)
-    cartHydratedFromServerRef.current = false
-    if (cartPersistTimerRef.current) clearTimeout(cartPersistTimerRef.current)
-    cartSnapshotsRef.current.clear()
-    applyCartState([])
+    if (cartServerTimerRef.current) clearTimeout(cartServerTimerRef.current)
+    cartRef.current = []
+    setCart([])
+    if (steamId) clearCartStorage(steamId)
     setWishlist([])
     toast.success(t("toast.logout.title"), { description: t("toast.logout.desc") })
-  }, [t, applyCartState])
+  }, [t, steamProfile?.steamId])
 
   const setTradeUrl = useCallback(async (url: string) => {
     setTradeUrlState(url)
@@ -404,36 +365,30 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       toast.error(t("toast.ownListing"))
       return
     }
-    if (cartListingIdsRef.current.includes(skin.listingId)) {
+    if (cartRef.current.some((item) => item.listingId === skin.listingId)) {
       toast.info(t("toast.alreadyInCart"), { description: `${skin.type} | ${skin.title}` })
       return
     }
-    cartSnapshotsRef.current.set(skin.listingId, skin)
-    const nextIds = [...cartListingIdsRef.current, skin.listingId]
-    applyCartState(nextIds, [skin])
-    schedulePersistCart(nextIds)
+    const nextCart = mergeCartSkin(cartRef.current, skin)
+    replaceCart(nextCart, steamProfile?.steamId)
     toast.success(t("toast.addedToCart"), {
       description: `${skin.type} | ${skin.title} — ${formatPrice(skin.price)}`,
     })
     pushActivity(`${skin.type} | ${skin.title}`, "carted", formatPrice(skin.price))
-  }, [applyCartState, schedulePersistCart, t, steamProfile?.steamId, isLoggedIn])
+  }, [replaceCart, t, steamProfile?.steamId, isLoggedIn])
 
   const removeFromCart = useCallback((listingId: string) => {
-    cartSnapshotsRef.current.delete(listingId)
-    const nextIds = cartListingIdsRef.current.filter((id) => id !== listingId)
-    applyCartState(nextIds)
-    schedulePersistCart(nextIds)
-  }, [applyCartState, schedulePersistCart])
+    const nextCart = removeCartListing(cartRef.current, listingId)
+    replaceCart(nextCart, steamProfile?.steamId)
+  }, [replaceCart, steamProfile?.steamId])
 
   const clearCart = useCallback(() => {
-    cartSnapshotsRef.current.clear()
-    applyCartState([])
-    schedulePersistCart([])
-  }, [applyCartState, schedulePersistCart])
+    replaceCart([], steamProfile?.steamId)
+  }, [replaceCart, steamProfile?.steamId])
 
   const isInCart = useCallback(
-    (listingId?: string) => !!listingId && cartListingIds.includes(listingId),
-    [cartListingIds],
+    (listingId?: string) => !!listingId && cart.some((item) => item.listingId === listingId),
+    [cart],
   )
 
   const isWished = useCallback(
@@ -501,8 +456,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [isLoggedIn, profileComplete, openProfileCompletion, refreshWallet, t])
 
   const cartTotal = useMemo(
-    () => cartSkins.reduce((sum, s) => sum + s.price, 0),
-    [cartSkins],
+    () => cart.reduce((sum, s) => sum + s.price, 0),
+    [cart],
   )
 
   const checkout = useCallback(async (tradeUrlValue: string, mssAccepted: boolean) => {
@@ -518,7 +473,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       toast.error(t("checkout.mssRequired"))
       return
     }
-    if (cartSkins.length === 0) { toast.error(t("toast.cartEmpty")); return }
+    if (cart.length === 0) { toast.error(t("toast.cartEmpty")); return }
     if (cartTotal > wallet) {
       toast.error(t("toast.insufficientTitle"), {
         description: t("toast.insufficientDesc", { amount: formatPrice(cartTotal - wallet) }),
@@ -526,7 +481,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const listingIds = cartSkins.map((s) => s.listingId).filter((id): id is string => !!id)
+    const listingIds = cartListingIds(cart)
     if (listingIds.length === 0) { toast.error(t("toast.cartEmpty")); return }
 
     const result = await purchaseBatch(listingIds, tradeUrlValue, mssAccepted)
@@ -544,15 +499,15 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
     await refreshWallet()
     toast.success(t("toast.purchaseTitle"), {
-      description: t("toast.purchaseDesc", { n: cartSkins.length }),
+      description: t("toast.purchaseDesc", { n: cart.length }),
     })
-    cartSkins.forEach((skin) => {
+    cart.forEach((skin) => {
       pushActivity(`${skin.type} | ${skin.title}`, "bought", formatPrice(skin.price))
     })
     clearCart()
     void syncUserNotifications()
     void syncUserSales()
-  }, [cartSkins, cartTotal, wallet, isLoggedIn, steamProfile, profileComplete, openProfileCompletion, t, clearCart, refreshWallet])
+  }, [cart, cartTotal, wallet, isLoggedIn, steamProfile, profileComplete, openProfileCompletion, t, clearCart, refreshWallet])
 
   const listForSale = useCallback((_skin: Skin, _price: number) => {
     toast.info(t("sell.useInventory"), {
@@ -567,7 +522,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     items, isLoadingItems,
-    cart: cartSkins, wishlist, wallet, balanceHidden, toggleBalanceHidden, withdrawableBalance, cartTotal,
+    cart, wishlist, wallet, balanceHidden, toggleBalanceHidden, withdrawableBalance, cartTotal,
     profileComplete, userProfile, openProfileCompletion,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,
@@ -578,7 +533,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     refreshWallet,
   }), [
     items, isLoadingItems,
-    cartSkins, wishlist, wallet, balanceHidden, toggleBalanceHidden, withdrawableBalance, cartTotal,
+    cart, wishlist, wallet, balanceHidden, toggleBalanceHidden, withdrawableBalance, cartTotal,
     profileComplete, userProfile, openProfileCompletion,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,
