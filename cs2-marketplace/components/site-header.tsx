@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import { Banknote, ChevronDown, ExternalLink, Globe, Handshake, LogOut, Moon, Package, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
+import Link from "next/link"
+import { Banknote, ChevronDown, ExternalLink, Gavel, Globe, Handshake, LogOut, Moon, Package, PackageCheck, Settings, Sun, User, Wallet } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +20,12 @@ import { NotificationsBell } from "@/components/notifications-bell"
 import { OffersSheet } from "@/components/offers-sheet"
 import { OrdersSheet } from "@/components/orders-sheet"
 import { ProfileSheet } from "@/components/profile-sheet"
+import { InventorySheet } from "@/components/inventory-sheet"
 import { useMarket } from "@/components/market-provider"
 import { CURRENT_USER, formatPrice, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
+import { WalletBalance } from "@/components/wallet-balance"
 import { LANGS, useI18n } from "@/lib/i18n"
+import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 
 const SNOWFLAKES = [
@@ -48,9 +52,21 @@ export function SiteHeader({
   const [tradeUrlOpen, setTradeUrlOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const currentLang = LANGS.find((l) => l.code === lang) ?? LANGS[0]
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setIsAdmin(false)
+      return
+    }
+    void apiFetch("/api/admin/me")
+      .then((res) => res.json())
+      .then((data: { isAdmin?: boolean }) => setIsAdmin(Boolean(data.isAdmin)))
+      .catch(() => setIsAdmin(false))
+  }, [isLoggedIn])
   const isDark = !mounted || resolvedTheme === "dark"
 
   const displayName = steamProfile?.steamName ?? steamProfile?.steamId ?? t("header.guestName")
@@ -153,26 +169,36 @@ export function SiteHeader({
 
           {isLoggedIn && (
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-3 rounded-full border border-border bg-input py-1 pl-1 pr-3 transition-colors hover:border-primary">
-              <span className="h-7 w-7 overflow-hidden rounded-full border-2 border-primary">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={displayAvatar || "/placeholder.svg"}
-                  alt={displayName}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </span>
-              <span className="hidden flex-col items-start leading-tight sm:flex">
-                <span className="text-xs font-semibold text-foreground">{displayName}</span>
-                <span className="text-[11px] font-bold text-success">{formatPrice(wallet)}</span>
-              </span>
-              <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
+            <DropdownMenuTrigger asChild>
+              <div
+                role="button"
+                tabIndex={0}
+                className="flex cursor-pointer items-center gap-3 rounded-full border border-border bg-input py-1 pl-1 pr-3 transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <span className="h-7 w-7 overflow-hidden rounded-full border-2 border-primary">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={displayAvatar || "/placeholder.svg"}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </span>
+                <span className="hidden flex-col items-start leading-tight sm:flex">
+                  <span className="text-xs font-semibold text-foreground">{displayName}</span>
+                  <WalletBalance
+                    amount={wallet}
+                    isolated
+                    className="text-[11px] font-bold text-success"
+                  />
+                </span>
+                <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
+              </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 border-border bg-card">
               <div className="px-2 py-1.5 sm:hidden">
                 <p className="text-sm font-semibold text-foreground">{displayName}</p>
-                <p className="text-xs font-bold text-success">{formatPrice(wallet)}</p>
+                <WalletBalance amount={wallet} className="text-xs font-bold text-success" />
               </div>
               <DropdownMenuSeparator className="bg-border sm:hidden" />
               <ProfileSheet trigger={
@@ -182,6 +208,15 @@ export function SiteHeader({
                 >
                   <User className="h-4 w-4" />
                   {t("header.profile")}
+                </DropdownMenuItem>
+              } />
+              <InventorySheet trigger={
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="cursor-pointer text-foreground focus:bg-input focus:text-primary"
+                >
+                  <Package className="h-4 w-4" />
+                  {t("inventory.title")}
                 </DropdownMenuItem>
               } />
               <OffersSheet trigger={
@@ -202,6 +237,14 @@ export function SiteHeader({
                   {t("header.myOrders")}
                 </DropdownMenuItem>
               } />
+              {isAdmin && (
+                <DropdownMenuItem asChild className="cursor-pointer text-primary focus:bg-input focus:text-primary">
+                  <Link href="/admin">
+                    <Gavel className="h-4 w-4" />
+                    {t("header.admin")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
               {steamProfile?.steamId && (
                 <>
 

@@ -11,8 +11,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { useMarket } from "@/components/market-provider"
-import { type Skin, formatPrice, formatUSD, steamMarketUrl } from "@/lib/skins"
+import { type Skin, formatPrice, formatUSD, isOwnListing, steamMarketUrl } from "@/lib/skins"
 import { OfferDialog } from "@/components/offer-dialog"
+import { FloatWearMarker } from "@/components/float-wear-bar"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/lib/i18n"
 
@@ -23,9 +24,10 @@ export function InspectDialog({
   skin: Skin | null
   onClose: () => void
 }) {
-  const { addToCart, toggleWishlist, isWished } = useMarket()
+  const { addToCart, toggleWishlist, isWished, steamProfile } = useMarket()
   const { t } = useI18n()
-  const wished = skin ? isWished(skin.id) : false
+  const wished = skin ? isWished(skin.listingId) : false
+  const isMyListing = skin ? isOwnListing(skin, steamProfile?.steamId) : false
   const [offerSkin, setOfferSkin] = useState<Skin | null>(null)
 
   return (
@@ -57,9 +59,12 @@ export function InspectDialog({
 
             <div className="space-y-2.5 rounded-lg border border-border bg-input p-4 text-sm">
               {skin.hasFloat !== false && (
-                <Row label={t("inspect.floatValue")}>
-                  <span className="font-bold text-primary">{skin.float.toFixed(4)}</span>
-                </Row>
+                <>
+                  <Row label={t("inspect.floatValue")}>
+                    <span className="font-bold text-primary">{skin.float.toFixed(4)}</span>
+                  </Row>
+                  <FloatWearMarker float={skin.float} className="pt-1" />
+                </>
               )}
               {skin.patternSeed !== undefined && skin.hasFloat !== false && (
                 <Row label={t("inspect.patternSeed")}>
@@ -141,7 +146,7 @@ export function InspectDialog({
                   <ExternalLink className="ml-1 h-3 w-3" />
                 </a>
               </Button>
-              {skin.owner !== "me" && (
+              {skin.owner !== "me" && !isMyListing && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -154,28 +159,34 @@ export function InspectDialog({
               )}
             </div>
 
-            <div className="mt-2 flex gap-2">
-              <Button
-                onClick={() => {
-                  addToCart(skin)
-                  onClose()
-                }}
-                className="h-12 flex-1 bg-primary text-sm font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
-              >
-                {t("inspect.lockAdd")}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => toggleWishlist(skin)}
-                aria-label={t("card.toggleWishlist")}
-                className={cn(
-                  "h-12 w-12 border-border bg-input p-0",
-                  wished ? "border-favorite" : "hover:border-favorite",
-                )}
-              >
-                <Heart className={cn("h-5 w-5", wished ? "fill-favorite text-favorite" : "text-muted-foreground")} />
-              </Button>
-            </div>
+            {isMyListing ? (
+              <p className="mt-2 rounded-lg border border-border bg-input px-3 py-2 text-center text-xs text-muted-foreground">
+                {t("toast.ownListing")}
+              </p>
+            ) : (
+              <div className="mt-2 flex gap-2">
+                <Button
+                  onClick={() => {
+                    addToCart(skin)
+                    onClose()
+                  }}
+                  className="h-12 flex-1 bg-primary text-sm font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary/90"
+                >
+                  {t("inspect.lockAdd")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => toggleWishlist(skin)}
+                  aria-label={t("card.toggleWishlist")}
+                  className={cn(
+                    "h-12 w-12 border-border bg-input p-0",
+                    wished ? "border-favorite" : "hover:border-favorite",
+                  )}
+                >
+                  <Heart className={cn("h-5 w-5", wished ? "fill-favorite text-favorite" : "text-muted-foreground")} />
+                </Button>
+              </div>
+            )}
           </>
         )}
       </DialogContent>
