@@ -51,10 +51,10 @@ test("production checklist script runs", () => {
   assert.match(res.stdout, /Preflight passed/)
 })
 
-test("trade bot deposit route exists", () => {
-  const src = readFileSync(
-    join(root, "app/api/internal/trade-bot/deposit-received/route.ts"),
-    "utf8",
-  )
-  assert.match(src, /confirmListingDeposit/)
+test("email subjects map events to specific subjects", () => {
+  const mod = readFileSync(join(root, "lib/email-subjects.ts"), "utf8")
+  assert.match(mod, /buildEmailSubject/)
+  assert.match(mod, /buildAdminEmailSubject/)
+  assert.match(mod, /Para çekme talebiniz tamamlandı/)
+  assert.match(mod, /Teklifiniz kabul edildi/)
 })

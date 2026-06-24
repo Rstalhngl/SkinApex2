@@ -11,6 +11,7 @@ import { getActiveUserStats } from "@/lib/active-users"
 import { getActiveListingsFromStore } from "@/lib/listings-store"
 import { clearListingBan, listActiveListingBans, setListingBan } from "@/lib/moderation-store"
 import { sendAdminEmail } from "@/lib/email-service"
+import { buildAdminEmailSubject } from "@/lib/email-subjects"
 import {
   countOpenWithdrawals,
   getWithdrawalById,
@@ -22,7 +23,7 @@ export async function notifyAdmins(message: string, extra?: { saleId?: string })
   for (const steamId of getAdminSteamIds()) {
     await addUserNotification(steamId, "item_sold", message, extra)
   }
-  void sendAdminEmail("SkinApex admin alert", message)
+  void sendAdminEmail(buildAdminEmailSubject(message), message)
 }
 
 export async function getAdminOverview() {
