@@ -37,8 +37,12 @@ import { cn } from "@/lib/utils"
 
 function ProfileTab() {
   const { t } = useI18n()
-  const { steamProfile, wallet, isLoggedIn, balanceHidden, toggleBalanceHidden } = useMarket()
+  const { steamProfile, wallet, withdrawableBalance, isLoggedIn, balanceHidden, toggleBalanceHidden } = useMarket()
   const [transactions, setTransactions] = useState<WalletTransaction[]>([])
+
+  const withdrawable = Math.max(0, Math.round(withdrawableBalance * 100) / 100)
+  const deposited = Math.max(0, Math.round((wallet - withdrawable) * 100) / 100)
+  const mask = (value: number) => (balanceHidden ? "****" : formatPrice(value))
 
   useEffect(() => {
     if (!isLoggedIn) return
@@ -81,12 +85,25 @@ function ProfileTab() {
         className="w-full rounded-xl border border-border bg-input p-4 text-left text-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         aria-label={balanceHidden ? t("wallet.showBalance") : t("wallet.hideBalance")}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">{t("cart.wallet")}</span>
-          <span className="text-xl font-bold text-success">
-            {balanceHidden ? "****" : formatPrice(wallet)}
-          </span>
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">{t("wallet.total")}</span>
+            <span className="text-xl font-bold text-success">{mask(wallet)}</span>
+          </div>
+          <div className="border-t border-border/60 pt-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t("withdraw.withdrawable")}</span>
+              <span className="font-semibold text-primary">{mask(withdrawable)}</span>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t("wallet.deposited")}</span>
+              <span className="font-semibold text-foreground">{mask(deposited)}</span>
+            </div>
+          </div>
         </div>
+        <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
+          {t("withdraw.amlNote")}
+        </p>
       </button>
 
       <div className="w-full rounded-xl border border-border bg-input p-4 text-left text-sm">
