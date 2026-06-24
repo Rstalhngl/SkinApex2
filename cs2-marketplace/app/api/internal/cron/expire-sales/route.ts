@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { getCronSecret } from "@/lib/app-config"
-import { processExpiredSales } from "@/lib/sale-lifecycle"
+import { processDeliveryReminders, processExpiredSales } from "@/lib/sale-lifecycle"
 
+/** Cron: expire stale sales + send seller delivery reminders. */
 export async function POST(req: Request) {
   const secret = getCronSecret()
   if (!secret) {
@@ -14,8 +15,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    await processExpiredSales()
-    return NextResponse.json({ ok: true })
+    const reminders = await processDeliveryReminders()
+    const expired = await processExpiredSales()
+    return NextResponse.json({ ok: true, expired, reminders })
   } catch {
     return NextResponse.json({ error: "server_error" }, { status: 500 })
   }

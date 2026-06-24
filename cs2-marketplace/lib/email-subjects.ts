@@ -53,6 +53,22 @@ const ITEM_SOLD_RULES: SubjectRule[] = [
     },
   },
   {
+    prefix: "Satın aldınız:",
+    subject: (msg) => {
+      const item = itemAfterColon(msg)
+      return item ? `Satın aldınız: ${item}` : "Satın alma tamamlandı"
+    },
+  },
+  {
+    prefix: "Teslimat için",
+    subject: (msg) => {
+      const item = itemAfterColon(msg)
+      const mins = msg.match(/Teslimat için (\d+) dk/)?.[1]
+      if (item && mins) return `Teslimat için ${mins} dk kaldı: ${item}`
+      return item ? `Teslimat hatırlatması: ${item}` : "Teslimat hatırlatması"
+    },
+  },
+  {
     prefix: "Satış tamamlandı, bakiyenize eklendi:",
     subject: (msg) => {
       const item = itemAfterColon(msg)
@@ -267,5 +283,6 @@ export const NOTIFICATION_MESSAGE_FIXTURES: {
   { type: "offer_accepted", message: "Teklifiniz kabul edildi: USP-S — ₺150", expectedSubjectIncludes: "Teklifiniz kabul edildi: USP-S" },
   { type: "offer_rejected", message: "Teklifiniz reddedildi: P250", expectedSubjectIncludes: "Teklifiniz reddedildi: P250" },
   { type: "offer_rejected", message: "Teklifiniz reddedildi (ilan satıldı): Knife", expectedSubjectIncludes: "ilan satıldı" },
-  { type: "delivery_reminder", message: "Teslimat için 30 dk kaldı: AK-47", expectedSubjectIncludes: "Teslimat hatırlatması" },
+  { type: "item_sold", message: "Satın aldınız: AK-47 | Redline — ₺1.500. Satıcının Steam teslimatını bekleyin.", expectedSubjectIncludes: "Satın aldınız: AK-47 | Redline" },
+  { type: "delivery_reminder", message: "Teslimat için 25 dk kaldı: AK-47. Alıcının Takas URL'si kayıtlı.", expectedSubjectIncludes: "Teslimat hatırlatması" },
 ]

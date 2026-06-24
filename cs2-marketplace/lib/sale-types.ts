@@ -42,6 +42,8 @@ export interface Sale {
   adminNote?: string
   resolvedAt?: number
   resolvedBy?: string
+  /** Seller delivery reminder sent (30 min before deadline). */
+  deliveryReminderSentAt?: number
 }
 
 export const SALE_STATUS_LABEL: Record<SaleStatus, string> = {
@@ -67,3 +69,5 @@ export interface SalesStore {
 
 export const DELIVERY_HOURS = 2
 export const DELIVERY_MS = DELIVERY_HOURS * 60 * 60 * 1000
+/** Send seller reminder when this much time remains before deadline. */
+export const DELIVERY_REMINDER_BEFORE_MS = 30 * 60 * 1000

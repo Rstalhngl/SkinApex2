@@ -135,6 +135,14 @@ async function notifyPurchaseSideEffects(
     `Ürününüz satıldı: ${listing.name} — ${formatTry(chargeAmount)}. ${deliveryHint(buyer)}`,
     { saleId: sale.id, listingId: listing.id },
   )
+  await addUserNotification(
+    buyer.steamId,
+    "item_sold",
+    isTradeBotEnabled()
+      ? `Satın aldınız: ${listing.name} — ${formatTry(chargeAmount)}. Teslimat bot tarafından gönderilecek.`
+      : `Satın aldınız: ${listing.name} — ${formatTry(chargeAmount)}. Satıcının Steam teslimatını bekleyin (Siparişler sekmesi).`,
+    { saleId: sale.id, listingId: listing.id },
+  )
   await rejectPendingOffersForListing(listing.id)
   publishPurchaseEvents({
     buyerId: buyer.steamId,

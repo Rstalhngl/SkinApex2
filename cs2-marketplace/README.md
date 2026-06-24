@@ -46,10 +46,29 @@ bash scripts/deploy.sh saved-filters
 
 Runs production preflight, build, and `pm2 restart all`.
 
+## Cron (required for P2P delivery)
+
+Every 5 minutes on the server:
+
+```bash
+# .env.local must include CRON_SECRET
+chmod +x scripts/cron-maintenance.sh
+CRON_SECRET='your_secret' BASE_URL='https://skinapex.net' bash scripts/cron-maintenance.sh
+```
+
+Add to crontab:
+
+```cron
+*/5 * * * * CRON_SECRET='your_secret' BASE_URL='https://skinapex.net' /path/to/cron-maintenance.sh >> /var/log/skinapex-cron.log 2>&1
+```
+
+This endpoint:
+- Sends **delivery reminders** to sellers (~30 min before deadline)
+- **Expires** undelivered sales and refunds buyers
+
 ## Health
 
 - `GET /api/health` — config checklist (no secrets)
-- Cron: `scripts/cron-expire-sales.example.sh`
 
 ## Trade bot mode
 

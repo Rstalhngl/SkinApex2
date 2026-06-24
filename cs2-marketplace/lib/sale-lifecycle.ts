@@ -1,26 +1,66 @@
 import type { Sale } from "@/lib/sale-types"
+import { DELIVERY_REMINDER_BEFORE_MS } from "@/lib/sale-types"
 import { readSalesStore, writeSalesStore } from "@/lib/sales-store"
 import { notifyAdmins } from "@/lib/admin-service"
 import { refundExpiredSale, payoutDeliveredSale } from "@/lib/purchase-service"
 import { addUserNotification } from "@/lib/notifications-store"
 import { publishUserChannel } from "@/lib/ws-publish"
+import { isTradeBotEnabled } from "@/lib/trade-bot-config"
 
-/** Auto-expire pending deliveries past deadline; returns updated sales. */
-export async function processExpiredSales(): Promise<void> {
+/** Auto-expire pending deliveries past deadline. Returns count expired. */
+export async function processExpiredSales(): Promise<number> {
   const store = await readSalesStore()
   const now = Date.now()
   let changed = false
+  let expired = 0
 
   for (let i = 0; i < store.sales.length; i++) {
     const sale = store.sales[i]
     if (sale.status === "pending_delivery" && sale.deliveryDeadline <= now) {
       store.sales[i] = { ...sale, status: "expired" }
       changed = true
+      expired++
       await refundExpiredSale(sale)
     }
   }
 
   if (changed) await writeSalesStore(store)
+  return expired
+}
+
+/** Remind sellers ~30 min before delivery deadline (P2P mode only). */
+export async function processDeliveryReminders(): Promise<number> {
+  if (isTradeBotEnabled()) return 0
+
+  const store = await readSalesStore()
+  const now = Date.now()
+  let changed = false
+  let sent = 0
+
+  for (let i = 0; i < store.sales.length; i++) {
+    const sale = store.sales[i]
+    if (sale.status !== "pending_delivery") continue
+    if (sale.deliveredAt || sale.deliveryReminderSentAt) continue
+    if (sale.deliveryDeadline <= now) continue
+
+    const msLeft = sale.deliveryDeadline - now
+    if (msLeft > DELIVERY_REMINDER_BEFORE_MS) continue
+
+    const minsLeft = Math.max(1, Math.round(msLeft / 60_000))
+    await addUserNotification(
+      sale.sellerId,
+      "delivery_reminder",
+      `Teslimat için ${minsLeft} dk kaldı: ${sale.itemName}. Alıcının Takas URL'si kayıtlı.`,
+      { saleId: sale.id },
+    )
+    store.sales[i] = { ...sale, deliveryReminderSentAt: now }
+    changed = true
+    sent++
+    publishUserChannel("sales", sale.sellerId)
+  }
+
+  if (changed) await writeSalesStore(store)
+  return sent
 }
 
 /** Called by trade bot when Steam reports offer accepted. */
