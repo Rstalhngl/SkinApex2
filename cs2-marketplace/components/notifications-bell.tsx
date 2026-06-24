@@ -106,7 +106,7 @@ export function NotificationsBell() {
               <p className="text-xs">{t("notif.empty")}</p>
             </div>
           ) : (
-            <ul className="max-h-72 overflow-y-auto divide-y divide-border">
+            <ul className="scrollbar-skinapex max-h-72 overflow-y-auto overscroll-y-contain divide-y divide-border pr-0.5">
               {notifications.map((n) => (
                 <li
                   key={n.id}
