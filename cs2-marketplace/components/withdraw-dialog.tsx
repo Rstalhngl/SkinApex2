@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMarket } from "@/components/market-provider"
-import { formatPrice } from "@/lib/skins"
+import { WalletBalance } from "@/components/wallet-balance"
 import { useI18n } from "@/lib/i18n"
 import { toast } from "sonner"
 
@@ -60,7 +60,7 @@ export function WithdrawDialog({
         <div className="space-y-4 py-2">
           <div className="flex items-center justify-between rounded-lg border border-border bg-input px-3 py-2 text-sm">
             <span className="text-muted-foreground">{t("withdraw.balance")}</span>
-            <span className="font-bold text-success">{formatPrice(walletTry)}</span>
+            <WalletBalance amount={walletTry} className="font-bold text-success" />
           </div>
 
           <div className="space-y-2">

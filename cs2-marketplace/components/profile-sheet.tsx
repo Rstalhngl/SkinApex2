@@ -23,6 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { formatPrice, steamProfileUrl } from "@/lib/skins"
+import { WalletBalance } from "@/components/wallet-balance"
 import {
   getOrders, subscribeOrders, openSupportTicket, escrowTimeLeft,
   STATUS_LABEL, STATUS_COLOR, type Order,
@@ -67,7 +68,7 @@ function ProfileTab() {
       <div className="w-full rounded-xl border border-border bg-input p-4 text-sm">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">{t("cart.wallet")}</span>
-          <span className="text-xl font-bold text-success">{formatPrice(wallet)}</span>
+          <WalletBalance amount={wallet} className="text-xl font-bold text-success" />
         </div>
       </div>
 

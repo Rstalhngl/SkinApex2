@@ -9,6 +9,7 @@ import { loadCS2Items, setVolumeMap, setPriceMap } from "@/lib/cs2-api"
 import { pushActivity } from "@/lib/activity-feed"
 import { createOrder } from "@/lib/orders"
 import { useI18n } from "@/lib/i18n"
+import { readBalanceHidden, writeBalanceHidden } from "@/lib/wallet-visibility"
 
 export interface SteamProfile {
   steamId: string
@@ -24,6 +25,8 @@ interface MarketContextValue {
   cart: Skin[]
   wishlist: number[]
   wallet: number
+  balanceHidden: boolean
+  toggleBalanceHidden: () => void
   cartTotal: number
   addToCart: (skin: Skin) => void
   removeFromCart: (id: number) => void
@@ -67,6 +70,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<Skin[]>([])
   const [wishlist, setWishlist] = useState<number[]>([])
   const [wallet, setWallet] = useState(0)  // TRY — starts at 0, grows via deposit
+  const [balanceHidden, setBalanceHidden] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [steamProfile, setSteamProfile] = useState<SteamProfile | null>(null)
   const [tradeUrl, setTradeUrlState] = useState("")
@@ -118,6 +122,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem(LS_LISTED)
       if (saved) setListedSkins(JSON.parse(saved))
     } catch {}
+
+    setBalanceHidden(readBalanceHidden())
 
     // Wallet restored per-user in steamId block above; skip here
     // (will be set to 0 or user value when login completes)
@@ -190,6 +196,14 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const setTradeUrl = useCallback((url: string) => {
     setTradeUrlState(url)
     try { localStorage.setItem(LS_TRADE_URL, url) } catch {}
+  }, [])
+
+  const toggleBalanceHidden = useCallback(() => {
+    setBalanceHidden((prev) => {
+      const next = !prev
+      writeBalanceHidden(next)
+      return next
+    })
   }, [])
 
   // ── Cart helpers ──────────────────────────────────────────────────────────
@@ -307,7 +321,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   // ── Context value ─────────────────────────────────────────────────────────
   const value = useMemo(() => ({
     items, isLoadingItems,
-    cart, wishlist, wallet, cartTotal,
+    cart, wishlist, wallet, balanceHidden, toggleBalanceHidden, cartTotal,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,
     deposit, checkout,
@@ -316,7 +330,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     listedSkins, listForSale, delistSkin,
   }), [
     items, isLoadingItems,
-    cart, wishlist, wallet, cartTotal,
+    cart, wishlist, wallet, balanceHidden, toggleBalanceHidden, cartTotal,
     addToCart, removeFromCart, clearCart,
     toggleWishlist, isInCart, isWished,
     deposit, checkout,
