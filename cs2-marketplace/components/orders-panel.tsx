@@ -53,13 +53,22 @@ function DeliveryCountdown({ sale }: { sale: Sale }) {
   )
 }
 
-function PurchaseRow({ sale }: { sale: Sale }) {
+function botStateLabel(state: string | undefined, t: (k: string) => string): string | null {
+  if (!state) return t("orders.botState.queued")
+  if (state === "queued" || state === "sending" || state === "sent" || state === "active" || state === "failed") {
+    return t(`orders.botState.${state}`)
+  }
+  return null
+}
+
+function PurchaseRow({ sale, tradeBotEnabled }: { sale: Sale; tradeBotEnabled: boolean }) {
   const { t } = useI18n()
   const active = sale.status === "pending_delivery" && sale.deliveryDeadline > Date.now()
   const sellerDelivered = !!sale.deliveredAt
-  const canConfirm = active && sellerDelivered
-  const canDispute = active
-  const awaitingSeller = active && !sellerDelivered
+  const canConfirm = active && sellerDelivered && !tradeBotEnabled
+  const canDispute = active && !tradeBotEnabled
+  const awaitingSeller = active && !sellerDelivered && !tradeBotEnabled
+  const botLabel = tradeBotEnabled && active ? botStateLabel(sale.tradeOfferState, t) : null
 
   const handleConfirm = async () => {
     const result = await confirmSaleReceived(sale.id)
@@ -95,6 +104,11 @@ function PurchaseRow({ sale }: { sale: Sale }) {
           {saleStatusLabel(sale.status, t)}
         </p>
         <DeliveryCountdown sale={sale} />
+        {tradeBotEnabled && active && (
+          <p className="mt-1 text-[10px] font-semibold text-primary">
+            {botLabel ?? t("orders.botDelivery")}
+          </p>
+        )}
         {awaitingSeller && (
           <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
             {t("orders.awaitingSellerDelivery")}
@@ -125,11 +139,12 @@ function PurchaseRow({ sale }: { sale: Sale }) {
   )
 }
 
-function SellerSaleRow({ sale }: { sale: Sale }) {
+function SellerSaleRow({ sale, tradeBotEnabled }: { sale: Sale; tradeBotEnabled: boolean }) {
   const { t } = useI18n()
   const active = sale.status === "pending_delivery" && sale.deliveryDeadline > Date.now()
   const awaitingBuyer = active && !!sale.deliveredAt
-  const canMarkDeliver = active && !sale.deliveredAt
+  const canMarkDeliver = active && !sale.deliveredAt && !tradeBotEnabled
+  const botLabel = tradeBotEnabled && active ? botStateLabel(sale.tradeOfferState, t) : null
   const msLeft = useCountdown(sale.deliveryDeadline, active)
 
   const handleDeliver = async () => {
@@ -163,6 +178,11 @@ function SellerSaleRow({ sale }: { sale: Sale }) {
             {t("orders.deliveryLeft")}: {formatDeliveryCountdown(msLeft)}
           </p>
         )}
+        {tradeBotEnabled && active && (
+          <p className="text-[10px] font-semibold text-primary">
+            {botLabel ?? t("orders.botDelivery")}
+          </p>
+        )}
         {awaitingBuyer && (
           <p className="text-[10px] font-semibold text-primary">
             {t("orders.awaitingBuyerConfirm")}
@@ -194,8 +214,16 @@ function SellerSaleRow({ sale }: { sale: Sale }) {
 export function OrdersPanel({ className }: { className?: string }) {
   const { t } = useI18n()
   const { steamProfile } = useMarket()
+  const [tradeBotEnabled, setTradeBotEnabled] = useState(false)
   const [purchases, setPurchases] = useState<Sale[]>(() => getSalesAsBuyer())
   const [sales, setSales] = useState<Sale[]>(() => getSalesAsSeller())
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((res) => res.json())
+      .then((data) => setTradeBotEnabled(Boolean(data.tradeBotEnabled)))
+      .catch(() => setTradeBotEnabled(false))
+  }, [])
 
   useEffect(() => {
     const steamId = steamProfile?.steamId
@@ -238,7 +266,7 @@ export function OrdersPanel({ className }: { className?: string }) {
           <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("orders.noPurchases")}</p>
         ) : (
           <ul>
-            {purchases.map((s) => <PurchaseRow key={s.id} sale={s} />)}
+            {purchases.map((s) => <PurchaseRow key={s.id} sale={s} tradeBotEnabled={tradeBotEnabled} />)}
           </ul>
         )}
       </TabsContent>
@@ -248,7 +276,7 @@ export function OrdersPanel({ className }: { className?: string }) {
           <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("orders.noSales")}</p>
         ) : (
           <ul>
-            {sales.map((s) => <SellerSaleRow key={s.id} sale={s} />)}
+            {sales.map((s) => <SellerSaleRow key={s.id} sale={s} tradeBotEnabled={tradeBotEnabled} />)}
           </ul>
         )}
       </TabsContent>

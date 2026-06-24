@@ -1,4 +1,4 @@
-export type ListingStatus = "active" | "sold" | "cancelled"
+export type ListingStatus = "active" | "sold" | "cancelled" | "pending_deposit"
 
 export interface Listing {
   id: string
@@ -6,6 +6,8 @@ export interface Listing {
   sellerName: string
   sellerAvatar?: string
   assetId: string
+  /** Bot inventory asset ID after seller deposit (trade bot mode). */
+  botAssetId?: string
   name: string
   marketHashName: string
   img: string

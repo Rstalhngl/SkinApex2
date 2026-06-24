@@ -4,6 +4,7 @@ export type SaleResolution = "buyer_refund" | "seller_paid"
 /** Steam trade offer lifecycle tracked by the trade bot worker. */
 export type TradeOfferState =
   | "queued"
+  | "sending"
   | "sent"
   | "active"
   | "accepted"

@@ -17,6 +17,8 @@ export function listingErrorMessage(
       return { title: t("listings.errorInvalid") }
     case "profile_incomplete":
       return { title: t("profile.completeDesc") }
+    case "item_not_deposited":
+      return { title: t("listings.errorNotDeposited") }
     default:
       return { title: t("listings.errorGeneric") }
   }

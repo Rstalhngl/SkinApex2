@@ -111,6 +111,18 @@ function deliveryHint(buyer: PurchaseBuyer): string {
     : `2 saat içinde teslim edin. Alıcı Takas URL: ${buyer.tradeUrl.trim()}`
 }
 
+async function validateListingForPurchase(
+  listing: Listing,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (isTradeBotEnabled()) {
+    if (!listing.botAssetId) return { ok: false, error: "item_not_deposited" }
+    return { ok: true }
+  }
+  const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
+  if (!ownership.ok) return { ok: false, error: "asset_unavailable" }
+  return { ok: true }
+}
+
 async function notifyPurchaseSideEffects(
   buyer: PurchaseBuyer,
   listing: Listing,
@@ -145,7 +157,7 @@ function buildSaleRecord(
   return {
     id: `sale-${saleId}`,
     listingId: listing.id,
-    ...buildSaleTradeFields(listing.assetId),
+    ...buildSaleTradeFields(listing),
     sellerId: listing.sellerId,
     sellerName: listing.sellerName,
     buyerId: buyer.steamId,
@@ -183,8 +195,8 @@ async function completePurchasePg(
         return { ok: false as const, error: "cannot_buy_own_listing" }
       }
 
-      const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
-      if (!ownership.ok) return { ok: false as const, error: "asset_unavailable" }
+      const ownership = await validateListingForPurchase(listing)
+      if (!ownership.ok) return { ok: false as const, error: ownership.error }
 
       const chargeAmount = priceTry ?? listing.priceTry
       const debit = await debitWalletInTx(client, buyer.steamId, chargeAmount, txType, listingId)
@@ -251,8 +263,8 @@ async function completeBatchPurchasePg(
           return { ok: false as const, error: "cannot_buy_own_listing" }
         }
 
-        const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
-        if (!ownership.ok) return { ok: false as const, error: "asset_unavailable" }
+        const ownership = await validateListingForPurchase(listing)
+        if (!ownership.ok) return { ok: false as const, error: ownership.error }
 
         resolved.push({ listing, charge: listing.priceTry })
       }
@@ -343,8 +355,8 @@ export async function completePurchase(
       return { ok: false, error: "cannot_buy_own_listing" }
     }
 
-    const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
-    if (!ownership.ok) return { ok: false, error: "asset_unavailable" }
+    const ownership = await validateListingForPurchase(listing)
+    if (!ownership.ok) return { ok: false, error: ownership.error }
 
     const chargeAmount = priceTry ?? listing.priceTry
     const debit = await debitForPurchase(buyer.steamId, chargeAmount, txType, listingId)
@@ -367,7 +379,7 @@ export async function completePurchase(
     const sale: Sale = {
       id: `sale-${salesStore.nextId++}`,
       listingId: listing.id,
-      ...buildSaleTradeFields(listing.assetId),
+      ...buildSaleTradeFields(listing),
       sellerId: listing.sellerId,
       sellerName: listing.sellerName,
       buyerId: buyer.steamId,
@@ -422,8 +434,8 @@ export async function completeBatchPurchase(
       if (listing.sellerId === buyer.steamId) {
         return { ok: false, error: "cannot_buy_own_listing" }
       }
-      const ownership = await verifyAssetOwnership(listing.sellerId, listing.assetId, { skipCache: true })
-      if (!ownership.ok) return { ok: false, error: "asset_unavailable" }
+      const ownership = await validateListingForPurchase(listing)
+      if (!ownership.ok) return { ok: false, error: ownership.error }
       resolved.push({ idx, listing, charge: listing.priceTry })
     }
 
@@ -459,7 +471,7 @@ export async function completeBatchPurchase(
         const sale: Sale = {
           id: `sale-${salesStore.nextId++}`,
           listingId: listing.id,
-          ...buildSaleTradeFields(listing.assetId),
+          ...buildSaleTradeFields(listing),
           sellerId: listing.sellerId,
           sellerName: listing.sellerName,
           buyerId: buyer.steamId,

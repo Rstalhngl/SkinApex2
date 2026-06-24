@@ -56,7 +56,7 @@ export async function createListing(
 export async function createListingWithError(
   item: InventoryItem,
   priceTry: number,
-): Promise<{ listing?: Listing; error?: string }> {
+): Promise<{ listing?: Listing; error?: string; depositRequired?: boolean; botTradeUrl?: string | null }> {
   try {
     const res = await apiFetch("/api/listings", {
       method: "POST",
@@ -64,16 +64,20 @@ export async function createListingWithError(
       body: JSON.stringify({ item, priceTry }),
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) return { error: data.error ?? "failed" }
+    if (!res.ok) return { error: (data as { error?: string }).error ?? "failed" }
 
-    const listing = data.listing as Listing
+    const listing = (data as { listing?: Listing }).listing
     if (!listing?.id) return { error: "failed" }
 
     listings = [listing, ...listings.filter((l) => l.id !== listing.id)]
     notify()
     const label = `${listing.type} | ${listing.name}`
     pushActivity(label, "listed", formatPrice(priceTry))
-    return { listing }
+    return {
+      listing,
+      depositRequired: Boolean((data as { depositRequired?: boolean }).depositRequired),
+      botTradeUrl: (data as { botTradeUrl?: string | null }).botTradeUrl ?? null,
+    }
   } catch {
     return { error: "failed" }
   }

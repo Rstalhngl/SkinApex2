@@ -58,3 +58,35 @@ export async function setListingBan(steamId: string, untilMs: number): Promise<v
   store.listingBannedUntil[steamId] = untilMs
   await writeStoreJson(store)
 }
+
+export async function clearListingBan(steamId: string): Promise<void> {
+  if (isDbEnabled()) {
+    await query(
+      `UPDATE users SET listing_banned_until = NULL WHERE steam_id = $1`,
+      [steamId],
+    )
+    return
+  }
+  const store = await readStoreJson()
+  delete store.listingBannedUntil[steamId]
+  await writeStoreJson(store)
+}
+
+export async function listActiveListingBans(): Promise<{ steamId: string; untilMs: number }[]> {
+  const now = Date.now()
+  if (isDbEnabled()) {
+    const res = await query<{ steam_id: string; listing_banned_until: string }>(
+      `SELECT steam_id, listing_banned_until FROM users
+       WHERE listing_banned_until IS NOT NULL AND listing_banned_until > $1`,
+      [now],
+    )
+    return res.rows.map((r) => ({
+      steamId: r.steam_id,
+      untilMs: Number(r.listing_banned_until),
+    }))
+  }
+  const store = await readStoreJson()
+  return Object.entries(store.listingBannedUntil)
+    .filter(([, until]) => until > now)
+    .map(([steamId, untilMs]) => ({ steamId, untilMs }))
+}

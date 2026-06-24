@@ -5,6 +5,7 @@ import { updateTradeOfferState } from "@/lib/trade-delivery-service"
 
 const VALID_STATES: TradeOfferState[] = [
   "queued",
+  "sending",
   "sent",
   "active",
   "accepted",

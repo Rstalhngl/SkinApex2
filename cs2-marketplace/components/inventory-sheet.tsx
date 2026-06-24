@@ -482,9 +482,14 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
       toast.error(msg.title)
       return false
     }
-    toast.success(t("listings.listedSuccess"), {
-      description: `${listingItem.name ?? "Ürün"} — ${formatTry(priceTry)}`,
-    })
+    toast.success(
+      result.depositRequired ? t("listings.depositRequired") : t("listings.listedSuccess"),
+      {
+        description: result.depositRequired && result.botTradeUrl
+          ? result.botTradeUrl
+          : `${listingItem.name ?? "Ürün"} — ${formatTry(priceTry)}`,
+      },
+    )
     return true
   }
 

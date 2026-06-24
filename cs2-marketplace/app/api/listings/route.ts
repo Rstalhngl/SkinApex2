@@ -13,6 +13,8 @@ import { requireCompleteProfile } from "@/lib/profile-gate"
 import { verifyAssetOwnership } from "@/lib/steam-inventory"
 import { isListingBanned } from "@/lib/moderation-store"
 import { publishListingCreated, publishListingsChanged } from "@/lib/ws-publish"
+import { isTradeBotEnabled, getSteamBotTradeUrl } from "@/lib/trade-bot-config"
+import { addUserNotification } from "@/lib/notifications-store"
 
 const COMMISSION = 0.07
 
@@ -82,6 +84,7 @@ export async function POST(req: Request) {
     const net = Math.round(priceTry * (1 - COMMISSION))
     const resolvedType = resolveItemType(item.type ?? "", item.name, item.marketHashName)
     const hasFloat = item.hasFloat ?? itemHasFloat(resolvedType, item.name, item.marketHashName)
+    const botMode = isTradeBotEnabled()
     const listing: Listing = {
       id: `listing-${store.nextId++}`,
       sellerId: session.steamId,
@@ -103,12 +106,29 @@ export async function POST(req: Request) {
       priceTry,
       commissionRate: COMMISSION,
       netToSeller: net,
-      status: "active",
+      status: botMode ? "pending_deposit" : "active",
       listedAt: Date.now(),
     }
 
     store.listings = [listing, ...store.listings]
     await appendListingToStore(listing, store.nextId)
+
+    if (botMode) {
+      const botUrl = getSteamBotTradeUrl()
+      await addUserNotification(
+        session.steamId,
+        "item_sold",
+        botUrl
+          ? `İlan taslağı oluşturuldu: ${listing.name}. Bot'a trade gönderin: ${botUrl}`
+          : `İlan taslağı oluşturuldu: ${listing.name}. Bot trade URL yapılandırılmadı — destek ile iletişime geçin.`,
+        { listingId: listing.id },
+      )
+      return NextResponse.json({
+        listing,
+        depositRequired: true,
+        botTradeUrl: botUrl,
+      })
+    }
 
     publishListingCreated({
       listingId: listing.id,

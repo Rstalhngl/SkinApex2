@@ -9,7 +9,8 @@ import { readSalesStore } from "@/lib/sales-store"
 import { publishUserChannel } from "@/lib/ws-publish"
 import { getActiveUserStats } from "@/lib/active-users"
 import { getActiveListingsFromStore } from "@/lib/listings-store"
-import { setListingBan } from "@/lib/moderation-store"
+import { clearListingBan, listActiveListingBans, setListingBan } from "@/lib/moderation-store"
+import { sendAdminEmail } from "@/lib/email-service"
 import {
   countOpenWithdrawals,
   getWithdrawalById,
@@ -21,6 +22,7 @@ export async function notifyAdmins(message: string, extra?: { saleId?: string })
   for (const steamId of getAdminSteamIds()) {
     await addUserNotification(steamId, "item_sold", message, extra)
   }
+  void sendAdminEmail("SkinApex admin alert", message)
 }
 
 export async function getAdminOverview() {
@@ -166,4 +168,24 @@ export async function resolveWithdrawal(
   }
 
   return null
+}
+
+export async function getPendingDeliverySales(limit = 30): Promise<Sale[]> {
+  const store = await readSalesStore()
+  return store.sales
+    .filter((s) => s.status === "pending_delivery")
+    .sort((a, b) => b.soldAt - a.soldAt)
+    .slice(0, limit)
+}
+
+export async function getModerationBans() {
+  return listActiveListingBans()
+}
+
+export async function banUserFromListing(steamId: string, days = 7): Promise<void> {
+  await setListingBan(steamId, Date.now() + days * 24 * 60 * 60 * 1000)
+}
+
+export async function unbanUserFromListing(steamId: string): Promise<void> {
+  await clearListingBan(steamId)
 }

@@ -3,6 +3,7 @@ import path from "path"
 import type { NotificationsStore, UserNotification } from "@/lib/notification-types"
 import { bumpCounter, getCounter, isDbEnabled, query, setCounter } from "@/lib/db"
 import { publishUserChannel } from "@/lib/ws-publish"
+import { sendAdminEmail, sendUserEmail } from "@/lib/email-service"
 
 const DATA_DIR = path.join(process.cwd(), "data")
 const DATA_PATH = path.join(DATA_DIR, "notifications.json")
@@ -85,6 +86,7 @@ export async function addUserNotification(
       [notification.id, JSON.stringify(notification)],
     )
     publishUserChannel("notifications", steamId)
+    void sendUserEmail(steamId, "SkinApex bildirimi", message)
     return notification
   }
 
@@ -102,6 +104,7 @@ export async function addUserNotification(
   store.notifications = [notification, ...store.notifications].slice(0, 200)
   await writeNotificationsStore(store)
   publishUserChannel("notifications", steamId)
+  void sendUserEmail(steamId, "SkinApex bildirimi", message)
   return notification
 }
 

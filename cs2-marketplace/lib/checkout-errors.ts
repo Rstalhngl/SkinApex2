@@ -9,6 +9,8 @@ export function checkoutErrorMessage(
       return t("checkout.invalidTradeUrl")
     case "asset_unavailable":
       return t("checkout.assetUnavailable")
+    case "item_not_deposited":
+      return t("checkout.itemNotDeposited")
     case "insufficient_balance":
       return t("checkout.insufficientBalance")
     case "listing_not_found":

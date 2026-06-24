@@ -123,6 +123,22 @@ export function getProductionChecklist(): ProductionCheckItem[] {
       : "ADMIN_STEAM_IDS not set — admin panel inaccessible",
   })
 
+  items.push({
+    id: "tradeBot",
+    status:
+      !process.env.TRADE_BOT_ENABLED || process.env.TRADE_BOT_ENABLED !== "true"
+        ? "ok"
+        : process.env.TRADE_BOT_API_KEY?.trim() && process.env.STEAM_BOT_IDENTITY_SECRET?.trim()
+          ? "ok"
+          : "warning",
+    message:
+      process.env.TRADE_BOT_ENABLED !== "true"
+        ? "Trade bot disabled (P2P delivery mode)"
+        : process.env.TRADE_BOT_API_KEY?.trim() && process.env.STEAM_BOT_IDENTITY_SECRET?.trim()
+          ? "Trade bot configured"
+          : "TRADE_BOT_ENABLED=true but TRADE_BOT_API_KEY or STEAM_BOT_IDENTITY_SECRET missing",
+  })
+
   return items
 }
 

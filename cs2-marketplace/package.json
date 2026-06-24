@@ -15,6 +15,7 @@
     "trade-bot": "node scripts/trade-bot.cjs",
     "ws-server": "node scripts/ws-server.cjs",
     "check:prod": "NODE_ENV=production node scripts/check-production.mjs",
+    "test": "node scripts/run-tests.mjs",
     "ship": "bash scripts/deploy.sh"
   },
   "dependencies": {

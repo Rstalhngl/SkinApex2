@@ -6,6 +6,7 @@ import {
   isDemoDepositEnabled,
   isWithdrawEnabled,
 } from "@/lib/app-config"
+import { isTradeBotEnabled } from "@/lib/trade-bot-config"
 
 export async function GET() {
   return NextResponse.json({
@@ -14,5 +15,6 @@ export async function GET() {
     withdrawMin: getWithdrawMinTry(),
     withdrawMaxPerTx: getWithdrawMaxPerTxTry(),
     withdrawMaxDaily: getWithdrawMaxDailyTry(),
+    tradeBotEnabled: isTradeBotEnabled(),
   })
 }

@@ -18,3 +18,8 @@ export function getTradeBotBaseUrl(): string {
 export function shouldAutoAcceptDeposits(): boolean {
   return process.env.TRADE_BOT_AUTO_ACCEPT_DEPOSITS === "true"
 }
+
+export function getSteamBotTradeUrl(): string | null {
+  const url = process.env.STEAM_BOT_TRADE_URL?.trim()
+  return url || null
+}

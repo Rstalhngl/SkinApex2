@@ -3,6 +3,7 @@ import { isTradeBotEnabled } from "@/lib/trade-bot-config"
 import { markSaleDeliveredByBot } from "@/lib/sale-lifecycle"
 import { addUserNotification } from "@/lib/notifications-store"
 import { getDisputedSales, patchSale, readSalesStore } from "@/lib/sales-store"
+import { publishUserChannel } from "@/lib/ws-publish"
 
 export interface PendingBotDelivery {
   saleId: string
@@ -16,23 +17,36 @@ export interface PendingBotDelivery {
   tradeOfferState?: TradeOfferState
 }
 
-const OUTGOING_STATES: TradeOfferState[] = ["queued", "sent", "active"]
+const OUTGOING_STATES: TradeOfferState[] = ["queued", "sending", "sent", "active"]
 
-export function buildSaleTradeFields(listingAssetId: string): Pick<Sale, "assetId" | "tradeOfferState"> {
+export function buildSaleTradeFields(listing: {
+  assetId: string
+  botAssetId?: string
+}): Pick<Sale, "assetId" | "tradeOfferState"> {
   if (!isTradeBotEnabled()) {
-    return { assetId: listingAssetId }
+    return { assetId: listing.assetId }
   }
-  return { assetId: listingAssetId, tradeOfferState: "queued" }
+  const deliveryAssetId = listing.botAssetId ?? listing.assetId
+  if (!listing.botAssetId) {
+    return { assetId: deliveryAssetId }
+  }
+  return { assetId: deliveryAssetId, tradeOfferState: "queued" }
+}
+
+async function getDisputedIds(): Promise<Set<string>> {
+  const disputed = await getDisputedSales()
+  return new Set(disputed.map((s) => s.id))
 }
 
 export async function getPendingBotDeliveries(): Promise<PendingBotDelivery[]> {
   if (!isTradeBotEnabled()) return []
 
-  const store = await readSalesStore()
+  const [store, disputedIds] = await Promise.all([readSalesStore(), getDisputedIds()])
   const now = Date.now()
 
   return store.sales
     .filter((sale) => {
+      if (disputedIds.has(sale.id)) return false
       if (sale.status !== "pending_delivery") return false
       if (!sale.assetId || !sale.buyerTradeUrl) return false
       if (sale.deliveryDeadline <= now) return false
@@ -56,11 +70,12 @@ export async function getPendingBotDeliveries(): Promise<PendingBotDelivery[]> {
 export async function getTrackedBotOffers(): Promise<PendingBotDelivery[]> {
   if (!isTradeBotEnabled()) return []
 
-  const store = await readSalesStore()
+  const [store, disputedIds] = await Promise.all([readSalesStore(), getDisputedIds()])
   const now = Date.now()
 
   return store.sales
     .filter((sale) => {
+      if (disputedIds.has(sale.id)) return false
       if (sale.status !== "pending_delivery") return false
       if (!sale.steamOfferId) return false
       if (sale.deliveryDeadline <= now) return false
@@ -80,6 +95,24 @@ export async function getTrackedBotOffers(): Promise<PendingBotDelivery[]> {
     }))
 }
 
+/** Reserve a sale before the bot calls Steam — prevents duplicate sends. */
+export async function claimBotDelivery(saleId: string): Promise<boolean> {
+  const store = await readSalesStore()
+  const sale = store.sales.find((s) => s.id === saleId)
+  if (!sale || sale.status !== "pending_delivery") return false
+  if (sale.steamOfferId) return false
+  const state = sale.tradeOfferState
+  if (state && state !== "queued" && state !== "failed") return false
+
+  await patchSale({
+    ...sale,
+    tradeOfferState: "sending",
+    tradeOfferUpdatedAt: Date.now(),
+    tradeOfferError: undefined,
+  })
+  return true
+}
+
 export async function recordOfferSent(
   saleId: string,
   steamOfferId: string,
@@ -96,6 +129,8 @@ export async function recordOfferSent(
     tradeOfferUpdatedAt: Date.now(),
   }
   await patchSale(updated)
+  publishUserChannel("sales", sale.buyerId)
+  publishUserChannel("sales", sale.sellerId)
   return updated
 }
 
@@ -110,16 +145,27 @@ export async function updateTradeOfferState(
 
   const updated: Sale = {
     ...sale,
-    tradeOfferState,
     tradeOfferUpdatedAt: Date.now(),
-    ...(opts?.steamOfferId ? { steamOfferId: opts.steamOfferId } : {}),
-    ...(opts?.error ? { tradeOfferError: opts.error } : {}),
+    ...(tradeOfferState === "failed"
+      ? {
+          steamOfferId: undefined,
+          tradeOfferState: "failed" as const,
+          ...(opts?.error ? { tradeOfferError: opts.error } : {}),
+        }
+      : {
+          tradeOfferState,
+          ...(opts?.steamOfferId ? { steamOfferId: opts.steamOfferId } : {}),
+          ...(opts?.error ? { tradeOfferError: opts.error } : {}),
+        }),
   }
   await patchSale(updated)
 
   if (tradeOfferState === "accepted" && sale.status === "pending_delivery") {
     return markSaleDeliveredByBot(saleId)
   }
+
+  publishUserChannel("sales", sale.buyerId)
+  publishUserChannel("sales", sale.sellerId)
 
   if (tradeOfferState === "declined" || tradeOfferState === "canceled" || tradeOfferState === "expired") {
     await addUserNotification(
@@ -150,6 +196,5 @@ export async function updateTradeOfferState(
 
 /** Sales with open disputes — bot should not touch these. */
 export async function getDisputedSaleIds(): Promise<Set<string>> {
-  const disputed = await getDisputedSales()
-  return new Set(disputed.map((s) => s.id))
+  return getDisputedIds()
 }

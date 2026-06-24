@@ -55,9 +55,9 @@ function EmptyMarketplace({ onReset, hasFilters }: { onReset: () => void; hasFil
         </>
       ) : (
         <>
-          <p className="text-sm font-semibold text-foreground">Henüz ilan yok</p>
+          <p className="text-sm font-semibold text-foreground">{t("empty.noListings")}</p>
           <p className="max-w-xs text-xs text-muted-foreground">
-            İlk ilanı sen aç! Steam envanterinden bir ürünü profilinden listeleyebilirsin.
+            {t("empty.noListingsDesc")}
           </p>
         </>
       )}
@@ -167,7 +167,7 @@ export function Marketplace() {
         onResetFilters={() => { resetFilters(); setMyListingsOnly(false) }}
         onShowMyListings={() => {
           if (!steamProfile?.steamId) {
-            toast.error("Giriş yapmanız gerekiyor")
+            toast.error(t("offer.loginRequired"))
             return
           }
           resetFilters()

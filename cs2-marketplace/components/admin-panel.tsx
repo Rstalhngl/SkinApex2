@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Banknote, Gavel, RefreshCw, Shield } from "lucide-react"
+import { ArrowLeft, Banknote, Gavel, RefreshCw, Shield, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { apiFetch } from "@/lib/api-client"
 import { formatPrice } from "@/lib/skins"
@@ -277,6 +278,11 @@ export function AdminPanel() {
   const [disputes, setDisputes] = useState<Sale[]>([])
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([])
   const [showAllWithdrawals, setShowAllWithdrawals] = useState(false)
+  const [pendingSales, setPendingSales] = useState<Sale[]>([])
+  const [bans, setBans] = useState<{ steamId: string; untilMs: number }[]>([])
+  const [banSteamId, setBanSteamId] = useState("")
+  const [banDays, setBanDays] = useState("7")
+  const [moderationBusy, setModerationBusy] = useState(false)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true)
@@ -289,17 +295,23 @@ export function AdminPanel() {
       }
       setAllowed(true)
       const withdrawUrl = showAllWithdrawals ? "/api/admin/withdrawals?all=1" : "/api/admin/withdrawals"
-      const [ovRes, dispRes, wdRes] = await Promise.all([
+      const [ovRes, dispRes, wdRes, salesRes, modRes] = await Promise.all([
         apiFetch("/api/admin/overview"),
         apiFetch("/api/admin/disputes"),
         apiFetch(withdrawUrl),
+        apiFetch("/api/admin/sales"),
+        apiFetch("/api/admin/moderation"),
       ])
       const ovData = await ovRes.json()
       const dispData = await dispRes.json()
       const wdData = await wdRes.json()
+      const salesData = await salesRes.json()
+      const modData = await modRes.json()
       setOverview(ovData.overview ?? null)
       setDisputes(Array.isArray(dispData.disputes) ? dispData.disputes : [])
       setWithdrawals(Array.isArray(wdData.requests) ? wdData.requests : [])
+      setPendingSales(Array.isArray(salesData.sales) ? salesData.sales : [])
+      setBans(Array.isArray(modData.bans) ? modData.bans : [])
     } finally {
       if (!options?.silent) setLoading(false)
     }
@@ -428,6 +440,124 @@ export function AdminPanel() {
             <ul className="space-y-4">
               {withdrawals.map((req) => (
                 <WithdrawalCard key={req.id} request={req} onResolved={load} />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mb-10">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+            <Truck className="h-4 w-4" />
+            {t("admin.salesTitle")} ({pendingSales.length})
+          </h2>
+          {pendingSales.length === 0 ? (
+            <p className="rounded-xl border border-border bg-card py-12 text-center text-sm text-muted-foreground">
+              {t("admin.noPendingSales")}
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {pendingSales.map((sale) => (
+                <li key={sale.id} className="rounded-xl border border-border bg-card p-4 text-sm">
+                  <p className="font-semibold text-foreground">{sale.itemName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {sale.id} · {formatPrice(sale.priceTry)} · {sale.buyerName} → {sale.sellerName}
+                  </p>
+                  {sale.tradeOfferState ? (
+                    <p className="mt-1 text-xs text-primary">{sale.tradeOfferState}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mb-10">
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+            {t("admin.moderationTitle")} ({bans.length})
+          </h2>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Input
+              value={banSteamId}
+              onChange={(e) => setBanSteamId(e.target.value)}
+              placeholder={t("admin.banSteamId")}
+              className="max-w-xs"
+            />
+            <Input
+              type="number"
+              min={1}
+              value={banDays}
+              onChange={(e) => setBanDays(e.target.value)}
+              placeholder={t("admin.banDays")}
+              className="w-24"
+            />
+            <Button
+              size="sm"
+              disabled={moderationBusy || !banSteamId.trim()}
+              onClick={async () => {
+                setModerationBusy(true)
+                try {
+                  const res = await apiFetch("/api/admin/moderation", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      steamId: banSteamId.trim(),
+                      action: "ban",
+                      days: Number(banDays) || 7,
+                    }),
+                  })
+                  if (!res.ok) toast.error(t("admin.moderationFailed"))
+                  else {
+                    toast.success(t("admin.moderationSuccess"))
+                    setBanSteamId("")
+                    void load({ silent: true })
+                  }
+                } finally {
+                  setModerationBusy(false)
+                }
+              }}
+            >
+              {t("admin.banUser")}
+            </Button>
+          </div>
+          {bans.length === 0 ? (
+            <p className="rounded-xl border border-border bg-card py-12 text-center text-sm text-muted-foreground">
+              {t("admin.noBans")}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {bans.map((ban) => (
+                <li key={ban.steamId} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-foreground">{ban.steamId}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(ban.untilMs).toLocaleString()}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={moderationBusy}
+                    onClick={async () => {
+                      setModerationBusy(true)
+                      try {
+                        const res = await apiFetch("/api/admin/moderation", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ steamId: ban.steamId, action: "unban" }),
+                        })
+                        if (!res.ok) toast.error(t("admin.moderationFailed"))
+                        else {
+                          toast.success(t("admin.moderationSuccess"))
+                          void load({ silent: true })
+                        }
+                      } finally {
+                        setModerationBusy(false)
+                      }
+                    }}
+                  >
+                    {t("admin.unbanUser")}
+                  </Button>
+                </li>
               ))}
             </ul>
           )}

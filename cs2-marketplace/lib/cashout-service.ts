@@ -13,6 +13,7 @@ import {
   getWalletBalances,
 } from "@/lib/wallet-store"
 import { createWithdrawalRequest, getDailyWithdrawnTotal } from "@/lib/withdraw-store"
+import { notifyAdmins } from "@/lib/admin-service"
 
 export type CashoutError =
   | "withdraw_disabled"
@@ -107,6 +108,10 @@ export async function requestCashout(input: CashoutRequestInput): Promise<Cashou
       iban,
       accountHolderName: input.accountHolderName.trim(),
     })
+    await notifyAdmins(
+      `Yeni para çekme talebi: ${amount} TL — ${maskIban(iban)} (${input.steamId})`,
+      { saleId: request.id },
+    )
     return { ok: true, requestId: request.id, maskedIban: maskIban(iban) }
   } catch {
     await creditWallet(input.steamId, amount, "sale_payout", undefined, "Çekim talebi oluşturulamadı — iade")

@@ -93,6 +93,25 @@ async function apiFetch(route, options = {}) {
   return res
 }
 
+async function reportDeposit(sellerId, botAssetId, sellerAssetId) {
+  const res = await apiFetch("/api/internal/trade-bot/deposit-received", {
+    method: "POST",
+    body: JSON.stringify({ sellerId, botAssetId, sellerAssetId }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    console.error(`[trade-bot] deposit-received failed ${sellerId}: ${res.status} ${text}`)
+  }
+}
+
+async function claimDelivery(saleId) {
+  const res = await apiFetch("/api/internal/trade-bot/claim", {
+    method: "POST",
+    body: JSON.stringify({ saleId }),
+  })
+  return res.ok
+}
+
 async function reportOfferSent(saleId, steamOfferId) {
   const res = await apiFetch("/api/internal/trade-bot/offer-sent", {
     method: "POST",
@@ -252,6 +271,10 @@ async function main() {
         await confirmOffer(community, identitySecret, offer.id)
       }
       await acceptOffer(offer)
+      const sellerId = offer.partner.getSteamID64()
+      for (const item of itemsToReceive) {
+        await reportDeposit(sellerId, String(item.assetid), String(item.assetid))
+      }
       console.log(`[trade-bot] Accepted deposit offer ${offer.id} (${itemsToReceive.length} item(s))`)
     } catch (err) {
       console.error(`[trade-bot] Accept deposit failed ${offer.id}:`, err.message)
@@ -281,6 +304,12 @@ async function main() {
       const trade = parseTradeUrl(job.buyerTradeUrl)
       if (!trade) {
         await reportOfferUpdate(job.saleId, "failed", { error: "invalid_trade_url" })
+        continue
+      }
+
+      const claimed = await claimDelivery(job.saleId)
+      if (!claimed) {
+        console.log(`[trade-bot] Skip ${job.saleId} — already claimed or not queueable`)
         continue
       }
 
@@ -335,6 +364,10 @@ async function main() {
             await confirmOffer(community, identitySecret, offer.id)
           }
           await acceptOffer(offer)
+          const sellerId = offer.partner.getSteamID64()
+          for (const item of itemsToReceive) {
+            await reportDeposit(sellerId, String(item.assetid), String(item.assetid))
+          }
           console.log(`[trade-bot] Accepted polled deposit ${offer.id}`)
         }
       } catch (err) {
