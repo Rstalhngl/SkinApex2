@@ -13,6 +13,7 @@ function buildCachedMap(cachedSkins: Skin[], snapshots?: ReadonlyMap<string, Ski
   return map
 }
 
+/** Initial load / forced rebuild — may drop unavailable listings. */
 export function resolveCartItems(
   ids: string[],
   steamId: string | undefined,
@@ -57,4 +58,49 @@ export function resolveCartItems(
   }
 
   return { ids: nextIds, skins: nextSkins, prunedIds }
+}
+
+/**
+ * Live listing sync — refresh prices/images only, never change cart membership.
+ * Returns null when cart should stay exactly as-is.
+ */
+export function refreshCartPrices(
+  ids: string[],
+  steamId: string | undefined,
+  snapshots: ReadonlyMap<string, Skin>,
+): Skin[] | null {
+  if (ids.length === 0) return null
+
+  const activeById = new Map(getActiveListings().map((l) => [l.id, l]))
+  const nextSkins: Skin[] = []
+
+  for (const id of ids) {
+    const active = activeById.get(id)
+    if (active) {
+      const skin = listingToSkin(active)
+      if (isOwnListing(skin, steamId)) return null
+      nextSkins.push(skin)
+      continue
+    }
+
+    const cached = snapshots.get(id)
+    if (!cached) return null
+    nextSkins.push(cached)
+  }
+
+  return nextSkins.length === ids.length ? nextSkins : null
+}
+
+export function cartSkinsChanged(prev: Skin[], next: Skin[]): boolean {
+  if (prev.length !== next.length) return true
+  for (let i = 0; i < next.length; i++) {
+    const a = prev[i]
+    const b = next[i]
+    if (!a || !b) return true
+    if (a.listingId !== b.listingId) return true
+    if (a.price !== b.price) return true
+    if (a.title !== b.title) return true
+    if (a.img !== b.img) return true
+  }
+  return false
 }

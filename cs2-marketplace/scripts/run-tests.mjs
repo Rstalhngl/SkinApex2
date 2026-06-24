@@ -69,11 +69,13 @@ test("admin email subjects avoid generic fallback for known alerts", async () =>
   assert.doesNotMatch(withdraw, /SkinApex admin uyarısı/)
 })
 
-test("cart resolver keeps cached items when listing sync is stale", () => {
+test("cart sync only refreshes prices without reshaping cart", () => {
   const resolverSrc = readFileSync(join(root, "lib/cart-resolver.ts"), "utf8")
   const providerSrc = readFileSync(join(root, "components/market-provider.tsx"), "utf8")
-  assert.match(resolverSrc, /snapshots\?: ReadonlyMap/)
-  assert.match(resolverSrc, /cachedByListingId\.get\(id\)/)
-  assert.match(providerSrc, /cartSnapshotsRef/)
-  assert.match(providerSrc, /resolved\.prunedIds\.length === 0/)
+  const persistBlock = providerSrc.split("const persistCartIds")[1]?.split("}, [isLoggedIn]")[0] ?? ""
+  assert.match(resolverSrc, /export function refreshCartPrices/)
+  assert.match(resolverSrc, /cartSkinsChanged/)
+  assert.match(providerSrc, /syncCartPrices/)
+  assert.doesNotMatch(providerSrc, /hydrateCart\(undefined/)
+  assert.doesNotMatch(persistBlock, /cartListingIdsRef\.current = ids/)
 })
