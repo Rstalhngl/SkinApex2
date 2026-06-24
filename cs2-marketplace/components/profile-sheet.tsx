@@ -29,16 +29,38 @@ import { useI18n } from "@/lib/i18n"
 import { OrdersPanel } from "@/components/orders-panel"
 import { formatPrice, steamProfileUrl } from "@/lib/skins"
 import { listingErrorMessage } from "@/lib/listing-errors"
-import { fetchWalletData, type WalletTransaction } from "@/lib/user-data-client"
+import { fetchWalletData, fetchWithdrawals, type WalletTransaction, type WithdrawalRecord, type WithdrawalStatus } from "@/lib/user-data-client"
 import type { InventoryItem } from "@/lib/inventory-types"
 import { cn } from "@/lib/utils"
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
 
+function maskIban(iban: string): string {
+  const clean = iban.replace(/\s/g, "").toUpperCase()
+  if (clean.length < 8) return "****"
+  return `${clean.slice(0, 4)} •••• •••• •••• ${clean.slice(-4)}`
+}
+
+function formatWithdrawDate(ts: number): string {
+  return new Date(ts).toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+const WITHDRAW_STATUS_CLASS: Record<WithdrawalStatus, string> = {
+  pending: "bg-amber-500/15 text-amber-400",
+  processing: "bg-primary/15 text-primary",
+  completed: "bg-success/15 text-success",
+  rejected: "bg-destructive/15 text-destructive",
+}
+
 function ProfileTab() {
   const { t } = useI18n()
   const { steamProfile, wallet, withdrawableBalance, isLoggedIn, balanceHidden, toggleBalanceHidden } = useMarket()
   const [transactions, setTransactions] = useState<WalletTransaction[]>([])
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([])
 
   const withdrawable = Math.max(0, Math.round(withdrawableBalance * 100) / 100)
   const deposited = Math.max(0, Math.round((wallet - withdrawable) * 100) / 100)
@@ -49,6 +71,7 @@ function ProfileTab() {
     void fetchWalletData().then((data) => {
       if (data) setTransactions(data.transactions.slice(0, 5))
     })
+    void fetchWithdrawals(10).then(setWithdrawals)
   }, [isLoggedIn, wallet])
 
   if (!isLoggedIn || !steamProfile) return null
@@ -118,6 +141,35 @@ function ProfileTab() {
                 <span className={cn("font-semibold", tx.amount >= 0 ? "text-success" : "text-destructive")}>
                   {tx.amount >= 0 ? "+" : ""}{formatPrice(Math.abs(tx.amount))}
                 </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="w-full rounded-xl border border-border bg-input p-4 text-left text-sm">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("wallet.withdrawHistory")}</p>
+        {withdrawals.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{t("wallet.noWithdrawals")}</p>
+        ) : (
+          <ul className="space-y-2">
+            {withdrawals.map((wd) => (
+              <li key={wd.id} className="rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 text-left">
+                    <p className="text-[11px] text-muted-foreground">{formatWithdrawDate(wd.createdAt)}</p>
+                    <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">{maskIban(wd.iban)}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-xs font-semibold text-foreground">−{mask(wd.amount)}</p>
+                    <span className={cn("mt-1 inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase", WITHDRAW_STATUS_CLASS[wd.status])}>
+                      {t(`withdraw.status.${wd.status}`)}
+                    </span>
+                  </div>
+                </div>
+                {wd.status === "rejected" && wd.rejectReason && (
+                  <p className="mt-1.5 text-[10px] text-destructive">{wd.rejectReason}</p>
+                )}
               </li>
             ))}
           </ul>

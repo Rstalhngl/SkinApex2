@@ -134,3 +134,35 @@ export async function requestCashout(input: {
     return { ok: false, error: "server_error" }
   }
 }
+
+export type WithdrawalStatus = "pending" | "processing" | "completed" | "rejected"
+
+export interface WithdrawalRecord {
+  id: string
+  amount: number
+  iban: string
+  status: WithdrawalStatus
+  createdAt: number
+  processedAt?: number
+  rejectReason?: string
+}
+
+export async function fetchWithdrawals(limit = 10): Promise<WithdrawalRecord[]> {
+  try {
+    const res = await apiFetch("/api/withdrawals")
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data.requests)) return []
+    return data.requests.slice(0, limit).map((r: WithdrawalRecord) => ({
+      id: r.id,
+      amount: Number(r.amount),
+      iban: String(r.iban ?? ""),
+      status: r.status,
+      createdAt: Number(r.createdAt),
+      processedAt: r.processedAt ? Number(r.processedAt) : undefined,
+      rejectReason: r.rejectReason,
+    }))
+  } catch {
+    return []
+  }
+}
