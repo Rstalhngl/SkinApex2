@@ -72,7 +72,8 @@ test("admin email subjects avoid generic fallback for known alerts", async () =>
 test("cart resolver keeps cached items when listing sync is stale", () => {
   const resolverSrc = readFileSync(join(root, "lib/cart-resolver.ts"), "utf8")
   const providerSrc = readFileSync(join(root, "components/market-provider.tsx"), "utf8")
+  assert.match(resolverSrc, /snapshots\?: ReadonlyMap/)
   assert.match(resolverSrc, /cachedByListingId\.get\(id\)/)
-  assert.match(providerSrc, /resolveCartItems/)
-  assert.match(providerSrc, /cartListingIdsRef/)
+  assert.match(providerSrc, /cartSnapshotsRef/)
+  assert.match(providerSrc, /resolved\.prunedIds\.length === 0/)
 })

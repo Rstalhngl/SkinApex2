@@ -27,7 +27,8 @@ export function CartSheet() {
   const insufficient = cartTotal > wallet
 
   return (
-    <Sheet>
+    <>
+      <Sheet>
       <SheetTrigger asChild>
         <button
           className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-input text-foreground transition-colors hover:border-primary"
@@ -59,8 +60,8 @@ export function CartSheet() {
         ) : (
           <ScrollArea className="flex-1">
             <ul className="divide-y divide-border">
-              {cart.map((item) => (
-                <li key={item.listingId ?? item.id} className="flex items-center gap-3 px-5 py-3">
+              {cart.map((item, index) => (
+                <li key={item.listingId ?? `cart-${index}`} className="flex items-center gap-3 px-5 py-3">
                   <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-md bg-input">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -121,7 +122,8 @@ export function CartSheet() {
           </div>
         </SheetFooter>
       </SheetContent>
+      </Sheet>
       <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} />
-    </Sheet>
+    </>
   )
 }

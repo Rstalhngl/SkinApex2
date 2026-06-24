@@ -16,6 +16,18 @@ function normalizeExterior(raw: string): Exterior {
   return EXTERIOR_MAP[raw] ?? EXTERIOR_MAP[raw.trim()] ?? "FT"
 }
 
+function stableSkinId(listingId: string): number {
+  const suffix = listingId.replace(/^listing-/, "")
+  const parsed = parseInt(suffix, 10)
+  if (Number.isFinite(parsed)) return parsed + 100_000
+
+  let hash = 0
+  for (let i = 0; i < listingId.length; i++) {
+    hash = (hash * 31 + listingId.charCodeAt(i)) >>> 0
+  }
+  return 100_000 + (hash % 900_000)
+}
+
 export function listingToSkin(listing: Listing): Skin & { listingId: string } {
   const exterior = normalizeExterior(listing.exterior)
   const rarityKey = listing.rarity.toLowerCase().replace(/ /g, "_").replace(/-/g, "_")
@@ -35,7 +47,6 @@ export function listingToSkin(listing: Listing): Skin & { listingId: string } {
   const title = nameParts.slice(1).join(" | ").replace(/\s*\([^)]+\)\s*$/, "").trim()
     || (listing.name ?? "").replace(/\s*\([^)]+\)\s*$/, "")
 
-  const numericId = parseInt(listing.id.replace("listing-", ""), 10)
   const hasFloat = itemHasFloat(type, listing.name, listing.marketHashName)
   const { discount, priceUsd, refPriceTry } = computeMarketDiscount(
     listing.priceTry,
@@ -43,7 +54,7 @@ export function listingToSkin(listing: Listing): Skin & { listingId: string } {
   )
 
   return {
-    id: (Number.isFinite(numericId) ? numericId : Date.now()) + 100000,
+    id: stableSkinId(listing.id),
     listingId: listing.id,
     sellerId: listing.sellerId,
     owner: "other",

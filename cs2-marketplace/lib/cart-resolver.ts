@@ -2,16 +2,26 @@ import { getActiveListings, getListings } from "@/lib/listings"
 import { listingToSkin } from "@/lib/listing-to-skin"
 import { isOwnListing, type Skin } from "@/lib/skins"
 
+function buildCachedMap(cachedSkins: Skin[], snapshots?: ReadonlyMap<string, Skin>): Map<string, Skin> {
+  const map = new Map<string, Skin>()
+  for (const skin of cachedSkins) {
+    if (skin.listingId) map.set(skin.listingId, skin)
+  }
+  snapshots?.forEach((skin, listingId) => {
+    if (listingId) map.set(listingId, skin)
+  })
+  return map
+}
+
 export function resolveCartItems(
   ids: string[],
   steamId: string | undefined,
   cachedSkins: Skin[],
+  snapshots?: ReadonlyMap<string, Skin>,
 ): { ids: string[]; skins: Skin[]; prunedIds: string[] } {
   const activeById = new Map(getActiveListings().map((l) => [l.id, l]))
   const allById = new Map(getListings().map((l) => [l.id, l]))
-  const cachedByListingId = new Map(
-    cachedSkins.flatMap((skin) => (skin.listingId ? [[skin.listingId, skin] as const] : [])),
-  )
+  const cachedByListingId = buildCachedMap(cachedSkins, snapshots)
 
   const nextIds: string[] = []
   const nextSkins: Skin[] = []
@@ -43,7 +53,7 @@ export function resolveCartItems(
       continue
     }
 
-    nextIds.push(id)
+    prunedIds.push(id)
   }
 
   return { ids: nextIds, skins: nextSkins, prunedIds }
