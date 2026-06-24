@@ -280,7 +280,7 @@ export function AiChat() {
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 px-3 py-3" style={{ maxHeight: 340 }}>
+          <div ref={scrollRef} className="scrollbar-skinapex flex-1 space-y-3 overflow-y-auto px-3 py-3 pr-2" style={{ maxHeight: 340 }}>
             {messages.map((msg, idx) => (
               <div key={msg.id}>
                 <div className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>

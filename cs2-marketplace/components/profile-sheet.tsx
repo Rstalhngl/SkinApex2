@@ -687,7 +687,7 @@ export function ProfileSheet({ trigger }: { trigger?: React.ReactNode }) {
             <TabsContent value="listings" className="flex-1 overflow-hidden mt-0">
               <ScrollArea className="h-full"><MyListingsTab /></ScrollArea>
             </TabsContent>
-            <TabsContent value="inventory" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            <TabsContent value="inventory" className="scrollbar-skinapex mt-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5">
                 <InventoryTab active={tab === "inventory"} onListClick={handleListClick} />
             </TabsContent>
           </Tabs>

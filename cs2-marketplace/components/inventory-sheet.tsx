@@ -509,32 +509,35 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
           className="flex h-full w-full flex-col gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl"
         >
           {/* Header */}
-          <SheetHeader className="shrink-0 border-b border-border px-5 py-4">
-            <SheetTitle className="flex items-center gap-2 text-foreground">
-              <Package className="h-5 w-5 text-primary" />
-              {t("inventory.title")}
-              {total > 0 && (
-                <span className="text-sm font-normal text-muted-foreground">
-                  ({total})
-                </span>
-              )}
+          <SheetHeader className="shrink-0 border-b border-border px-5 py-4 pr-14">
+            <div className="flex items-center gap-2">
+              <SheetTitle className="flex min-w-0 flex-1 items-center gap-2 text-foreground">
+                <Package className="h-5 w-5 shrink-0 text-primary" />
+                <span className="truncate">{t("inventory.title")}</span>
+                {total > 0 && (
+                  <span className="shrink-0 text-sm font-normal text-muted-foreground">
+                    ({total})
+                  </span>
+                )}
+              </SheetTitle>
               <Button
                 variant="ghost"
                 size="sm"
-                className="ml-auto h-7 px-2 text-xs text-muted-foreground"
+                className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-primary"
                 onClick={handleRefresh}
                 disabled={loading}
+                aria-label={t("inventory.retry")}
               >
-                <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
               </Button>
-            </SheetTitle>
+            </div>
             <SheetDescription className="sr-only">
               {t("inventory.title")}
             </SheetDescription>
           </SheetHeader>
 
           {/* Body */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+          <div className="scrollbar-skinapex min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5">
             {/* Loading spinner */}
             {loading && (
               <div className="flex flex-col items-center justify-center gap-3 py-16">
