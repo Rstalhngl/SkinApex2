@@ -37,18 +37,24 @@ export async function markSaleDelivered(saleId: string): Promise<boolean> {
   }
 }
 
-export async function confirmSaleReceived(saleId: string): Promise<boolean> {
+export type SaleActionResult = "ok" | "seller_not_delivered" | "failed"
+
+export async function confirmSaleReceived(saleId: string): Promise<SaleActionResult> {
   try {
     const res = await apiFetch("/api/sales/confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ saleId }),
     })
-    if (!res.ok) return false
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      if (data.error === "seller_not_delivered") return "seller_not_delivered"
+      return "failed"
+    }
     await syncUserSales()
-    return true
+    return "ok"
   } catch {
-    return false
+    return "failed"
   }
 }
 

@@ -90,11 +90,11 @@ export async function confirmSaleReceived(saleId: string, buyerId: string): Prom
   if (sale.buyerId !== buyerId) return null
   if (sale.status !== "pending_delivery") return null
   if (sale.deliveryDeadline <= Date.now()) return null
+  if (!sale.deliveredAt) return null
 
   const updated: Sale = {
     ...sale,
     status: "delivered",
-    deliveredAt: sale.deliveredAt ?? Date.now(),
     confirmedAt: Date.now(),
   }
   store.sales[idx] = updated

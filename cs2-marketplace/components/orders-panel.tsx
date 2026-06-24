@@ -55,12 +55,16 @@ function DeliveryCountdown({ sale }: { sale: Sale }) {
 
 function PurchaseRow({ sale }: { sale: Sale }) {
   const { t } = useI18n()
-  const canConfirm = sale.status === "pending_delivery" && sale.deliveryDeadline > Date.now()
-  const canDispute = sale.status === "pending_delivery" && sale.deliveryDeadline > Date.now()
+  const active = sale.status === "pending_delivery" && sale.deliveryDeadline > Date.now()
+  const sellerDelivered = !!sale.deliveredAt
+  const canConfirm = active && sellerDelivered
+  const canDispute = active
+  const awaitingSeller = active && !sellerDelivered
 
   const handleConfirm = async () => {
-    const ok = await confirmSaleReceived(sale.id)
-    if (ok) toast.success(t("orders.confirmed"))
+    const result = await confirmSaleReceived(sale.id)
+    if (result === "ok") toast.success(t("orders.confirmed"))
+    else if (result === "seller_not_delivered") toast.error(t("orders.sellerNotDeliveredYet"))
     else toast.error(t("orders.actionFailed"))
   }
 
@@ -91,6 +95,16 @@ function PurchaseRow({ sale }: { sale: Sale }) {
           {saleStatusLabel(sale.status, t)}
         </p>
         <DeliveryCountdown sale={sale} />
+        {awaitingSeller && (
+          <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
+            {t("orders.awaitingSellerDelivery")}
+          </p>
+        )}
+        {canConfirm && (
+          <p className="mt-1 text-[10px] font-semibold text-primary">
+            {t("orders.sellerMarkedDelivered")}
+          </p>
+        )}
         {(canConfirm || canDispute) && (
           <div className="mt-1.5 flex gap-1.5">
             {canConfirm && (
