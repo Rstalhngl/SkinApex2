@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage (sunucuda proje klasöründen):
-#   pnpm ship                          → main
-#   pnpm ship saved-filters             → cursor/saved-filters-13b8
-#   pnpm ship cursor/saved-filters-13b8
+# Sunucuda kısayol (önerilen):
+#   alias sx='cd ~/skinapex/cs2-marketplace/cs2-marketplace && bash scripts/deploy.sh saved-filters'
+#
+# Veya: pnpm ship saved-filters
 
 ARG="${1:-main}"
 if [[ "$ARG" == main ]]; then
@@ -23,23 +23,15 @@ git fetch origin
 git checkout "$BRANCH"
 git pull origin "$BRANCH"
 
-# Node 20 + pnpm 11 = crash. corepack often keeps pnpm 11 — force pnpm 9.
-corepack disable 2>/dev/null || true
-npm install -g pnpm@9.15.9 --silent
-hash -r 2>/dev/null || true
+# PATH'teki pnpm 11 / corepack karışmasın — her zaman pnpm 9
+pnpm() {
+  npx --yes pnpm@9.15.9 "$@"
+}
 
-PNPM_BIN="$(command -v pnpm)"
-PNPM_VER="$("$PNPM_BIN" --version)"
-echo "pnpm $PNPM_VER ($PNPM_BIN)"
+echo "pnpm $(pnpm --version) (npx pnpm@9.15.9)"
 
-if [[ "${PNPM_VER%%.*}" -ge 10 ]]; then
-  echo "Hata: hâlâ pnpm $PNPM_VER — Node $(node -v) için pnpm 9 gerekli."
-  echo "Çalıştır: corepack disable && npm install -g pnpm@9.15.9 && hash -r"
-  exit 1
-fi
-
-"$PNPM_BIN" install
+pnpm install
 rm -rf .next
-"$PNPM_BIN" build
+pnpm build
 pm2 restart all
 echo "✓ bitti — Ctrl+Shift+R"
