@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Gavel, RefreshCw, Shield } from "lucide-react"
+import { ArrowLeft, Banknote, Gavel, RefreshCw, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { apiFetch } from "@/lib/api-client"
@@ -12,6 +12,7 @@ import { useMarket } from "@/components/market-provider"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import type { WithdrawalStatus } from "@/lib/withdraw-store"
 
 interface Overview {
   totalSales: number
@@ -23,6 +24,26 @@ interface Overview {
   activeListings: number
   activeUsers: number
   wsConnections: number
+  openWithdrawals: number
+}
+
+interface AdminWithdrawal {
+  id: string
+  steamId: string
+  amount: number
+  iban: string
+  accountHolderName: string
+  status: WithdrawalStatus
+  createdAt: number
+  processedAt?: number
+  rejectReason?: string
+}
+
+const WITHDRAW_STATUS_CLASS: Record<WithdrawalStatus, string> = {
+  pending: "bg-amber-500/15 text-amber-400",
+  processing: "bg-primary/15 text-primary",
+  completed: "bg-success/15 text-success",
+  rejected: "bg-destructive/15 text-destructive",
 }
 
 function StatCard({
@@ -145,6 +166,108 @@ function DisputeCard({
   )
 }
 
+function WithdrawalCard({
+  request,
+  onResolved,
+}: {
+  request: AdminWithdrawal
+  onResolved: () => void
+}) {
+  const { t } = useI18n()
+  const [rejectReason, setRejectReason] = useState("")
+  const [busy, setBusy] = useState(false)
+  const isOpen = request.status === "pending" || request.status === "processing"
+
+  const resolve = async (action: "processing" | "complete" | "reject") => {
+    setBusy(true)
+    try {
+      const res = await apiFetch("/api/admin/withdrawals/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: request.id,
+          action,
+          rejectReason: action === "reject" ? rejectReason.trim() || undefined : undefined,
+        }),
+      })
+      if (!res.ok) {
+        toast.error(t("admin.withdrawResolveFailed"))
+        return
+      }
+      toast.success(t("admin.withdrawResolveSuccess"))
+      onResolved()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <li className="rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold text-foreground">{formatPrice(request.amount)}</p>
+            <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase", WITHDRAW_STATUS_CLASS[request.status])}>
+              {t(`withdraw.status.${request.status}`)}
+            </span>
+          </div>
+          <p className="mt-1 font-mono text-xs text-foreground">{request.iban}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {request.accountHolderName} · Steam {request.steamId}
+          </p>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {request.id} · {new Date(request.createdAt).toLocaleString("tr-TR")}
+          </p>
+          {request.rejectReason && (
+            <p className="mt-1 text-[10px] text-destructive">{request.rejectReason}</p>
+          )}
+        </div>
+      </div>
+
+      {isOpen && (
+        <>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder={t("admin.withdrawRejectPlaceholder")}
+            className="mt-3 min-h-[52px] border-border bg-input text-sm"
+          />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {request.status === "pending" && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                className="border-primary text-primary"
+                onClick={() => resolve("processing")}
+              >
+                {t("admin.withdrawProcessing")}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              disabled={busy}
+              className="bg-success text-white hover:bg-success/90"
+              onClick={() => resolve("complete")}
+            >
+              {t("admin.withdrawComplete")}
+            </Button>
+            <Button
+              size="sm"
+              disabled={busy}
+              variant="outline"
+              className="border-destructive text-destructive hover:bg-destructive/10"
+              onClick={() => resolve("reject")}
+            >
+              {t("admin.withdrawReject")}
+            </Button>
+          </div>
+        </>
+      )}
+    </li>
+  )
+}
+
 export function AdminPanel() {
   const { t } = useI18n()
   const { isLoggedIn } = useMarket()
@@ -152,6 +275,8 @@ export function AdminPanel() {
   const [allowed, setAllowed] = useState(false)
   const [overview, setOverview] = useState<Overview | null>(null)
   const [disputes, setDisputes] = useState<Sale[]>([])
+  const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([])
+  const [showAllWithdrawals, setShowAllWithdrawals] = useState(false)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true)
@@ -163,18 +288,22 @@ export function AdminPanel() {
         return
       }
       setAllowed(true)
-      const [ovRes, dispRes] = await Promise.all([
+      const withdrawUrl = showAllWithdrawals ? "/api/admin/withdrawals?all=1" : "/api/admin/withdrawals"
+      const [ovRes, dispRes, wdRes] = await Promise.all([
         apiFetch("/api/admin/overview"),
         apiFetch("/api/admin/disputes"),
+        apiFetch(withdrawUrl),
       ])
       const ovData = await ovRes.json()
       const dispData = await dispRes.json()
+      const wdData = await wdRes.json()
       setOverview(ovData.overview ?? null)
       setDisputes(Array.isArray(dispData.disputes) ? dispData.disputes : [])
+      setWithdrawals(Array.isArray(wdData.requests) ? wdData.requests : [])
     } finally {
       if (!options?.silent) setLoading(false)
     }
-  }, [])
+  }, [showAllWithdrawals])
 
   useEffect(() => {
     if (isLoggedIn) void load()
@@ -189,6 +318,10 @@ export function AdminPanel() {
     const interval = setInterval(() => void load({ silent: true }), 30_000)
     return () => clearInterval(interval)
   }, [allowed, load])
+
+  useEffect(() => {
+    if (allowed) void load({ silent: true })
+  }, [showAllWithdrawals, allowed, load])
 
   if (loading) {
     return (
@@ -258,6 +391,11 @@ export function AdminPanel() {
               accent="text-success"
               hint={t("admin.stat.activeUsersDetail", { ws: overview.wsConnections })}
             />
+            <StatCard
+              label={t("admin.stat.openWithdrawals")}
+              value={overview.openWithdrawals}
+              accent="text-amber-400"
+            />
             <StatCard label={t("admin.stat.total")} value={overview.totalSales} />
             <StatCard label={t("admin.stat.pending")} value={overview.pendingDelivery} accent="text-yellow-400" />
             <StatCard label={t("admin.stat.disputed")} value={overview.disputed} accent="text-primary" />
@@ -266,6 +404,34 @@ export function AdminPanel() {
             <StatCard label={t("admin.stat.resolved")} value={overview.resolved} />
           </div>
         )}
+
+        <section className="mb-10">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+              <Banknote className="h-4 w-4" />
+              {t("admin.withdrawalsTitle")} ({withdrawals.length})
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => setShowAllWithdrawals((v) => !v)}
+            >
+              {showAllWithdrawals ? t("admin.withdrawalsOpenOnly") : t("admin.withdrawalsShowAll")}
+            </Button>
+          </div>
+          {withdrawals.length === 0 ? (
+            <p className="rounded-xl border border-border bg-card py-12 text-center text-sm text-muted-foreground">
+              {t("admin.noWithdrawals")}
+            </p>
+          ) : (
+            <ul className="space-y-4">
+              {withdrawals.map((req) => (
+                <WithdrawalCard key={req.id} request={req} onResolved={load} />
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section>
           <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-muted-foreground">

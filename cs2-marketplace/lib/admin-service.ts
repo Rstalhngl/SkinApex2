@@ -1,5 +1,6 @@
 import type { Sale, SaleResolution } from "@/lib/sale-types"
 import { getAdminSteamIds } from "@/lib/admin-auth"
+import { LISTING_BAN_MS } from "@/lib/app-config"
 import { addUserNotification } from "@/lib/notifications-store"
 import { creditWallet } from "@/lib/wallet-store"
 import { payoutDeliveredSale } from "@/lib/purchase-service"
@@ -9,6 +10,12 @@ import { publishUserChannel } from "@/lib/ws-publish"
 import { getActiveUserStats } from "@/lib/active-users"
 import { getActiveListingsFromStore } from "@/lib/listings-store"
 import { setListingBan } from "@/lib/moderation-store"
+import {
+  countOpenWithdrawals,
+  getWithdrawalById,
+  updateWithdrawalStatus,
+  type WithdrawalRequest,
+} from "@/lib/withdraw-store"
 
 export async function notifyAdmins(message: string, extra?: { saleId?: string }): Promise<void> {
   for (const steamId of getAdminSteamIds()) {
@@ -17,10 +24,11 @@ export async function notifyAdmins(message: string, extra?: { saleId?: string })
 }
 
 export async function getAdminOverview() {
-  const [store, active, listings] = await Promise.all([
+  const [store, active, listings, openWithdrawals] = await Promise.all([
     readSalesStore(),
     getActiveUserStats(),
     getActiveListingsFromStore(),
+    countOpenWithdrawals(),
   ])
   const sales = store.sales
   return {
@@ -33,6 +41,7 @@ export async function getAdminOverview() {
     activeListings: listings.length,
     activeUsers: active.activeUsers,
     wsConnections: active.wsConnections,
+    openWithdrawals,
   }
 }
 
@@ -96,4 +105,65 @@ export async function resolveDispute(
     publishUserChannel("wallet", sale.buyerId)
   }
   return updated
+}
+
+export type WithdrawResolveAction = "processing" | "complete" | "reject"
+
+export async function resolveWithdrawal(
+  requestId: string,
+  action: WithdrawResolveAction,
+  _adminSteamId: string,
+  rejectReason?: string,
+): Promise<WithdrawalRequest | null> {
+  const req = await getWithdrawalById(requestId)
+  if (!req) return null
+
+  if (action === "processing") {
+    if (req.status !== "pending") return null
+    return updateWithdrawalStatus(requestId, { status: "processing" })
+  }
+
+  if (action === "complete") {
+    if (req.status !== "pending" && req.status !== "processing") return null
+    const updated = await updateWithdrawalStatus(requestId, {
+      status: "completed",
+      processedAt: Date.now(),
+    })
+    await addUserNotification(
+      req.steamId,
+      "item_sold",
+      `Para çekme talebiniz tamamlandı: ${req.amount} TL — ${req.iban}`,
+      { saleId: req.id },
+    )
+    publishUserChannel("wallet", req.steamId)
+    return updated
+  }
+
+  if (action === "reject") {
+    if (req.status !== "pending" && req.status !== "processing") return null
+    const reason = rejectReason?.trim() || "Çekim talebi reddedildi"
+    const credit = await creditWallet(
+      req.steamId,
+      req.amount,
+      "sale_payout",
+      req.id,
+      `Admin: ${reason}`,
+    )
+    if (!credit.ok) return null
+    const updated = await updateWithdrawalStatus(requestId, {
+      status: "rejected",
+      processedAt: Date.now(),
+      rejectReason: reason,
+    })
+    await addUserNotification(
+      req.steamId,
+      "item_sold",
+      `Para çekme talebiniz reddedildi: ${req.amount} TL bakiyenize iade edildi. ${reason}`,
+      { saleId: req.id },
+    )
+    publishUserChannel("wallet", req.steamId)
+    return updated
+  }
+
+  return null
 }

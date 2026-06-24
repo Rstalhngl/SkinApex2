@@ -107,6 +107,160 @@ export async function getWithdrawalsForUser(
   return store.requests.filter((r) => r.steamId === steamId).slice(0, limit)
 }
 
+export async function getWithdrawalsForAdmin(
+  options?: { openOnly?: boolean; limit?: number },
+): Promise<WithdrawalRequest[]> {
+  const limit = options?.limit ?? 50
+  const openOnly = options?.openOnly ?? false
+
+  if (isDbEnabled()) {
+    const sql = openOnly
+      ? `SELECT id, steam_id, amount, iban, account_holder_name, status, created_at, processed_at, reject_reason
+         FROM withdrawal_requests
+         WHERE status IN ('pending', 'processing')
+         ORDER BY created_at ASC LIMIT $1`
+      : `SELECT id, steam_id, amount, iban, account_holder_name, status, created_at, processed_at, reject_reason
+         FROM withdrawal_requests
+         ORDER BY created_at DESC LIMIT $1`
+    const res = await query<{
+      id: string
+      steam_id: string
+      amount: string
+      iban: string
+      account_holder_name: string
+      status: WithdrawalStatus
+      created_at: string
+      processed_at: string | null
+      reject_reason: string | null
+    }>(sql, [limit])
+    return res.rows.map((r) => ({
+      id: r.id,
+      steamId: r.steam_id,
+      amount: Number(r.amount),
+      iban: r.iban,
+      accountHolderName: r.account_holder_name,
+      status: r.status,
+      createdAt: Number(r.created_at),
+      processedAt: r.processed_at ? Number(r.processed_at) : undefined,
+      rejectReason: r.reject_reason ?? undefined,
+    }))
+  }
+
+  const store = await readStoreJson()
+  const list = openOnly
+    ? store.requests
+        .filter((r) => r.status === "pending" || r.status === "processing")
+        .sort((a, b) => a.createdAt - b.createdAt)
+    : [...store.requests].sort((a, b) => b.createdAt - a.createdAt)
+  return list.slice(0, limit)
+}
+
+export async function countOpenWithdrawals(): Promise<number> {
+  if (isDbEnabled()) {
+    const res = await query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM withdrawal_requests WHERE status IN ('pending', 'processing')`,
+    )
+    return Number(res.rows[0]?.count ?? 0)
+  }
+  const store = await readStoreJson()
+  return store.requests.filter((r) => r.status === "pending" || r.status === "processing").length
+}
+
+export async function getWithdrawalById(id: string): Promise<WithdrawalRequest | null> {
+  if (isDbEnabled()) {
+    const res = await query<{
+      id: string
+      steam_id: string
+      amount: string
+      iban: string
+      account_holder_name: string
+      status: WithdrawalStatus
+      created_at: string
+      processed_at: string | null
+      reject_reason: string | null
+    }>(
+      `SELECT id, steam_id, amount, iban, account_holder_name, status, created_at, processed_at, reject_reason
+       FROM withdrawal_requests WHERE id = $1`,
+      [id],
+    )
+    const r = res.rows[0]
+    if (!r) return null
+    return {
+      id: r.id,
+      steamId: r.steam_id,
+      amount: Number(r.amount),
+      iban: r.iban,
+      accountHolderName: r.account_holder_name,
+      status: r.status,
+      createdAt: Number(r.created_at),
+      processedAt: r.processed_at ? Number(r.processed_at) : undefined,
+      rejectReason: r.reject_reason ?? undefined,
+    }
+  }
+
+  const store = await readStoreJson()
+  return store.requests.find((r) => r.id === id) ?? null
+}
+
+export async function updateWithdrawalStatus(
+  id: string,
+  patch: {
+    status: WithdrawalStatus
+    processedAt?: number
+    rejectReason?: string
+  },
+): Promise<WithdrawalRequest | null> {
+  const processedAt = patch.processedAt ?? Date.now()
+
+  if (isDbEnabled()) {
+    const res = await query<{
+      id: string
+      steam_id: string
+      amount: string
+      iban: string
+      account_holder_name: string
+      status: WithdrawalStatus
+      created_at: string
+      processed_at: string | null
+      reject_reason: string | null
+    }>(
+      `UPDATE withdrawal_requests
+       SET status = $2, processed_at = $3, reject_reason = $4
+       WHERE id = $1
+       RETURNING id, steam_id, amount, iban, account_holder_name, status, created_at, processed_at, reject_reason`,
+      [id, patch.status, processedAt, patch.rejectReason ?? null],
+    )
+    const r = res.rows[0]
+    if (!r) return null
+    return {
+      id: r.id,
+      steamId: r.steam_id,
+      amount: Number(r.amount),
+      iban: r.iban,
+      accountHolderName: r.account_holder_name,
+      status: r.status,
+      createdAt: Number(r.created_at),
+      processedAt: r.processed_at ? Number(r.processed_at) : undefined,
+      rejectReason: r.reject_reason ?? undefined,
+    }
+  }
+
+  return withStoreLock("withdrawals", async () => {
+    const store = await readStoreJson()
+    const idx = store.requests.findIndex((r) => r.id === id)
+    if (idx < 0) return null
+    const updated: WithdrawalRequest = {
+      ...store.requests[idx],
+      status: patch.status,
+      processedAt,
+      rejectReason: patch.rejectReason,
+    }
+    store.requests[idx] = updated
+    await writeStoreJson(store)
+    return updated
+  })
+}
+
 export async function getDailyWithdrawnTotal(
   steamId: string,
   dayStartMs: number,
