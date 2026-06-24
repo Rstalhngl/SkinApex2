@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMarket } from "@/components/market-provider"
 import { formatPrice } from "@/lib/skins"
+import { WalletBalance } from "@/components/wallet-balance"
 import { cn } from "@/lib/utils"
 import { LoginGate } from "@/components/login-gate"
 import { useI18n } from "@/lib/i18n"
@@ -94,7 +95,7 @@ export function CartSheet() {
           <div className="w-full space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{t("cart.wallet")}</span>
-              <span className="font-semibold text-foreground">{formatPrice(wallet)}</span>
+              <WalletBalance amount={wallet} className="font-semibold text-foreground" />
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">{t("cart.total")}</span>

@@ -20,7 +20,8 @@ import { OffersSheet } from "@/components/offers-sheet"
 import { OrdersSheet } from "@/components/orders-sheet"
 import { ProfileSheet } from "@/components/profile-sheet"
 import { useMarket } from "@/components/market-provider"
-import { CURRENT_USER, formatPrice, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
+import { CURRENT_USER, steamInventoryUrl, steamProfileUrl } from "@/lib/skins"
+import { WalletBalance } from "@/components/wallet-balance"
 import { LANGS, useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
@@ -165,14 +166,16 @@ export function SiteHeader({
               </span>
               <span className="hidden flex-col items-start leading-tight sm:flex">
                 <span className="text-xs font-semibold text-foreground">{displayName}</span>
-                <span className="text-[11px] font-bold text-success">{formatPrice(wallet)}</span>
+                <span className="text-[11px] font-bold text-success">
+                  <WalletBalance amount={wallet} stopPropagation className="text-[11px] font-bold text-success" />
+                </span>
               </span>
               <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 border-border bg-card">
               <div className="px-2 py-1.5 sm:hidden">
                 <p className="text-sm font-semibold text-foreground">{displayName}</p>
-                <p className="text-xs font-bold text-success">{formatPrice(wallet)}</p>
+                <WalletBalance amount={wallet} className="text-xs font-bold text-success" />
               </div>
               <DropdownMenuSeparator className="bg-border sm:hidden" />
               <ProfileSheet trigger={
