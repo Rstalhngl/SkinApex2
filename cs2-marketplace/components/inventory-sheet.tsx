@@ -45,8 +45,8 @@ import { cn } from "@/lib/utils"
 import type { InventoryItem } from "@/lib/inventory-types"
 
 type ApiResponse =
-  | { items: InventoryItem[]; total: number; error?: undefined }
-  | { items: []; error: string }
+  | { items: InventoryItem[]; total: number; error?: undefined; listingsClosed?: number }
+  | { items: []; error: string; listingsClosed?: number }
 
 const COMMISSION = 0.07
 const STEAM_IMG_BASE = "https://community.akamai.steamstatic.com/economy/image/"
@@ -416,6 +416,9 @@ export function InventorySheet({ trigger }: InventorySheetProps) {
         )
         setInventoryItems([])
         setTotal(0)
+        if (data.listingsClosed && data.listingsClosed > 0) {
+          toast.info(t("listings.closedPrivate", { count: data.listingsClosed }))
+        }
       } else {
         // Defensively filter out any malformed items
         const safe = (data.items ?? []).filter(

@@ -89,3 +89,18 @@ export async function getActiveListingsFromStore(): Promise<Listing[]> {
   const store = await readListingsStore()
   return store.listings.filter((l) => l.status === "active")
 }
+
+/** Cancel all active listings when seller inventory becomes private. */
+export async function cancelActiveListingsForSeller(sellerId: string): Promise<number> {
+  const store = await readListingsStore()
+  let count = 0
+  store.listings = store.listings.map((listing) => {
+    if (listing.sellerId === sellerId && listing.status === "active") {
+      count++
+      return { ...listing, status: "cancelled" }
+    }
+    return listing
+  })
+  if (count > 0) await writeListingsStore(store)
+  return count
+}

@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server"
 import zlib from "zlib"
 import { promisify } from "util"
 import { cacheUserAssetIds } from "@/lib/steam-inventory"
+import { cancelActiveListingsForSeller } from "@/lib/listings-store"
+import { publishListingsChanged } from "@/lib/ws-publish"
 import { isSession, requireSession } from "@/lib/api-auth"
 
 const gunzip = promisify(zlib.gunzip)
@@ -210,7 +212,11 @@ export async function GET(request: NextRequest) {
 
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (msg === "private") return NextResponse.json({ error: "private", items: [] })
+    if (msg === "private") {
+      const listingsClosed = await cancelActiveListingsForSeller(steamId)
+      if (listingsClosed > 0) publishListingsChanged()
+      return NextResponse.json({ error: "private", items: [], listingsClosed })
+    }
     if (msg.startsWith("steam_")) return NextResponse.json({ error: msg, items: [] })
     if (msg.includes("TimeoutError") || msg.includes("aborted")) {
       return NextResponse.json({ error: "timeout", items: [] })
