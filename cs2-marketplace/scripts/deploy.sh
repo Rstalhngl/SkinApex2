@@ -31,6 +31,10 @@ pnpm() {
 echo "pnpm $(pnpm --version) (npx pnpm@9.15.9)"
 
 pnpm install
+
+echo "→ production preflight"
+NODE_ENV=production node scripts/check-production.mjs
+
 rm -rf .next
 pnpm build
 pm2 restart all

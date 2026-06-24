@@ -49,6 +49,97 @@ export function requireDatabaseInProduction(): void {
   }
 }
 
+export type ProductionCheckStatus = "ok" | "missing" | "warning"
+
+export interface ProductionCheckItem {
+  id: string
+  status: ProductionCheckStatus
+  message: string
+}
+
+/** Non-secret production readiness checks for health UI and deploy scripts. */
+export function getProductionChecklist(): ProductionCheckItem[] {
+  const isProd = process.env.NODE_ENV === "production"
+  const items: ProductionCheckItem[] = []
+
+  items.push({
+    id: "database",
+    status: isDbEnabled() ? "ok" : isProd ? "missing" : "warning",
+    message: isDbEnabled()
+      ? "PostgreSQL configured"
+      : isProd
+        ? "DATABASE_URL is required in production"
+        : "Using JSON file storage (dev only)",
+  })
+
+  items.push({
+    id: "sessionSecret",
+    status: process.env.SESSION_SECRET?.trim()
+      ? "ok"
+      : isProd
+        ? "missing"
+        : "warning",
+    message: process.env.SESSION_SECRET?.trim()
+      ? "SESSION_SECRET set"
+      : isProd
+        ? "SESSION_SECRET is required in production"
+        : "Using dev session secret",
+  })
+
+  const authOrigins = getAllowedAuthOrigins()
+  items.push({
+    id: "authOrigins",
+    status: authOrigins.length > 0 ? "ok" : isProd ? "missing" : "warning",
+    message: authOrigins.length > 0
+      ? `Auth origins: ${authOrigins.join(", ")}`
+      : isProd
+        ? "Set ALLOWED_AUTH_ORIGINS or NEXT_PUBLIC_BASE_URL"
+        : "Auth origins not restricted (dev)",
+  })
+
+  items.push({
+    id: "cron",
+    status: getCronSecret() ? "ok" : "warning",
+    message: getCronSecret()
+      ? "Expire-sales cron secret configured"
+      : "CRON_SECRET not set — stale sales will not auto-expire",
+  })
+
+  const wsKey = process.env.WS_API_KEY?.trim()
+  const wsPublic = process.env.NEXT_PUBLIC_WS_URL?.trim()
+  items.push({
+    id: "websocket",
+    status: wsKey && wsPublic ? "ok" : wsKey || wsPublic ? "warning" : "warning",
+    message: wsKey && wsPublic
+      ? "WebSocket live sync configured"
+      : "WS_API_KEY and/or NEXT_PUBLIC_WS_URL missing — falls back to polling",
+  })
+
+  items.push({
+    id: "admin",
+    status: process.env.ADMIN_STEAM_IDS?.trim() ? "ok" : "warning",
+    message: process.env.ADMIN_STEAM_IDS?.trim()
+      ? "Admin Steam IDs configured"
+      : "ADMIN_STEAM_IDS not set — admin panel inaccessible",
+  })
+
+  return items
+}
+
+/** Throws on hard production misconfiguration. Call at server startup. */
+export function validateProductionConfig(): void {
+  requireDatabaseInProduction()
+  getSessionSecret()
+
+  if (process.env.NODE_ENV !== "production") return
+
+  const hardFailures = getProductionChecklist().filter((c) => c.status === "missing")
+  if (hardFailures.length === 0) return
+
+  const lines = hardFailures.map((c) => `- ${c.id}: ${c.message}`)
+  throw new Error(`Production configuration invalid:\n${lines.join("\n")}`)
+}
+
 export function getAllowedAuthOrigins(): string[] {
   const raw = process.env.ALLOWED_AUTH_ORIGINS ?? process.env.NEXT_PUBLIC_BASE_URL ?? ""
   return raw
