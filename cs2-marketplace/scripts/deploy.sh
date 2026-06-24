@@ -23,16 +23,23 @@ git fetch origin
 git checkout "$BRANCH"
 git pull origin "$BRANCH"
 
-# pnpm 11+ needs Node 22; pin pnpm 9 for Node 20 servers
-if command -v corepack >/dev/null 2>&1; then
-  corepack enable
-  corepack prepare pnpm@9.15.9 --activate
-else
-  npm install -g pnpm@9.15.9
+# Node 20 + pnpm 11 = crash. corepack often keeps pnpm 11 — force pnpm 9.
+corepack disable 2>/dev/null || true
+npm install -g pnpm@9.15.9 --silent
+hash -r 2>/dev/null || true
+
+PNPM_BIN="$(command -v pnpm)"
+PNPM_VER="$("$PNPM_BIN" --version)"
+echo "pnpm $PNPM_VER ($PNPM_BIN)"
+
+if [[ "${PNPM_VER%%.*}" -ge 10 ]]; then
+  echo "Hata: hâlâ pnpm $PNPM_VER — Node $(node -v) için pnpm 9 gerekli."
+  echo "Çalıştır: corepack disable && npm install -g pnpm@9.15.9 && hash -r"
+  exit 1
 fi
 
-pnpm install
+"$PNPM_BIN" install
 rm -rf .next
-pnpm build
+"$PNPM_BIN" build
 pm2 restart all
 echo "✓ bitti — Ctrl+Shift+R"
