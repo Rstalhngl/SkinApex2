@@ -52,7 +52,7 @@ const RULES: { patterns: RegExp[]; answer: string }[] = [
   // How to buy
   {
     patterns: [/nasıl.*satın|satın.*nasıl|nasıl.*al[ıi]r|ürün.*al/i],
-    answer: "Bir ürünü satın almak için:\n1. Ürünün üzerine gelin → **Sepete Ekle**'ye tıklayın\n2. Sağ üstteki sepet simgesine tıklayın\n3. **Güvenli Ödeme** butonuna basın\n4. Ödeme tamamlandıktan sonra ürün 8 günlük emanete girer.",
+    answer: "Bir ürünü satın almak için:\n1. Ürünün üzerine gelin → **Sepete Ekle**'ye tıklayın\n2. Sağ üstteki sepet simgesine tıklayın\n3. **Güvenli Ödeme** butonuna basın\n4. Satıcı **2 saat içinde** Steam'den ürünü teslim etmelidir",
   },
 
   // Offer / Teklif
@@ -70,18 +70,18 @@ const RULES: { patterns: RegExp[]; answer: string }[] = [
   // Orders / Escrow
   {
     patterns: [/sipari[sş]|order|satın.*aldıklar/i],
-    answer: "Siparişlerinizi görmek için **profil menüsü → Siparişlerim**'e gidin. Satın aldığınız ürünler 8 günlük emanet sürecine girer. Bu sürede sorun yaşarsanız 'Destek Talebi' açabilirsiniz.",
+    answer: "Siparişlerinizi görmek için **profil menüsü → Siparişlerim**'e gidin. Satıcıların **2 saat** içinde teslim etmesi gerekir. Sorun yaşarsanız 'Destek Talebi' açabilirsiniz.",
   },
 
   {
-    patterns: [/emanet|escrow|8.*gün|para.*ne zaman.*geç|güvende mi/i],
-    answer: "Ödemeniz satın alma sonrası **8 gün emanette** tutulur. Bu süre içinde:\n• Ürün sorunsuz teslim edilirse → para satıcıya aktarılır\n• Sorun yaşarsanız → **Siparişlerim** ekranından destek talebi açın\n• Satıcı ürünü geri çekerse → para iade edilir, satıcı 1 hafta ilan açamaz.",
+    patterns: [/emanet|escrow|8.*gün|para.*ne zaman.*geç|güvende mi|teslimat.*süre/i],
+    answer: "Satın alma sonrası satıcının **2 saat** içinde Steam takası ile teslim etmesi gerekir.\n• Teslim edilirse → para satıcıya aktarılır\n• Sorun yaşarsanız → **Siparişlerim**'den destek talebi açın\n• Süre dolarsa → alıcıya otomatik iade yapılır",
   },
 
   // Deposit / Bakiye yükleme
   {
     patterns: [/bakiye.*yükle|para.*yükle|depozit|ödeme.*yap|yükleme/i],
-    answer: "Bakiye yüklemek için **profil menüsü → Bakiye Yükle**'ye tıklayın. ₺1.000, ₺5.000, ₺10.000, ₺20.000 seçenekleri veya istediğiniz tutarı girebilirsiniz. Visa, Mastercard ve Havale ile ödeme yapılabilir.",
+    answer: "Bakiye yükleme şu an ödeme entegrasyonu bekliyor. Canlıya alındığında **profil menüsü → Bakiye Yükle** üzerinden yapılacaktır.",
   },
 
   // Withdraw / Para çekme
@@ -165,13 +165,13 @@ const RULES: { patterns: RegExp[]; answer: string }[] = [
   // What is SkinApex
   {
     patterns: [/skinapex.*ne|site.*ne|nedir.*skinapex|hakkında/i],
-    answer: "**SkinApex**, Counter-Strike 2 (CS2) oyunundaki silah kaplamalarını (skin) güvenli şekilde alıp satmanıza olanak tanıyan bir Türk marketplace platformudur. Steam ile güvenli giriş, anlık piyasa fiyatları ve 8 günlük emanet sistemi sunar.",
+    answer: "**SkinApex**, Counter-Strike 2 (CS2) skinlerini alıp satmanıza olanak tanıyan bir Türk marketplace platformudur. Steam ile güvenli giriş, canlı fiyatlar ve 2 saatlik teslimat süresi sunar.",
   },
 
   // How does escrow work  
   {
     patterns: [/güvenli mi|dolandırıcılık|güvence|siteniz güvenli/i],
-    answer: "SkinApex, işlemleri güvence altına almak için **8 günlük emanet sistemi** kullanır. Para satın alma anında satıcıya geçmez; sorunsuz teslim onaylanırsa aktarılır. Steam OpenID ile giriş yapılır, şifreniz bizimle paylaşılmaz.",
+    answer: "SkinApex'te satıcıların **2 saat** içinde Steam takası ile teslim etmesi gerekir. Sorun olursa destek talebi açılır; admin incelemesi yapılır. Steam OpenID ile giriş yapılır, şifreniz bizimle paylaşılmaz.",
   },
 ]
 
@@ -280,7 +280,7 @@ export function AiChat() {
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 px-3 py-3" style={{ maxHeight: 340 }}>
+          <div ref={scrollRef} className="scrollbar-skinapex flex-1 space-y-3 overflow-y-auto px-3 py-3 pr-2" style={{ maxHeight: 340 }}>
             {messages.map((msg, idx) => (
               <div key={msg.id}>
                 <div className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>

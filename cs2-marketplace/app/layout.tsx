@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import { AnalyticsLoader } from '@/components/analytics-loader'
 import { CookieBanner } from '@/components/cookie-banner'
 import { AiChat } from '@/components/ai-chat'
 import { RadixPointerFix } from '@/components/radix-pointer-fix'
@@ -11,17 +11,36 @@ import './globals.css'
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
+const siteUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://skinapex.net"
+
 export const metadata: Metadata = {
-  title: 'SkinApex — Global CS2 Skin Marketplace',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "SkinApex — Global CS2 Skin Marketplace",
+    template: "%s — SkinApex",
+  },
   description:
-    'Buy, sell and trade CS2 skins instantly with secure P2P escrow. Live market prices, float inspection, StatTrak™ and Souvenir items.',
-  generator: 'v0.app',
+    "Buy, sell and trade CS2 skins instantly with secure P2P escrow. Live market prices, float inspection, StatTrak™ and Souvenir items.",
+  openGraph: {
+    type: "website",
+    locale: "tr_TR",
+    url: siteUrl,
+    siteName: "SkinApex",
+    title: "SkinApex — Global CS2 Skin Marketplace",
+    description:
+      "Buy, sell and trade CS2 skins instantly with secure P2P escrow.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SkinApex — Global CS2 Skin Marketplace",
+    description:
+      "Buy, sell and trade CS2 skins instantly with secure P2P escrow.",
+  },
+  robots: { index: true, follow: true },
+  alternates: { canonical: siteUrl },
+  generator: "SkinApex",
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: '32x32' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
-    ],
-    apple: '/apple-icon.png',
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
 }
 
@@ -31,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background" suppressHydrationWarning>
+    <html lang="tr" className="bg-background" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           {children}
@@ -40,7 +59,7 @@ export default function RootLayout({
           <AiChat />
           <RadixPointerFix />
         </ThemeProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === 'production' && <AnalyticsLoader />}
         <script dangerouslySetInnerHTML={{ __html: `
   const observer = new MutationObserver(() => {
     document.body.style.pointerEvents = "auto";

@@ -1,13 +1,22 @@
 import type { InventoryItem } from "@/lib/inventory-types"
+import {
+  itemHasFloat, parseAssetWear, resolveItemPhase,
+} from "@/lib/item-wear"
+import { resolveItemType } from "@/lib/skins"
 import { NextRequest, NextResponse } from "next/server"
 import zlib from "zlib"
 import { promisify } from "util"
+import { cacheUserAssetIds } from "@/lib/steam-inventory"
+import { cancelActiveListingsForSeller } from "@/lib/listings-store"
+import { publishListingsChanged } from "@/lib/ws-publish"
+import { isSession, requireSession } from "@/lib/api-auth"
 
 const gunzip = promisify(zlib.gunzip)
 const inflate = promisify(zlib.inflate)
 
 const STEAM_IMG = "https://community.akamai.steamstatic.com/economy/image/"
 const PAGE_SIZE = 2000  // Steam's maximum per request
+const STEAM_FETCH_MS = 20_000
 
 interface SteamAsset {
   appid: number
@@ -15,6 +24,7 @@ interface SteamAsset {
   instanceid: string
   assetid: string
   amount: string
+  asset_properties?: { propertyid: number; int_value?: string; float_value?: string }[]
 }
 
 interface SteamDescription {
@@ -78,6 +88,7 @@ async function fetchPage(steamId: string, startAssetId?: string): Promise<{
       "Referer": `https://steamcommunity.com/profiles/${steamId}/inventory/`,
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(STEAM_FETCH_MS),
   })
 
   if (res.status === 403 || res.status === 401) throw new Error("private")
@@ -128,7 +139,14 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
 
     const rarity = tags["Rarity"] || tags["Quality"] || ""
     const exterior = tags["Exterior"] || ""
-    const type = tags["Type"] || desc.type || ""
+    const type = resolveItemType(
+      tags["Type"] || desc.type || "",
+      desc.name,
+      desc.market_hash_name,
+    )
+    const hasFloat = itemHasFloat(type, desc.name, desc.market_hash_name)
+    const wear = parseAssetWear(asset.asset_properties)
+    const phase = resolveItemPhase(desc.tags, desc.name, desc.market_hash_name)
 
     items.push({
       assetId: asset.assetid,
@@ -143,6 +161,10 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
       type,
       stattrak: desc.name.includes("StatTrak™"),
       souvenir: desc.name.includes("Souvenir"),
+      hasFloat,
+      float: hasFloat ? wear.float : undefined,
+      patternSeed: hasFloat ? wear.patternSeed : undefined,
+      phase: hasFloat ? phase : undefined,
     })
   }
 
@@ -155,8 +177,14 @@ function parseInventory(assets: SteamAsset[], descriptions: SteamDescription[]):
 }
 
 export async function GET(request: NextRequest) {
+  const session = await requireSession()
+  if (!isSession(session)) return session
+
   const steamId = request.nextUrl.searchParams.get("steamId")
   if (!steamId) return NextResponse.json({ error: "steamId required" }, { status: 400 })
+  if (steamId !== session.steamId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 })
+  }
 
   try {
     // Fetch first page
@@ -179,12 +207,20 @@ export async function GET(request: NextRequest) {
     }
 
     const items = parseInventory(allAssets, allDescriptions)
+    cacheUserAssetIds(steamId, items.map((item) => item.assetId))
     return NextResponse.json({ items, total })
 
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (msg === "private") return NextResponse.json({ error: "private", items: [] })
+    if (msg === "private") {
+      const listingsClosed = await cancelActiveListingsForSeller(steamId)
+      if (listingsClosed > 0) publishListingsChanged()
+      return NextResponse.json({ error: "private", items: [], listingsClosed })
+    }
     if (msg.startsWith("steam_")) return NextResponse.json({ error: msg, items: [] })
+    if (msg.includes("TimeoutError") || msg.includes("aborted")) {
+      return NextResponse.json({ error: "timeout", items: [] })
+    }
     console.error("Inventory fetch error:", e)
     return NextResponse.json({ error: "fetch_failed", items: [] })
   }

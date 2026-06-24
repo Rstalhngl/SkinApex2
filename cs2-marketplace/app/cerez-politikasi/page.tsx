@@ -68,13 +68,14 @@ export default function CerezPolitikasi() {
           <section>
             <h2>3. Zorunlu Çerezlerin Ayrıntısı</h2>
             <ul>
-              <li><strong className="text-foreground">skx_steam_profile</strong> — Steam girişi sonrası kullanıcı profil bilgileri (localStorage)</li>
-              <li><strong className="text-foreground">skx_trade_url</strong> — Kullanıcının kaydettiği Steam takas URL'si (localStorage)</li>
-              <li><strong className="text-foreground">skx_listed_skins</strong> — Kullanıcının satışa çıkardığı ürünler (localStorage)</li>
+              <li><strong className="text-foreground">skx_session</strong> — Oturum çerezi (httpOnly, sunucu tarafı kimlik doğrulama)</li>
               <li><strong className="text-foreground">skx_cs2_v*</strong> — CS2 item listesi önbelleği, 24 saat geçerli (localStorage)</li>
               <li><strong className="text-foreground">skinapex-lang</strong> — Dil tercihi (localStorage)</li>
               <li><strong className="text-foreground">skx_cookie_consent_v1</strong> — Çerez onay kaydı (localStorage)</li>
             </ul>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Cüzdan bakiyesi, sepet, wishlist ve takas URL bilgileri sunucuda güvenli şekilde saklanır.
+            </p>
           </section>
 
           <section>
